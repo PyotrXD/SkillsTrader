@@ -1,9 +1,6 @@
 import { useState } from 'react';
-import PocketBase from 'pocketbase';
+import { pb } from '../pb';
 import './login.css';
-
-const pocketBaseUrl = import.meta.env.VITE_POCKETBASE_URL ?? 'http://127.0.0.1:8090';
-const pb = new PocketBase(pocketBaseUrl);
 
 function getErrorMessage(err: unknown): string {
   if (err instanceof Error && err.message) return err.message;
@@ -19,7 +16,6 @@ export default function Login() {
 
   const logout = () => {
     pb.authStore.clear();
-    window.location.reload();
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {

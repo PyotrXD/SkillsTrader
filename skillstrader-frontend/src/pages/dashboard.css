@@ -1,0 +1,252 @@
+.dashPage {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+}
+
+.dashTopbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(240, 237, 232, 0.72);
+  backdrop-filter: blur(10px);
+}
+
+.dashBrand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.dashBrandMark {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  box-shadow: 0 10px 24px rgba(26, 23, 20, 0.12);
+  flex-shrink: 0;
+}
+
+.dashBrandText {
+  min-width: 0;
+}
+
+.dashBrandName {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.dashBrandMeta {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dashTopbarActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.dashMain {
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 32px 20px 44px;
+  display: grid;
+  gap: 22px;
+}
+
+.dashHero {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow), var(--inset);
+  padding: 26px 26px;
+}
+
+.dashEyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--primary);
+  margin: 0 0 10px;
+}
+
+.dashTitle {
+  font-family: var(--font-display);
+  font-size: clamp(26px, 2.7vw, 36px);
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.dashSub {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.7;
+  max-width: 70ch;
+}
+
+.dashGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+@media (max-width: 980px) {
+  .dashGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .dashGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dashCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 18px 18px;
+  box-shadow: 0 14px 44px rgba(26, 23, 20, 0.08), var(--inset);
+  display: grid;
+  gap: 10px;
+  min-height: 168px;
+}
+
+.dashCardTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.dashCardBody {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.dashCardAction {
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  border: none;
+  border-radius: 13px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, var(--primary), var(--primary2));
+  box-shadow: 0 8px 26px rgba(200, 75, 49, 0.22);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform 150ms ease, filter 150ms ease, opacity 150ms ease;
+}
+
+.dashCardAction:hover:not(:disabled) {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+.dashCardAction:active:not(:disabled) {
+  transform: translateY(1px);
+  filter: none;
+}
+
+.dashCardAction:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.dashButton {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 150ms ease, filter 150ms ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dashButton:hover {
+  filter: brightness(1.02);
+  transform: translateY(-1px);
+}
+
+.dashButton:active {
+  transform: translateY(1px);
+  filter: none;
+}
+
+.dashButtonPrimary {
+  border: none;
+  color: #fff;
+  background: linear-gradient(135deg, var(--primary), var(--primary2));
+  box-shadow: 0 8px 26px rgba(200, 75, 49, 0.18);
+}
+
+.dashLink {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 14px;
+  color: var(--primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.dashCode {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+  background: rgba(26, 23, 20, 0.06);
+  padding: 2px 6px;
+  border-radius: 8px;
+}
+
+.dashCardAccent {
+  background: linear-gradient(180deg, rgba(44, 110, 73, 0.09), var(--surface) 55%);
+  border-color: rgba(44, 110, 73, 0.18);
+}
+
+.dashCardDanger {
+  background: linear-gradient(180deg, rgba(200, 75, 49, 0.09), var(--surface) 55%);
+  border-color: rgba(200, 75, 49, 0.18);
+}
+
+.dashCardMuted {
+  background: var(--surface2);
+}
+

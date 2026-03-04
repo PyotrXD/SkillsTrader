@@ -2,11 +2,18 @@
 pb_data/
 pb_data/**
 
-# React / Node
-frontend/node_modules/
-frontend/dist/
-frontend/.env
-frontend/.env.local
+# Node / Frontend build artifacts
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+
+# Env files (commit a .env.example instead)
+.env
+.env.*
+.env.local
+.env.*.local
+!.env.example
 
 # General
 .DS_Store

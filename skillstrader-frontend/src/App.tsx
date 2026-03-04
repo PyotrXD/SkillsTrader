@@ -3,8 +3,13 @@ import PocketBase from 'pocketbase';
 import './App.css';
 
 // Initialize PocketBase client once (outside component for performance)
-// Use environment variable in production → import.meta.env.VITE_POCKETBASE_URL
-const pb = new PocketBase('http://127.0.0.1:8090'); // ← change to your actual PB URL
+const pocketBaseUrl = import.meta.env.VITE_POCKETBASE_URL ?? 'http://127.0.0.1:8090';
+const pb = new PocketBase(pocketBaseUrl);
+
+function getErrorMessage(err: unknown): string {
+  if (err instanceof Error && err.message) return err.message;
+  return 'Login failed. Please check your credentials.';
+}
 
 function App() {
   const [email, setEmail] = useState('');
@@ -26,18 +31,14 @@ function App() {
       console.log('Logged in successfully!', authData.record);
 
       setSuccess(true);
-      // In a real app → redirect or update global auth context
-      // e.g. navigate('/dashboard') if using react-router-dom
-      // or set global state / context with user info
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message || 'Login failed. Please check your credentials.');
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
   };
 
-  // Optional: show logged-in state (very basic for now)
   if (pb.authStore.isValid) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -101,7 +102,7 @@ function App() {
               onChange={(e) => setPassword(e.target.value)}
               required
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="••••••••"
+              placeholder="********"
             />
           </div>
 
@@ -135,7 +136,7 @@ function App() {
           <a href="#" className="text-blue-600 hover:underline">
             Sign up
           </a>
-          {/* ↑ Later replace with real link / route to register page */}
+          {/* Later replace with real link / route to register page */}
         </p>
       </div>
     </div>

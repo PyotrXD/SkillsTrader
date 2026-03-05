@@ -2,6 +2,11 @@
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
+## Session behavior
+
+- Logged-in users are automatically logged out after **3 hours of inactivity** (no mouse/keyboard/touch activity).
+- When PocketBase is **terminated or restarted**, all existing login tokens are invalidated via `pb_hooks/main.pb.js` (so users must log in again).
+
 Currently, two official plugins are available:
 
 - [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh

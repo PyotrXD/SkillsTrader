@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getUserRole, pb } from './pb';
+import { useSessionGuards } from './useSessionGuards';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 
@@ -15,6 +16,8 @@ function App() {
       if (typeof unsubscribe === 'function') unsubscribe();
     };
   }, []);
+
+  useSessionGuards();
 
   if (!pb.authStore.isValid) return <Login />;
 

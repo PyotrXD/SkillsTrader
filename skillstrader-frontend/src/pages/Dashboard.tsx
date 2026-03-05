@@ -1,4 +1,4 @@
-import { pb, pocketBaseUrl, type UserRole } from '../pb';
+import { logout, pb, pocketBaseUrl, type UserRole } from '../pb';
 import DashboardAdministrator from './DashboardAdministrator';
 import DashboardManager from './DashboardManager';
 import DashboardStaff from './DashboardStaff';
@@ -24,7 +24,7 @@ export default function Dashboard({ role }: Props) {
           </div>
 
           <div className="dashTopbarActions">
-            <button type="button" className="dashButton" onClick={() => pb.authStore.clear()}>
+            <button type="button" className="dashButton" onClick={logout}>
               Log out
             </button>
           </div>

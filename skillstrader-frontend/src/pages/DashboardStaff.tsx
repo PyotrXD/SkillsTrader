@@ -1,4 +1,4 @@
-import { pb } from '../pb';
+import { logout, pb } from '../pb';
 import './dashboard.css';
 
 export default function DashboardStaff() {
@@ -16,7 +16,7 @@ export default function DashboardStaff() {
         </div>
 
         <div className="dashTopbarActions">
-          <button type="button" className="dashButton" onClick={() => pb.authStore.clear()}>
+          <button type="button" className="dashButton" onClick={logout}>
             Log out
           </button>
         </div>
@@ -62,4 +62,3 @@ export default function DashboardStaff() {
     </div>
   );
 }
-

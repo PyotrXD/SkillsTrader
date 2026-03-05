@@ -1,4 +1,4 @@
-import { pb, pocketBaseUrl } from '../pb';
+import { logout, pb, pocketBaseUrl } from '../pb';
 import './dashboard.css';
 
 export default function DashboardAdministrator() {
@@ -24,7 +24,7 @@ export default function DashboardAdministrator() {
           >
             PocketBase Dashboard
           </a>
-          <button type="button" className="dashButton" onClick={() => pb.authStore.clear()}>
+          <button type="button" className="dashButton" onClick={logout}>
             Log out
           </button>
         </div>
@@ -68,4 +68,3 @@ export default function DashboardAdministrator() {
     </div>
   );
 }
-

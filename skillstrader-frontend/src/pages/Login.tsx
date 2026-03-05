@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { pb } from '../pb';
 import './login.css';
 
@@ -8,15 +9,14 @@ function getErrorMessage(err: unknown): string {
 }
 
 export default function Login() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const logout = () => {
-    pb.authStore.clear();
-  };
+  if (pb.authStore.isValid) return <Navigate to="/dashboard" replace />;
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -27,6 +27,7 @@ export default function Login() {
     try {
       await pb.collection('users').authWithPassword(email.trim(), password);
       setSuccess('Signed in successfully!');
+      navigate('/dashboard', { replace: true });
     } catch (err: unknown) {
       setError(getErrorMessage(err));
     } finally {
@@ -81,7 +82,7 @@ export default function Login() {
                 </p>
 
                 <div className="authForm">
-                  <button type="button" className="authPrimaryButton" onClick={logout}>
+                  <button type="button" className="authPrimaryButton" onClick={() => pb.authStore.clear()}>
                     Log out
                   </button>
                 </div>

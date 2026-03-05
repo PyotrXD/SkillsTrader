@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { pb } from './pb';
+import { logout, pb } from './pb';
 
 const INACTIVITY_LIMIT_MS = 3 * 60 * 60 * 1000; // 3 hours
 const AUTH_REFRESH_INTERVAL_MS = 60 * 1000; // 1 minute
@@ -42,14 +42,11 @@ export function useSessionGuards() {
     let inactivityTimeoutId: number | null = null;
     let authRefreshIntervalId: number | null = null;
     let consecutiveAuthRefreshFailures = 0;
-
-    const broadcastLogout = () => {
-      localStorage.setItem(FORCE_LOGOUT_AT_KEY, String(Date.now()));
-    };
+    let realtimeUnsubscribe: (() => Promise<void>) | null = null;
+    const previousRealtimeOnDisconnect = pb.realtime.onDisconnect;
 
     const logoutNow = () => {
-      pb.authStore.clear();
-      broadcastLogout();
+      logout();
     };
 
     const scheduleInactivityLogout = () => {
@@ -111,6 +108,21 @@ export function useSessionGuards() {
 
     scheduleInactivityLogout();
 
+    pb.realtime.onDisconnect = (activeSubscriptions) => {
+      if (!pb.authStore.isValid) return;
+      if (Array.isArray(activeSubscriptions) && activeSubscriptions.length > 0) logoutNow();
+    };
+
+    // Keep a lightweight realtime connection so we can detect backend termination immediately.
+    pb.realtime
+      .subscribe('PB_CONNECT', () => {})
+      .then((unsub) => {
+        realtimeUnsubscribe = unsub;
+      })
+      .catch(() => {
+        // ignore
+      });
+
     authRefreshIntervalId = window.setInterval(async () => {
       if (!pb.authStore.isValid) return;
 
@@ -132,6 +144,8 @@ export function useSessionGuards() {
     return () => {
       if (inactivityTimeoutId !== null) window.clearTimeout(inactivityTimeoutId);
       if (authRefreshIntervalId !== null) window.clearInterval(authRefreshIntervalId);
+      pb.realtime.onDisconnect = previousRealtimeOnDisconnect;
+      if (realtimeUnsubscribe) realtimeUnsubscribe().catch(() => {});
 
       window.removeEventListener('pointerdown', markActivity);
       window.removeEventListener('keydown', markActivity);

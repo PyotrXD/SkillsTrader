@@ -1,6 +1,7 @@
 {
   "scripts": {
-    "dev": "npm --prefix skillstrader-frontend run dev",
+    "dev": "node scripts/dev.mjs",
+    "dev:frontend": "npm --prefix skillstrader-frontend run dev",
     "build": "npm --prefix skillstrader-frontend run build",
     "lint": "npm --prefix skillstrader-frontend run lint",
     "preview": "npm --prefix skillstrader-frontend run preview"

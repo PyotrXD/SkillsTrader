@@ -6,6 +6,7 @@ This template provides a minimal setup to get React working in Vite with HMR and
 
 - Logged-in users are automatically logged out after **3 hours of inactivity** (no mouse/keyboard/touch activity).
 - When PocketBase is **terminated or restarted**, all existing login tokens are invalidated via `pb_hooks/main.pb.js` (so users must log in again).
+- Routes: `/login` and `/dashboard` (root `/` redirects based on auth state).
 
 Currently, two official plugins are available:
 

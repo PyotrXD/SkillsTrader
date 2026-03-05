@@ -11,3 +11,11 @@
 .\pocketbase.exe serve --dir pb_data --hooksDir pb_hooks
 ```
 
+## Dev (frontend + PocketBase)
+
+```powershell
+npm run dev
+```
+
+- Frontend: `http://127.0.0.1:5173/dashboard`
+- PocketBase: `http://127.0.0.1:8090/_/`

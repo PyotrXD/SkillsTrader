@@ -1,0 +1,58 @@
+I. Data and Information Management (What Data Needs to be Stored?),,,
+Requirement,Details,Remarks/Comments,Remarks/Comments
+Candidate Records,"Personal info (Name, email, phone, address)
+Photo
+Educational background
+Work history/Experience
+Skills, Certifications/Licenses
+Desired Salary.",,
+employer/Company Records,"Company name
+Contact person
+Contact info
+Country
+Industry
+Job order history
+Billing information.",,
+Job Order Management,"Job order
+Description
+Required skills
+Salary range
+Number of openings
+Client Company ID
+Status (Open, Closed, Filled).",,
+Placement/Hiring Records,"Candidate ID
+Job Order ID
+Departure Date
+Arrival Date
+Placement fee Date and amount
+Date of placement
+Placement status (Pending, Confirmed, Start date
+Agency fees/Commission",,
+Document Tracking,"Ability to upload and link candidate documents (CVs, passports, visas, NBI/Police clearances) and employer contracts.
+Offer Letter, DMW-approved contract, overseas employment contract",,
+Interview & Assessment,"Tracking interview dates, results, and assessment scores.",,
+,,,
+II. Functional Requirements (What Does the System Need to Do?),,,
+Search and Filtering,"Fast and accurate search capabilities by keywords, skills, salary, job title, candidate status, Name, departure date, arrival date, employer.",,
+Matching Engine,System should suggest the best candidates for a specific job order based on skills and criteria.,,Medyo later update papo ito.
+Reporting & Analytics,"Generate reports on: Placement rates, Time-to-Hire, Active Candidates, Client performance, Revenue/Commission tracking.
+Employer attrition rate",,Medyo later update papo ito.
+Status Tracking,"Track the progression of candidates through the hiring pipeline (e.g., Applied -> Screened -> Interviewed -> Placed).",,
+Bulk Actions,Ability to update the status of multiple candidates or send bulk communications (if integrated with email).,,
+User Roles & Access,"Define different user levels (e.g., Administrator, Recruiter, Management) with specific permissions.
+Administrator - Access to everything and source code
+Management - Access to everything, no code access
+Recruiter - Access to create, edit, delete, upload records",,
+,,,
+III. Legal and Compliance Requirements,,,
+Data Privacy,"Ensure mechanisms for consent, data access, and data deletion are in place. Crucial for sensitive data.",,
+Security,Data must be encrypted (at rest and in transit) and protected by strong authentication.,,
+Audit Trails,Log all changes and actions performed by users (who did what and when) for accountability.,,
+Backup and Recovery,"Implement a regular, reliable process for backing up all data, with a clear recovery plan.",,
+,,,
+IV. Technical and Operational Requirements,,,
+Scalability,"The database must be able to handle future growth in the number of candidates and clients (e.g., scaling from 5,000 to 50,000 records).",,
+System Reliability/Uptime,The system needs to be consistently available during business hours (7AM-6PM),,
+Ease of Use (User Interface/UX),"The interface should be intuitive and easy for users to use daily, minimizing training time.",,
+Integration,"Potential integration with existing tools (e.g., Email clients, SMS gateways, Accounting software).","Pati si OFWs pwede din iemail via group (dipende sa kung sino employer nila, or kung ano job nila) based on sets or kung sino kasama nila",Medyo later update papo ito.
+Data Migration,"A plan for migrating any existing data (spreadsheets, old databases) into the new system.",,

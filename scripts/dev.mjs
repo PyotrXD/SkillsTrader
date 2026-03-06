@@ -62,9 +62,31 @@ const pocketBaseExe = isWindows
   ? path.join(repoRoot, 'pocketbase.exe')
   : path.join(repoRoot, 'pocketbase');
 
+const encryptionEnvVar = 'PB_ENCRYPTION_KEY';
+const pocketBaseArgs = [
+  'serve',
+  '--dir',
+  'pb_data',
+  '--hooksDir',
+  'pb_hooks',
+  '--http',
+  '127.0.0.1:8090',
+];
+
+const encryptionKey = process.env[encryptionEnvVar];
+if (encryptionKey) {
+  if (encryptionKey.length === 32) {
+    pocketBaseArgs.push('--encryptionEnv', encryptionEnvVar);
+  } else {
+    console.warn(
+      `[dev] ${encryptionEnvVar} is set but not 32 characters (${encryptionKey.length}); skipping --encryptionEnv`,
+    );
+  }
+}
+
 const pocketBase = startProcess(
   pocketBaseExe,
-  ['serve', '--dir', 'pb_data', '--hooksDir', 'pb_hooks', '--http', '127.0.0.1:8090'],
+  pocketBaseArgs,
   'pocketbase',
 );
 const frontend = startProcess('npm', ['--prefix', 'skillstrader-frontend', 'run', 'dev'], 'frontend');

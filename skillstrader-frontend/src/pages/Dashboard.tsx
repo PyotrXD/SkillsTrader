@@ -36,7 +36,8 @@ export default function Dashboard({ role }: Props) {
             <h1 className="dashTitle">Your account has no valid role</h1>
             <p className="dashSub">
               Set the <code className="dashCode">role</code> field in PocketBase to one of:{' '}
-              <strong>administrator</strong>, <strong>manager</strong>, <strong>staff</strong>.
+              <strong>administrator</strong>, <strong>manager</strong>, <strong>recruiter</strong> (legacy:{' '}
+              <strong>staff</strong>).
             </p>
             <a className="dashLink" href={`${pocketBaseUrl}/_/`} target="_blank" rel="noreferrer">
               Open PocketBase Dashboard
@@ -52,6 +53,7 @@ export default function Dashboard({ role }: Props) {
       return <DashboardAdministrator />;
     case 'manager':
       return <DashboardManager />;
+    case 'recruiter':
     case 'staff':
       return <DashboardStaff />;
     default:

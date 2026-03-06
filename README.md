@@ -5,6 +5,7 @@
 - Frontend auto-logs out a signed-in user after **3 hours of inactivity**.
 - PocketBase invalidates all existing auth tokens on **server start** and on **graceful shutdown** via `pb_hooks/main.pb.js`.
 - Requirements checklist: `docs/requirements/requirements.md`.
+- PocketBase operations (backup/encryption/audit logs): `docs/operations/pocketbase.md`.
 
 ## Running PocketBase (with hooks enabled)
 

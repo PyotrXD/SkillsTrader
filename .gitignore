@@ -1,6 +1,7 @@
 # PocketBase
 pb_data/
 pb_data/**
+backups/
 
 # Node / Frontend build artifacts
 node_modules/

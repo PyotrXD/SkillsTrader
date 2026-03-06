@@ -6,10 +6,15 @@ export const pocketBaseUrl =
 export const pb = new PocketBase(pocketBaseUrl);
 const FORCE_LOGOUT_AT_KEY = 'skillstrader:forceLogoutAt';
 
-export type UserRole = 'administrator' | 'manager' | 'staff';
+export type UserRole = 'administrator' | 'manager' | 'recruiter' | 'staff';
 
 function isUserRole(value: unknown): value is UserRole {
-  return value === 'administrator' || value === 'manager' || value === 'staff';
+  return (
+    value === 'administrator' ||
+    value === 'manager' ||
+    value === 'recruiter' ||
+    value === 'staff'
+  );
 }
 
 export function getUserRole(): UserRole | null {

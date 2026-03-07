@@ -20,4 +20,4 @@ npm run dev
 ```
 
 - Frontend: `http://127.0.0.1:5173/dashboard`
-- PocketBase: `http://127.0.0.1:8090/_/`
+- PocketBase: `http://127.0.0.1:8091/_/`

@@ -1,4 +1,5 @@
 import { logout, pb, pocketBaseUrl } from '../pb';
+import RecordsWorkspace from './RecordsWorkspace';
 import './dashboard.css';
 
 export default function DashboardAdministrator() {
@@ -11,7 +12,7 @@ export default function DashboardAdministrator() {
           <div className="dashBrandMark" aria-hidden="true" />
           <div className="dashBrandText">
             <div className="dashBrandName">SkillsTrader</div>
-            <div className="dashBrandMeta">Administrator Â· {email}</div>
+            <div className="dashBrandMeta">Administrator · {email}</div>
           </div>
         </div>
 
@@ -33,37 +34,13 @@ export default function DashboardAdministrator() {
       <main className="dashMain">
         <section className="dashHero">
           <p className="dashEyebrow">Administrator</p>
-          <h1 className="dashTitle">Full access</h1>
+          <h1 className="dashTitle">Core CRUD Workspace</h1>
           <p className="dashSub">
-            You can access everything, including the PocketBase dashboard and all record operations.
+            Full record operations for candidates, employers, job orders, placements, interviews, and documents.
           </p>
         </section>
 
-        <section className="dashGrid" aria-label="Administrator actions">
-          <div className="dashCard">
-            <h2 className="dashCardTitle">Manage records</h2>
-            <p className="dashCardBody">Create, edit, and delete records across all collections.</p>
-            <button type="button" className="dashCardAction" disabled>
-              Open records (coming soon)
-            </button>
-          </div>
-
-          <div className="dashCard">
-            <h2 className="dashCardTitle">User & role management</h2>
-            <p className="dashCardBody">Assign roles and manage user access.</p>
-            <button type="button" className="dashCardAction" disabled>
-              Open users (coming soon)
-            </button>
-          </div>
-
-          <div className="dashCard dashCardAccent">
-            <h2 className="dashCardTitle">PocketBase dashboard</h2>
-            <p className="dashCardBody">Open the admin UI to configure collections and rules.</p>
-            <a className="dashCardAction" href={`${pocketBaseUrl}/_/`} target="_blank" rel="noreferrer">
-              Open PocketBase
-            </a>
-          </div>
-        </section>
+        <RecordsWorkspace role="administrator" />
       </main>
     </div>
   );

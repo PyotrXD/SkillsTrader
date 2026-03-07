@@ -70,7 +70,7 @@ const pocketBaseArgs = [
   '--hooksDir',
   'pb_hooks',
   '--http',
-  '127.0.0.1:8090',
+  '127.0.0.1:8091',
 ];
 
 const encryptionKey = process.env[encryptionEnvVar];

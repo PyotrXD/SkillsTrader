@@ -1,4 +1,5 @@
 import { logout, pb } from '../pb';
+import RecordsWorkspace from './RecordsWorkspace';
 import './dashboard.css';
 
 export default function DashboardManager() {
@@ -11,7 +12,7 @@ export default function DashboardManager() {
           <div className="dashBrandMark" aria-hidden="true" />
           <div className="dashBrandText">
             <div className="dashBrandName">SkillsTrader</div>
-            <div className="dashBrandMeta">Manager Â· {email}</div>
+            <div className="dashBrandMeta">Manager · {email}</div>
           </div>
         </div>
 
@@ -25,35 +26,13 @@ export default function DashboardManager() {
       <main className="dashMain">
         <section className="dashHero">
           <p className="dashEyebrow">Manager</p>
-          <h1 className="dashTitle">Record operations</h1>
-          <p className="dashSub">You can create, edit, and delete records.</p>
+          <h1 className="dashTitle">Core CRUD Workspace</h1>
+          <p className="dashSub">
+            Manage all core entities with create, edit, delete, and filter workflows.
+          </p>
         </section>
 
-        <section className="dashGrid" aria-label="Manager actions">
-          <div className="dashCard">
-            <h2 className="dashCardTitle">Create records</h2>
-            <p className="dashCardBody">Add new items to the system using guided forms.</p>
-            <button type="button" className="dashCardAction" disabled>
-              Create (coming soon)
-            </button>
-          </div>
-
-          <div className="dashCard">
-            <h2 className="dashCardTitle">Edit records</h2>
-            <p className="dashCardBody">Update existing records and correct details.</p>
-            <button type="button" className="dashCardAction" disabled>
-              Edit (coming soon)
-            </button>
-          </div>
-
-          <div className="dashCard dashCardDanger">
-            <h2 className="dashCardTitle">Delete records</h2>
-            <p className="dashCardBody">Remove records when needed. Deletions are immediate.</p>
-            <button type="button" className="dashCardAction" disabled>
-              Delete (coming soon)
-            </button>
-          </div>
-        </section>
+        <RecordsWorkspace role="manager" />
       </main>
     </div>
   );

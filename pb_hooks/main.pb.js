@@ -91,14 +91,25 @@ function writeAuditLog(e, action) {
   }
 }
 
+function handleRecordRequest(e, action) {
+  try {
+    writeAuditLog(e, action);
+  } finally {
+    // Request hooks must continue the chain explicitly.
+    if (typeof e?.next === 'function') {
+      e.next();
+    }
+  }
+}
+
 if (typeof onRecordCreateRequest === 'function') {
-  onRecordCreateRequest((e) => writeAuditLog(e, 'create'));
+  onRecordCreateRequest((e) => handleRecordRequest(e, 'create'));
 }
 
 if (typeof onRecordUpdateRequest === 'function') {
-  onRecordUpdateRequest((e) => writeAuditLog(e, 'update'));
+  onRecordUpdateRequest((e) => handleRecordRequest(e, 'update'));
 }
 
 if (typeof onRecordDeleteRequest === 'function') {
-  onRecordDeleteRequest((e) => writeAuditLog(e, 'delete'));
+  onRecordDeleteRequest((e) => handleRecordRequest(e, 'delete'));
 }

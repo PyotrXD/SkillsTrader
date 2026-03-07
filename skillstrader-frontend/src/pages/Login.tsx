@@ -4,6 +4,12 @@ import { pb } from '../pb';
 import './login.css';
 
 function getErrorMessage(err: unknown): string {
+  const maybeError = err as { response?: { message?: unknown } } | null | undefined;
+  const responseMessage = maybeError?.response?.message;
+  if (typeof responseMessage === 'string' && responseMessage.trim().length > 0) {
+    return responseMessage;
+  }
+
   if (err instanceof Error && err.message) return err.message;
   return 'Login failed. Please check your credentials.';
 }
@@ -25,7 +31,19 @@ export default function Login() {
     setLoading(true);
 
     try {
-      await pb.collection('users').authWithPassword(email.trim(), password);
+      const identity = email.trim();
+      try {
+        await pb.collection('users').authWithPassword(identity, password);
+      } catch (err: unknown) {
+        const status = (err as { status?: unknown } | null | undefined)?.status;
+        const message = getErrorMessage(err).toLowerCase();
+        const likelyBadIdentity = status === 400 && message.includes('authenticate');
+        if (!likelyBadIdentity) throw err;
+
+        // Fallback for PocketBase superuser credentials.
+        await pb.collection('_superusers').authWithPassword(identity, password);
+      }
+
       setSuccess('Signed in successfully!');
       navigate('/dashboard', { replace: true });
     } catch (err: unknown) {

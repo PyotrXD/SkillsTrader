@@ -18,11 +18,12 @@ function readNumberFromStorage(key: string): number | null {
 }
 
 export function useSessionGuards() {
-  const lastActivityAtRef = useRef<number>(Date.now());
+  const isAuthed = pb.authStore.isValid;
+  const lastActivityAtRef = useRef<number>(0);
   const lastActivityStorageWriteAtRef = useRef<number>(0);
 
   useEffect(() => {
-    if (!pb.authStore.isValid) return;
+    if (!isAuthed) return;
 
     const userId = (pb.authStore.record as { id?: unknown } | null | undefined)?.id;
     const activityKey =
@@ -108,7 +109,7 @@ export function useSessionGuards() {
 
     scheduleInactivityLogout();
 
-    pb.realtime.onDisconnect = (activeSubscriptions) => {
+    pb.realtime.onDisconnect = (activeSubscriptions: string[]) => {
       if (!pb.authStore.isValid) return;
       if (Array.isArray(activeSubscriptions) && activeSubscriptions.length > 0) logoutNow();
     };
@@ -116,7 +117,7 @@ export function useSessionGuards() {
     // Keep a lightweight realtime connection so we can detect backend termination immediately.
     pb.realtime
       .subscribe('PB_CONNECT', () => {})
-      .then((unsub) => {
+      .then((unsub: () => Promise<void>) => {
         realtimeUnsubscribe = unsub;
       })
       .catch(() => {
@@ -154,5 +155,5 @@ export function useSessionGuards() {
       window.removeEventListener('storage', onStorage);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, [pb.authStore.isValid]);
+  }, [isAuthed]);
 }

@@ -94,3 +94,34 @@ Source: `docs/requirements/requirements-checklist.csv`
 - [ ] **Data Migration**
   - Plan to migrate existing spreadsheets/old databases into the new system
 
+## V. Next Developer Steps (Handoff Notes)
+
+- [ ] **Stabilize PocketBase user creation flow**
+  - Confirm `pb_hooks/main.pb.js` create/update/delete request hooks call `e.next()` so requests are not blocked.
+  - Re-test user creation in PocketBase Dashboard with required fields (`email`, `password`, `passwordConfirm`, `role`).
+- [ ] **Keep local/prod port configuration aligned**
+  - Current default PocketBase host is `127.0.0.1:8091` in dev setup and frontend defaults.
+  - Verify no local process conflicts with the chosen port before release.
+- [ ] **Finalize role terminology across docs and UI**
+  - App currently uses `administrator`, `manager`, `staff`.
+  - Legacy text in requirements still mentions `Recruiter`; decide whether to keep as business label or fully rename to `Staff` everywhere.
+- [ ] **Define strict collection access rules by role**
+  - Replace broad authenticated rules with explicit role-based rules per collection where needed.
+  - Validate that administrators/managers/staff have only required access.
+- [ ] **Add automated smoke tests for critical flows**
+  - Login (users + superuser fallback).
+  - Create/update/delete for core collections.
+  - User creation and role assignment.
+- [ ] **Add deployment runbook artifacts**
+  - Provide actual service definitions (Linux `systemd` and/or Windows service wrapper).
+  - Provide reverse proxy config with websocket headers and TLS.
+- [ ] **Operational hardening**
+  - Enforce `PB_ENCRYPTION_KEY` in production startup.
+  - Confirm backup schedule and periodic restore drill using provided scripts.
+- [ ] **Audit and observability**
+  - Verify `audit_logs` capture create/update/delete for all core collections.
+  - Add lightweight monitoring/alerts for PocketBase process health and failed requests.
+- [ ] **Data migration execution plan**
+  - Define mapping from spreadsheet columns to target collections/fields.
+  - Prepare import scripts and validation checks for migrated records.
+

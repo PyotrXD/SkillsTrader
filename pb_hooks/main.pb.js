@@ -91,25 +91,32 @@ function writeAuditLog(e, action) {
   }
 }
 
-function handleRecordRequest(e, action) {
-  try {
-    writeAuditLog(e, action);
-  } finally {
-    // Request hooks must continue the chain explicitly.
-    if (typeof e?.next === 'function') {
-      e.next();
-    }
-  }
-}
-
 if (typeof onRecordCreateRequest === 'function') {
-  onRecordCreateRequest((e) => handleRecordRequest(e, 'create'));
+  onRecordCreateRequest((e) => {
+    try {
+      writeAuditLog(e, 'create');
+    } finally {
+      if (typeof e?.next === 'function') e.next();
+    }
+  });
 }
 
 if (typeof onRecordUpdateRequest === 'function') {
-  onRecordUpdateRequest((e) => handleRecordRequest(e, 'update'));
+  onRecordUpdateRequest((e) => {
+    try {
+      writeAuditLog(e, 'update');
+    } finally {
+      if (typeof e?.next === 'function') e.next();
+    }
+  });
 }
 
 if (typeof onRecordDeleteRequest === 'function') {
-  onRecordDeleteRequest((e) => handleRecordRequest(e, 'delete'));
+  onRecordDeleteRequest((e) => {
+    try {
+      writeAuditLog(e, 'delete');
+    } finally {
+      if (typeof e?.next === 'function') e.next();
+    }
+  });
 }

@@ -32,8 +32,11 @@ export default function Login() {
 
     try {
       const identity = email.trim();
+      const requestKeyBase = `login-${Date.now()}`;
       try {
-        await pb.collection('users').authWithPassword(identity, password);
+        await pb.collection('users').authWithPassword(identity, password, {
+          requestKey: `${requestKeyBase}-users`,
+        });
       } catch (err: unknown) {
         const status = (err as { status?: unknown } | null | undefined)?.status;
         const message = getErrorMessage(err).toLowerCase();
@@ -41,7 +44,9 @@ export default function Login() {
         if (!likelyBadIdentity) throw err;
 
         // Fallback for PocketBase superuser credentials.
-        await pb.collection('_superusers').authWithPassword(identity, password);
+        await pb.collection('_superusers').authWithPassword(identity, password, {
+          requestKey: `${requestKeyBase}-superusers`,
+        });
       }
 
       setSuccess('Signed in successfully!');

@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { logout, pb, pocketBaseUrl, type UserRole } from '../pb';
 import DashboardAdministrator from './DashboardAdministrator';
 import DashboardManager from './DashboardManager';
@@ -15,13 +16,13 @@ export default function Dashboard({ role }: Props) {
     return (
       <div className="dashPage">
         <header className="dashTopbar">
-          <div className="dashBrand">
+          <Link className="dashBrand dashBrandLink" to="/dashboard">
             <div className="dashBrandMark" aria-hidden="true" />
             <div className="dashBrandText">
               <div className="dashBrandName">SkillsTrader</div>
               <div className="dashBrandMeta">Signed in as {email}</div>
             </div>
-          </div>
+          </Link>
 
           <div className="dashTopbarActions">
             <button type="button" className="dashButton" onClick={logout}>

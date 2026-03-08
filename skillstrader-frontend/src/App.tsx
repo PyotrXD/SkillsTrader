@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { getUserRole, pb } from './pb';
 import { useSessionGuards } from './useSessionGuards';
 import Dashboard from './pages/Dashboard';
+import DashboardAdminCreateUser from './pages/DashboardAdminCreateUser';
 import Login from './pages/Login';
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
   useSessionGuards();
 
   const isAuthed = pb.authStore.isValid;
+  const role = getUserRole();
 
   return (
     <Routes>
@@ -34,7 +36,15 @@ function App() {
       />
       <Route
         path="/dashboard"
-        element={isAuthed ? <Dashboard role={getUserRole()} /> : <Navigate to="/login" replace />}
+        element={isAuthed ? <Dashboard role={role} /> : <Navigate to="/login" replace />}
+      />
+      <Route
+        path="/dashboard/admin/users/new"
+        element={
+          isAuthed && role === 'administrator'
+            ? <DashboardAdminCreateUser />
+            : <Navigate to={isAuthed ? '/dashboard' : '/login'} replace />
+        }
       />
       <Route
         path="*"

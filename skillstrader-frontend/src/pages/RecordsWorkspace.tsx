@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { pb, type UserRole } from '../pb';
+import { getPocketBaseUiError, pb, type UserRole } from '../pb';
 
 type Option = {
   id: string;
@@ -63,6 +63,7 @@ type PbRecord = {
 
 type Props = {
   role: UserRole;
+  activeKey: string;
 };
 
 const candidateStatuses = [
@@ -280,6 +281,11 @@ const ENTITIES: EntityConfig[] = [
   },
 ];
 
+export const RECORD_ENTITY_ITEMS = ENTITIES.map((entity) => ({
+  key: entity.key,
+  label: entity.label,
+}));
+
 function toArrayString(value: unknown): string {
   if (!Array.isArray(value)) return '';
   return value
@@ -343,9 +349,8 @@ async function loadRelationOptions(): Promise<RelationOptions> {
   };
 }
 
-export default function RecordsWorkspace({ role }: Props) {
+export default function RecordsWorkspace({ role, activeKey }: Props) {
   const canDelete = role !== 'staff';
-  const [activeKey, setActiveKey] = useState(ENTITIES[0].key);
   const [records, setRecords] = useState<PbRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -442,9 +447,11 @@ export default function RecordsWorkspace({ role }: Props) {
 
       setRecords(list);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load records.';
-      setError(message);
-      setRecords([]);
+      const message = getPocketBaseUiError(err, 'Failed to load records.');
+      if (message) {
+        setError(message);
+        setRecords([]);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -580,8 +587,8 @@ export default function RecordsWorkspace({ role }: Props) {
       const options = await loadRelationOptions();
       setRelationOptions(options);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to save record.';
-      setFormError(message);
+      const message = getPocketBaseUiError(err, 'Failed to save record.');
+      if (message) setFormError(message);
     } finally {
       setIsSaving(false);
     }
@@ -599,8 +606,8 @@ export default function RecordsWorkspace({ role }: Props) {
       const options = await loadRelationOptions();
       setRelationOptions(options);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to delete record.';
-      setError(message);
+      const message = getPocketBaseUiError(err, 'Failed to delete record.');
+      if (message) setError(message);
     }
   }
 
@@ -608,269 +615,253 @@ export default function RecordsWorkspace({ role }: Props) {
 
   return (
     <section className="dashCrudSection" aria-label="Core records workspace">
-      <div className="dashEntityTabs" role="tablist" aria-label="Core entities">
-        {ENTITIES.map((entity) => {
-          const selected = entity.key === activeConfig.key;
-          return (
-            <button
-              key={entity.key}
-              type="button"
-              role="tab"
-              aria-selected={selected}
-              className={`dashEntityTab ${selected ? 'dashEntityTabActive' : ''}`}
-              onClick={() => setActiveKey(entity.key)}
-            >
-              {entity.label}
+      <div className="dashWorkspaceContent">
+        <div className="dashToolbar" aria-label="Search and filters">
+            <input
+              className="dashInput"
+              placeholder={`Search ${activeConfig.label.toLowerCase()}...`}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+
+            {activeConfig.statusField && activeConfig.statusOptions ? (
+              <select
+                className="dashInput"
+                value={statusValue}
+                onChange={(event) => setStatusValue(event.target.value)}
+              >
+                <option value="">Any status</option>
+                {activeConfig.statusOptions.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+
+            {activeConfig.dateFields && activeConfig.dateFields.length > 0 ? (
+              <select
+                className="dashInput"
+                value={dateField}
+                onChange={(event) => setDateField(event.target.value)}
+              >
+                {activeConfig.dateFields.map((item) => (
+                  <option key={item.field} value={item.field}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+
+            {activeConfig.dateFields && activeConfig.dateFields.length > 0 ? (
+              <input
+                className="dashInput"
+                type="date"
+                value={dateFrom}
+                onChange={(event) => setDateFrom(event.target.value)}
+              />
+            ) : null}
+
+            {activeConfig.dateFields && activeConfig.dateFields.length > 0 ? (
+              <input
+                className="dashInput"
+                type="date"
+                value={dateTo}
+                onChange={(event) => setDateTo(event.target.value)}
+              />
+            ) : null}
+
+            <button type="button" className="dashButton" onClick={() => void loadRecords()}>
+              Apply filters
             </button>
-          );
-        })}
-      </div>
 
-      <div className="dashToolbar" aria-label="Search and filters">
-        <input
-          className="dashInput"
-          placeholder={`Search ${activeConfig.label.toLowerCase()}...`}
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-
-        {activeConfig.statusField && activeConfig.statusOptions ? (
-          <select
-            className="dashInput"
-            value={statusValue}
-            onChange={(event) => setStatusValue(event.target.value)}
-          >
-            <option value="">Any status</option>
-            {activeConfig.statusOptions.map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
-          </select>
-        ) : null}
-
-        {activeConfig.dateFields && activeConfig.dateFields.length > 0 ? (
-          <select
-            className="dashInput"
-            value={dateField}
-            onChange={(event) => setDateField(event.target.value)}
-          >
-            {activeConfig.dateFields.map((item) => (
-              <option key={item.field} value={item.field}>
-                {item.label}
-              </option>
-            ))}
-          </select>
-        ) : null}
-
-        {activeConfig.dateFields && activeConfig.dateFields.length > 0 ? (
-          <input
-            className="dashInput"
-            type="date"
-            value={dateFrom}
-            onChange={(event) => setDateFrom(event.target.value)}
-          />
-        ) : null}
-
-        {activeConfig.dateFields && activeConfig.dateFields.length > 0 ? (
-          <input
-            className="dashInput"
-            type="date"
-            value={dateTo}
-            onChange={(event) => setDateTo(event.target.value)}
-          />
-        ) : null}
-
-        <button type="button" className="dashButton" onClick={() => void loadRecords()}>
-          Apply filters
-        </button>
-
-        {!showForm ? (
-          <button type="button" className="dashButton dashButtonPrimary" onClick={startCreate}>
-            New {activeConfig.label.slice(0, -1)}
-          </button>
-        ) : null}
-      </div>
-
-      {showForm ? (
-        <form className="dashEditor" onSubmit={submitForm}>
-          <div className="dashEditorHeader">
-            <h2 className="dashEditorTitle">{editingRecord ? 'Edit record' : 'Create record'}</h2>
-            <div className="dashEditorActions">
-              <button type="button" className="dashButton" onClick={cancelForm}>
-                Cancel
+            {!showForm ? (
+              <button type="button" className="dashButton dashButtonPrimary" onClick={startCreate}>
+                New {activeConfig.label.slice(0, -1)}
               </button>
-              <button type="submit" className="dashButton dashButtonPrimary" disabled={isSaving}>
-                {isSaving ? 'Saving...' : 'Save'}
-              </button>
+            ) : null}
+        </div>
+
+        {showForm ? (
+          <form className="dashEditor" onSubmit={submitForm}>
+            <div className="dashEditorHeader">
+              <h2 className="dashEditorTitle">{editingRecord ? 'Edit record' : 'Create record'}</h2>
+              <div className="dashEditorActions">
+                <button type="button" className="dashButton" onClick={cancelForm}>
+                  Cancel
+                </button>
+                <button type="submit" className="dashButton dashButtonPrimary" disabled={isSaving}>
+                  {isSaving ? 'Saving...' : 'Save'}
+                </button>
+              </div>
             </div>
-          </div>
 
-          <div className="dashFormGrid">
-            {activeConfig.fields.map((field) => {
-              const value = formData[field.name] ?? '';
+            <div className="dashFormGrid">
+              {activeConfig.fields.map((field) => {
+                const value = formData[field.name] ?? '';
 
-              if (field.type === 'textarea') {
-                return (
-                  <label key={field.name} className="dashField dashFieldWide">
-                    <span>{field.label}</span>
-                    <textarea
-                      className="dashInput dashTextarea"
-                      value={value}
-                      onChange={(event) =>
-                        setFormData((prev) => ({ ...prev, [field.name]: event.target.value }))
-                      }
-                    />
-                  </label>
-                );
-              }
+                if (field.type === 'textarea') {
+                  return (
+                    <label key={field.name} className="dashField dashFieldWide">
+                      <span>{field.label}</span>
+                      <textarea
+                        className="dashInput dashTextarea"
+                        value={value}
+                        onChange={(event) =>
+                          setFormData((prev) => ({ ...prev, [field.name]: event.target.value }))
+                        }
+                      />
+                    </label>
+                  );
+                }
 
-              if (field.type === 'select' && field.options) {
+                if (field.type === 'select' && field.options) {
+                  return (
+                    <label key={field.name} className="dashField">
+                      <span>{field.label}</span>
+                      <select
+                        className="dashInput"
+                        value={value}
+                        onChange={(event) =>
+                          setFormData((prev) => ({ ...prev, [field.name]: event.target.value }))
+                        }
+                      >
+                        <option value="">Select...</option>
+                        {field.options.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  );
+                }
+
+                if (field.type === 'bool') {
+                  return (
+                    <label key={field.name} className="dashField">
+                      <span>{field.label}</span>
+                      <select
+                        className="dashInput"
+                        value={value}
+                        onChange={(event) =>
+                          setFormData((prev) => ({ ...prev, [field.name]: event.target.value }))
+                        }
+                      >
+                        <option value="">Not set</option>
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                      </select>
+                    </label>
+                  );
+                }
+
+                if (field.type === 'relation' && field.relationKey) {
+                  const options = relationOptions[field.relationKey] ?? [];
+                  return (
+                    <label key={field.name} className="dashField">
+                      <span>{field.label}</span>
+                      <select
+                        className="dashInput"
+                        value={value}
+                        onChange={(event) =>
+                          setFormData((prev) => ({ ...prev, [field.name]: event.target.value }))
+                        }
+                      >
+                        <option value="">Select...</option>
+                        {options.map((option) => (
+                          <option key={option.id} value={option.id}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  );
+                }
+
+                if (field.type === 'file') {
+                  return (
+                    <label key={field.name} className="dashField dashFieldWide">
+                      <span>{field.label}</span>
+                      <input
+                        className="dashInput"
+                        type="file"
+                        onChange={(event) => {
+                          const selected = event.target.files?.[0] ?? null;
+                          setFiles((prev) => ({ ...prev, [field.name]: selected }));
+                        }}
+                      />
+                    </label>
+                  );
+                }
+
+                const inputType = field.type === 'number' || field.type === 'date' || field.type === 'email' ? field.type : 'text';
+
                 return (
                   <label key={field.name} className="dashField">
-                    <span>{field.label}</span>
-                    <select
-                      className="dashInput"
-                      value={value}
-                      onChange={(event) =>
-                        setFormData((prev) => ({ ...prev, [field.name]: event.target.value }))
-                      }
-                    >
-                      <option value="">Select...</option>
-                      {field.options.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                );
-              }
-
-              if (field.type === 'bool') {
-                return (
-                  <label key={field.name} className="dashField">
-                    <span>{field.label}</span>
-                    <select
-                      className="dashInput"
-                      value={value}
-                      onChange={(event) =>
-                        setFormData((prev) => ({ ...prev, [field.name]: event.target.value }))
-                      }
-                    >
-                      <option value="">Not set</option>
-                      <option value="true">Yes</option>
-                      <option value="false">No</option>
-                    </select>
-                  </label>
-                );
-              }
-
-              if (field.type === 'relation' && field.relationKey) {
-                const options = relationOptions[field.relationKey] ?? [];
-                return (
-                  <label key={field.name} className="dashField">
-                    <span>{field.label}</span>
-                    <select
-                      className="dashInput"
-                      value={value}
-                      onChange={(event) =>
-                        setFormData((prev) => ({ ...prev, [field.name]: event.target.value }))
-                      }
-                    >
-                      <option value="">Select...</option>
-                      {options.map((option) => (
-                        <option key={option.id} value={option.id}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                );
-              }
-
-              if (field.type === 'file') {
-                return (
-                  <label key={field.name} className="dashField dashFieldWide">
                     <span>{field.label}</span>
                     <input
                       className="dashInput"
-                      type="file"
-                      onChange={(event) => {
-                        const selected = event.target.files?.[0] ?? null;
-                        setFiles((prev) => ({ ...prev, [field.name]: selected }));
-                      }}
+                      type={inputType}
+                      value={value}
+                      onChange={(event) =>
+                        setFormData((prev) => ({ ...prev, [field.name]: event.target.value }))
+                      }
                     />
                   </label>
                 );
-              }
+              })}
+            </div>
 
-              const inputType = field.type === 'number' || field.type === 'date' || field.type === 'email' ? field.type : 'text';
-
-              return (
-                <label key={field.name} className="dashField">
-                  <span>{field.label}</span>
-                  <input
-                    className="dashInput"
-                    type={inputType}
-                    value={value}
-                    onChange={(event) =>
-                      setFormData((prev) => ({ ...prev, [field.name]: event.target.value }))
-                    }
-                  />
-                </label>
-              );
-            })}
-          </div>
-
-          {formError ? <p className="dashError">{formError}</p> : null}
-        </form>
-      ) : null}
-
-      {error ? <p className="dashError">{error}</p> : null}
-
-      <div className="dashRecords" aria-live="polite">
-        {isLoading ? <p className="dashMuted">Loading {activeConfig.label.toLowerCase()}...</p> : null}
-        {!isLoading && filteredRecords.length === 0 ? (
-          <p className="dashMuted">No records found.</p>
+            {formError ? <p className="dashError">{formError}</p> : null}
+          </form>
         ) : null}
 
-        {!isLoading
-          ? filteredRecords.map((record) => (
-              <article key={record.id} className="dashRecordCard">
-                <div className="dashRecordHead">
-                  <h3 className="dashRecordTitle">{record.id}</h3>
-                  <div className="dashRecordActions">
-                    <button type="button" className="dashButton" onClick={() => startEdit(record)}>
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="dashButton"
-                      disabled={!canDelete}
-                      onClick={() => void removeRecord(record)}
-                      title={canDelete ? 'Delete record' : 'Staff cannot delete records'}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
+        {error ? <p className="dashError">{error}</p> : null}
 
-                <dl className="dashRecordMeta">
-                  {activeConfig.columns.map((column) => {
-                    const raw = valueAtPath(record, column.path);
-                    const rendered = renderValue(raw);
-                    return (
-                      <div key={`${record.id}-${column.path}`}>
-                        <dt>{column.label}</dt>
-                        <dd>{rendered}</dd>
-                      </div>
-                    );
-                  })}
-                </dl>
-              </article>
-            ))
-          : null}
+        <div className="dashRecords" aria-live="polite">
+          {isLoading ? <p className="dashMuted">Loading {activeConfig.label.toLowerCase()}...</p> : null}
+          {!isLoading && filteredRecords.length === 0 ? (
+            <p className="dashMuted">No records found.</p>
+          ) : null}
+
+          {!isLoading
+            ? filteredRecords.map((record) => (
+                <article key={record.id} className="dashRecordCard">
+                  <div className="dashRecordHead">
+                    <h3 className="dashRecordTitle">{record.id}</h3>
+                    <div className="dashRecordActions">
+                      <button type="button" className="dashButton" onClick={() => startEdit(record)}>
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="dashButton"
+                        disabled={!canDelete}
+                        onClick={() => void removeRecord(record)}
+                        title={canDelete ? 'Delete record' : 'Staff cannot delete records'}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+
+                  <dl className="dashRecordMeta">
+                    {activeConfig.columns.map((column) => {
+                      const raw = valueAtPath(record, column.path);
+                      const rendered = renderValue(raw);
+                      return (
+                        <div key={`${record.id}-${column.path}`}>
+                          <dt>{column.label}</dt>
+                          <dd>{rendered}</dd>
+                        </div>
+                      );
+                    })}
+                  </dl>
+                </article>
+              ))
+            : null}
+        </div>
       </div>
     </section>
   );

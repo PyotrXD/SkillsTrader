@@ -47,3 +47,15 @@ export function logout() {
     // ignore
   }
 }
+
+export function isPocketBaseAutoCancelledError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const message = err.message.toLowerCase();
+  return message.includes('autocancel') || message.includes('auto-cancellation');
+}
+
+export function getPocketBaseUiError(err: unknown, fallback: string): string | null {
+  if (isPocketBaseAutoCancelledError(err)) return null;
+  if (err instanceof Error && err.message.trim().length > 0) return err.message;
+  return fallback;
+}

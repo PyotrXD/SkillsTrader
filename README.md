@@ -7,6 +7,19 @@
 - Requirements checklist: `docs/requirements/requirements.md`.
 - PocketBase operations (backup/encryption/audit logs): `docs/operations/pocketbase.md`.
 
+## Session Progress (March 9, 2026)
+
+- Implemented a redesigned login page (`skillstrader-frontend/src/pages/Login.tsx`, `skillstrader-frontend/src/pages/login.css`) with responsive split layout, improved visual hierarchy, loading state, and inline auth feedback.
+- Updated authentication flow to support both regular users (`users`) and PocketBase superuser fallback (`_superusers`) during sign-in.
+- Centralized auth role handling in `skillstrader-frontend/src/pb.ts`, including:
+  - role typing (`administrator`, `manager`, `staff`)
+  - superuser-to-administrator role mapping
+  - collection detection helpers for auth-aware UI/logic
+- Confirmed route behavior in `skillstrader-frontend/src/App.tsx` and router bootstrap in `skillstrader-frontend/src/main.tsx` for:
+  - authenticated redirect to `/dashboard`
+  - protected admin create-user route
+  - fallback redirects for unknown paths
+
 ## Local Development
 
 ```powershell

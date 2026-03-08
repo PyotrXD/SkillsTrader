@@ -2,6 +2,13 @@
 
 Source: `docs/requirements/requirements-checklist.csv`
 
+## Session Progress Notes (March 9, 2026)
+
+- Completed the login page refresh with responsive UX and improved feedback states.
+- Implemented authentication fallback logic so PocketBase superuser credentials can sign in when user-collection auth fails with invalid-identity conditions.
+- Added role and auth-collection helpers in frontend auth utilities to keep role-aware routing and UI behavior consistent.
+- Verified route guards for login, dashboard, admin user-creation path, and wildcard redirects.
+
 ## I. Data and Information Management (What Data Needs to be Stored?)
 
 - [ ] **Candidate Records**

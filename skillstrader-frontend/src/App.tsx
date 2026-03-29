@@ -4,7 +4,7 @@ import { getUserRole, pb } from './pb';
 import { useSessionGuards } from './useSessionGuards';
 import Dashboard from './pages/Dashboard';
 import DashboardAdminCreateUser from './pages/DashboardAdminCreateUser';
-import Login from './pages/Login';
+import Login from './components/custom/Login';
 
 function App() {
   const [, forceRender] = useState(0);

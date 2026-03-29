@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { logout, pb } from '../pb';
 import DashboardMetrics from './DashboardMetrics';
-import DashboardEntitySidebar from './DashboardEntitySidebar';
+import DashboardEntitySidebar from '../components/custom/DashboardEntitySidebar';
 import RecordsWorkspace from './RecordsWorkspace';
 import './dashboard.css';
 

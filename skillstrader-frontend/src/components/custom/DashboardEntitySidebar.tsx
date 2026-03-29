@@ -1,4 +1,4 @@
-import { RECORD_ENTITY_ITEMS } from './RecordsWorkspace';
+import { RECORD_ENTITY_ITEMS } from '../../pages/RecordsWorkspace';
 
 type Props = {
   activeKey: string;

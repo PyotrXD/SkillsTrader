@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
-import { getUserRole, pb } from './pb';
-import { useSessionGuards } from './useSessionGuards';
-import Dashboard from './pages/Dashboard';
-import DashboardAdminCreateUser from './pages/DashboardAdminCreateUser';
+import { getUserRole, pb } from './lib/pocketbase/pb';
+import { useSessionGuards } from './hooks/useSessionGuards';
+import Dashboard from './components/custom/Dashboard';
+import DashboardAdminCreateUser from './components/custom/Users';
 import Login from './components/custom/Login';
 
 function App() {

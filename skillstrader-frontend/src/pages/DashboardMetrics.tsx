@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getPocketBaseUiError, pb } from '../pb';
+import { getPocketBaseUiError, pb } from '../lib/pocketbase/pb';
 
 type CandidateRecord = {
   id: string;
@@ -120,23 +120,23 @@ export default function DashboardMetrics() {
   }, []);
 
   return (
-    <section className="dashMetrics" aria-label="Candidate dashboard metrics">
-      <article className="dashMetricCard">
-        <p className="dashMetricLabel">Candidates not interviewed</p>
-        <p className="dashMetricValue">{loading ? '...' : metrics.notInterviewed}</p>
+    <section className="grid grid-cols-1 md:grid-cols-3 gap-3" aria-label="Candidate dashboard metrics">
+      <article className="bg-gradient-to-br from-[#fff] to-[#f6f2ed] border border-[var(--border)] rounded-2xl shadow-[0_10px_26px_rgba(26,23,20,0.08)] p-4 grid gap-2">
+        <p className="m-0 text-[var(--muted)] text-[12px] font-bold tracking-[0.04em] uppercase">Candidates not interviewed</p>
+        <p className="m-0 text-[clamp(28px,4vw,34px)] font-extrabold leading-none text-[var(--text)]">{loading ? '...' : metrics.notInterviewed}</p>
       </article>
 
-      <article className="dashMetricCard">
-        <p className="dashMetricLabel">Candidates not scheduled</p>
-        <p className="dashMetricValue">{loading ? '...' : metrics.notScheduled}</p>
+      <article className="bg-gradient-to-br from-[#fff] to-[#f6f2ed] border border-[var(--border)] rounded-2xl shadow-[0_10px_26px_rgba(26,23,20,0.08)] p-4 grid gap-2">
+        <p className="m-0 text-[var(--muted)] text-[12px] font-bold tracking-[0.04em] uppercase">Candidates not scheduled</p>
+        <p className="m-0 text-[clamp(28px,4vw,34px)] font-extrabold leading-none text-[var(--text)]">{loading ? '...' : metrics.notScheduled}</p>
       </article>
 
-      <article className="dashMetricCard">
-        <p className="dashMetricLabel">Candidates with missing documents</p>
-        <p className="dashMetricValue">{loading ? '...' : metrics.missingDocuments}</p>
+      <article className="bg-gradient-to-br from-[#fff] to-[#f6f2ed] border border-[var(--border)] rounded-2xl shadow-[0_10px_26px_rgba(26,23,20,0.08)] p-4 grid gap-2">
+        <p className="m-0 text-[var(--muted)] text-[12px] font-bold tracking-[0.04em] uppercase">Candidates with missing documents</p>
+        <p className="m-0 text-[clamp(28px,4vw,34px)] font-extrabold leading-none text-[var(--text)]">{loading ? '...' : metrics.missingDocuments}</p>
       </article>
 
-      {error ? <p className="dashError">{error}</p> : null}
+      {error ? <p className="m-0 text-[#9f2d20] text-[13px]">{error}</p> : null}
     </section>
   );
 }

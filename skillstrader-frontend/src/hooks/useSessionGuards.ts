@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { logout, pb } from './pb';
+import { logout, pb } from '../lib/pocketbase/pb';
 
 const INACTIVITY_LIMIT_MS = 3 * 60 * 60 * 1000; // 3 hours
 const ACTIVITY_STORAGE_THROTTLE_MS = 5 * 1000;

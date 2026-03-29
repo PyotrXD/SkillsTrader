@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { pb } from '../../pb';
+import { pb } from '../../lib/pocketbase/pb';
 import { Icon } from '@iconify/react';
 import Toast from '../ui/Toast';
 

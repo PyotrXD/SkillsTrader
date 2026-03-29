@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { getPocketBaseUiError, pb, type UserRole } from '../pb';
+import { getPocketBaseUiError, pb, type UserRole } from '../lib/pocketbase/pb';
 
 type Option = {
   id: string;
@@ -614,11 +614,11 @@ export default function RecordsWorkspace({ role, activeKey }: Props) {
   const showForm = isCreating || editingRecord !== null;
 
   return (
-    <section className="dashCrudSection" aria-label="Core records workspace">
-      <div className="dashWorkspaceContent">
-        <div className="dashToolbar" aria-label="Search and filters">
+    <section className="bg-[var(--surface)] border border-[var(--border)] rounded-[18px] shadow-[0_14px_44px_rgba(26,23,20,0.08),var(--inset)] p-[18px]" aria-label="Core records workspace">
+      <div className="grid gap-3.5">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5" aria-label="Search and filters">
             <input
-              className="dashInput"
+              className="w-full border border-[var(--border)] bg-white text-[var(--text)] rounded-xl px-[11px] py-[10px] text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
               placeholder={`Search ${activeConfig.label.toLowerCase()}...`}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -626,7 +626,7 @@ export default function RecordsWorkspace({ role, activeKey }: Props) {
 
             {activeConfig.statusField && activeConfig.statusOptions ? (
               <select
-                className="dashInput"
+                className="w-full border border-[var(--border)] bg-white text-[var(--text)] rounded-xl px-[11px] py-[10px] text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
                 value={statusValue}
                 onChange={(event) => setStatusValue(event.target.value)}
               >
@@ -641,7 +641,7 @@ export default function RecordsWorkspace({ role, activeKey }: Props) {
 
             {activeConfig.dateFields && activeConfig.dateFields.length > 0 ? (
               <select
-                className="dashInput"
+                className="w-full border border-[var(--border)] bg-white text-[var(--text)] rounded-xl px-[11px] py-[10px] text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
                 value={dateField}
                 onChange={(event) => setDateField(event.target.value)}
               >
@@ -655,7 +655,7 @@ export default function RecordsWorkspace({ role, activeKey }: Props) {
 
             {activeConfig.dateFields && activeConfig.dateFields.length > 0 ? (
               <input
-                className="dashInput"
+                className="w-full border border-[var(--border)] bg-white text-[var(--text)] rounded-xl px-[11px] py-[10px] text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
                 type="date"
                 value={dateFrom}
                 onChange={(event) => setDateFrom(event.target.value)}
@@ -664,48 +664,48 @@ export default function RecordsWorkspace({ role, activeKey }: Props) {
 
             {activeConfig.dateFields && activeConfig.dateFields.length > 0 ? (
               <input
-                className="dashInput"
+                className="w-full border border-[var(--border)] bg-white text-[var(--text)] rounded-xl px-[11px] py-[10px] text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
                 type="date"
                 value={dateTo}
                 onChange={(event) => setDateTo(event.target.value)}
               />
             ) : null}
 
-            <button type="button" className="dashButton" onClick={() => void loadRecords()}>
+            <button type="button" className="border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] rounded-full px-3.5 py-2.5 text-[13px] font-bold cursor-pointer transition-all duration-150 hover:brightness-105 active:translate-y-[1px] active:filter-none inline-flex items-center justify-center no-underline" onClick={() => void loadRecords()}>
               Apply filters
             </button>
 
             {!showForm ? (
-              <button type="button" className="dashButton dashButtonPrimary" onClick={startCreate}>
+              <button type="button" className="border-none text-white bg-gradient-to-br from-[var(--primary)] to-[var(--primary2)] shadow-[0_8px_26px_rgba(200,75,49,0.18)] rounded-full px-3.5 py-2.5 text-[13px] font-bold cursor-pointer transition-all duration-150 hover:brightness-105 active:translate-y-[1px] active:filter-none inline-flex items-center justify-center no-underline" onClick={startCreate}>
                 New {activeConfig.label.slice(0, -1)}
               </button>
             ) : null}
         </div>
 
         {showForm ? (
-          <form className="dashEditor" onSubmit={submitForm}>
-            <div className="dashEditorHeader">
-              <h2 className="dashEditorTitle">{editingRecord ? 'Edit record' : 'Create record'}</h2>
-              <div className="dashEditorActions">
-                <button type="button" className="dashButton" onClick={cancelForm}>
+          <form className="border border-[var(--border)] rounded-2xl p-3.5 grid gap-3 bg-white" onSubmit={submitForm}>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="m-0 text-[17px]">{editingRecord ? 'Edit record' : 'Create record'}</h2>
+              <div className="flex items-center gap-2">
+                <button type="button" className="border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] rounded-full px-3.5 py-2.5 text-[13px] font-bold cursor-pointer transition-all duration-150 hover:brightness-105 active:translate-y-[1px] active:filter-none inline-flex items-center justify-center no-underline" onClick={cancelForm}>
                   Cancel
                 </button>
-                <button type="submit" className="dashButton dashButtonPrimary" disabled={isSaving}>
+                <button type="submit" className="border-none text-white bg-gradient-to-br from-[var(--primary)] to-[var(--primary2)] shadow-[0_8px_26px_rgba(200,75,49,0.18)] rounded-full px-3.5 py-2.5 text-[13px] font-bold cursor-pointer transition-all duration-150 hover:brightness-105 active:translate-y-[1px] active:filter-none inline-flex items-center justify-center no-underline disabled:opacity-70" disabled={isSaving}>
                   {isSaving ? 'Saving...' : 'Save'}
                 </button>
               </div>
             </div>
 
-            <div className="dashFormGrid">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
               {activeConfig.fields.map((field) => {
                 const value = formData[field.name] ?? '';
 
                 if (field.type === 'textarea') {
                   return (
-                    <label key={field.name} className="dashField dashFieldWide">
-                      <span>{field.label}</span>
+                    <label key={field.name} className="grid gap-[5px] col-span-1 md:col-span-2">
+                      <span className="text-[12px] text-[var(--muted)] font-bold">{field.label}</span>
                       <textarea
-                        className="dashInput dashTextarea"
+                        className="w-full border border-[var(--border)] bg-white text-[var(--text)] rounded-xl px-[11px] py-[10px] text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] min-h-[88px] resize-y"
                         value={value}
                         onChange={(event) =>
                           setFormData((prev) => ({ ...prev, [field.name]: event.target.value }))
@@ -717,10 +717,10 @@ export default function RecordsWorkspace({ role, activeKey }: Props) {
 
                 if (field.type === 'select' && field.options) {
                   return (
-                    <label key={field.name} className="dashField">
-                      <span>{field.label}</span>
+                    <label key={field.name} className="grid gap-[5px]">
+                      <span className="text-[12px] text-[var(--muted)] font-bold">{field.label}</span>
                       <select
-                        className="dashInput"
+                        className="w-full border border-[var(--border)] bg-white text-[var(--text)] rounded-xl px-[11px] py-[10px] text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
                         value={value}
                         onChange={(event) =>
                           setFormData((prev) => ({ ...prev, [field.name]: event.target.value }))
@@ -739,10 +739,10 @@ export default function RecordsWorkspace({ role, activeKey }: Props) {
 
                 if (field.type === 'bool') {
                   return (
-                    <label key={field.name} className="dashField">
-                      <span>{field.label}</span>
+                    <label key={field.name} className="grid gap-[5px]">
+                      <span className="text-[12px] text-[var(--muted)] font-bold">{field.label}</span>
                       <select
-                        className="dashInput"
+                        className="w-full border border-[var(--border)] bg-white text-[var(--text)] rounded-xl px-[11px] py-[10px] text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
                         value={value}
                         onChange={(event) =>
                           setFormData((prev) => ({ ...prev, [field.name]: event.target.value }))
@@ -759,10 +759,10 @@ export default function RecordsWorkspace({ role, activeKey }: Props) {
                 if (field.type === 'relation' && field.relationKey) {
                   const options = relationOptions[field.relationKey] ?? [];
                   return (
-                    <label key={field.name} className="dashField">
-                      <span>{field.label}</span>
+                    <label key={field.name} className="grid gap-[5px]">
+                      <span className="text-[12px] text-[var(--muted)] font-bold">{field.label}</span>
                       <select
-                        className="dashInput"
+                        className="w-full border border-[var(--border)] bg-white text-[var(--text)] rounded-xl px-[11px] py-[10px] text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
                         value={value}
                         onChange={(event) =>
                           setFormData((prev) => ({ ...prev, [field.name]: event.target.value }))
@@ -781,10 +781,10 @@ export default function RecordsWorkspace({ role, activeKey }: Props) {
 
                 if (field.type === 'file') {
                   return (
-                    <label key={field.name} className="dashField dashFieldWide">
-                      <span>{field.label}</span>
+                    <label key={field.name} className="grid gap-[5px] col-span-1 md:col-span-2">
+                      <span className="text-[12px] text-[var(--muted)] font-bold">{field.label}</span>
                       <input
-                        className="dashInput"
+                        className="w-full border border-[var(--border)] bg-white text-[var(--text)] rounded-xl px-[11px] py-[10px] text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
                         type="file"
                         onChange={(event) => {
                           const selected = event.target.files?.[0] ?? null;
@@ -798,10 +798,10 @@ export default function RecordsWorkspace({ role, activeKey }: Props) {
                 const inputType = field.type === 'number' || field.type === 'date' || field.type === 'email' ? field.type : 'text';
 
                 return (
-                  <label key={field.name} className="dashField">
-                    <span>{field.label}</span>
+                  <label key={field.name} className="grid gap-[5px]">
+                    <span className="text-[12px] text-[var(--muted)] font-bold">{field.label}</span>
                     <input
-                      className="dashInput"
+                      className="w-full border border-[var(--border)] bg-white text-[var(--text)] rounded-xl px-[11px] py-[10px] text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
                       type={inputType}
                       value={value}
                       onChange={(event) =>
@@ -813,30 +813,30 @@ export default function RecordsWorkspace({ role, activeKey }: Props) {
               })}
             </div>
 
-            {formError ? <p className="dashError">{formError}</p> : null}
+            {formError ? <p className="m-0 text-[#9f2d20] text-[13px]">{formError}</p> : null}
           </form>
         ) : null}
 
-        {error ? <p className="dashError">{error}</p> : null}
+        {error ? <p className="m-0 text-[#9f2d20] text-[13px]">{error}</p> : null}
 
-        <div className="dashRecords" aria-live="polite">
-          {isLoading ? <p className="dashMuted">Loading {activeConfig.label.toLowerCase()}...</p> : null}
+        <div className="grid gap-2.5" aria-live="polite">
+          {isLoading ? <p className="m-0 text-[var(--muted)] text-[13px]">Loading {activeConfig.label.toLowerCase()}...</p> : null}
           {!isLoading && filteredRecords.length === 0 ? (
-            <p className="dashMuted">No records found.</p>
+            <p className="m-0 text-[var(--muted)] text-[13px]">No records found.</p>
           ) : null}
 
           {!isLoading
             ? filteredRecords.map((record) => (
-                <article key={record.id} className="dashRecordCard">
-                  <div className="dashRecordHead">
-                    <h3 className="dashRecordTitle">{record.id}</h3>
-                    <div className="dashRecordActions">
-                      <button type="button" className="dashButton" onClick={() => startEdit(record)}>
+                <article key={record.id} className="border border-[var(--border)] rounded-2xl bg-white p-3 grid gap-2">
+                  <div className="flex justify-between gap-2 items-center">
+                    <h3 className="m-0 text-[12px] text-[var(--muted)] font-mono">{record.id}</h3>
+                    <div className="flex gap-2">
+                      <button type="button" className="border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] rounded-full px-3.5 py-2.5 text-[13px] font-bold cursor-pointer transition-all duration-150 hover:brightness-105 active:translate-y-[1px] active:filter-none inline-flex items-center justify-center no-underline" onClick={() => startEdit(record)}>
                         Edit
                       </button>
                       <button
                         type="button"
-                        className="dashButton"
+                        className="border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] rounded-full px-3.5 py-2.5 text-[13px] font-bold cursor-pointer transition-all duration-150 hover:brightness-105 active:translate-y-[1px] active:filter-none inline-flex items-center justify-center no-underline disabled:opacity-50"
                         disabled={!canDelete}
                         onClick={() => void removeRecord(record)}
                         title={canDelete ? 'Delete record' : 'Staff cannot delete records'}
@@ -846,14 +846,14 @@ export default function RecordsWorkspace({ role, activeKey }: Props) {
                     </div>
                   </div>
 
-                  <dl className="dashRecordMeta">
+                  <dl className="m-0 grid grid-cols-2 lg:grid-cols-5 gap-2">
                     {activeConfig.columns.map((column) => {
                       const raw = valueAtPath(record, column.path);
                       const rendered = renderValue(raw);
                       return (
-                        <div key={`${record.id}-${column.path}`}>
-                          <dt>{column.label}</dt>
-                          <dd>{rendered}</dd>
+                        <div key={`${record.id}-${column.path}`} className="grid gap-[3px]">
+                          <dt className="text-[11px] text-[var(--muted)] font-bold">{column.label}</dt>
+                          <dd className="m-0 text-[13px]">{rendered}</dd>
                         </div>
                       );
                     })}

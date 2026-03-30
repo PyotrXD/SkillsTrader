@@ -3,14 +3,23 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { pb } from '../../lib/pocketbase/pb';
 import { Icon } from '@iconify/react';
 import Toast from '../ui/Toast';
+import { useRateLimit } from '../../hooks/useRateLimit';
 
 function getErrorMessage(err: unknown): string {
   const maybeError = err as { response?: { message?: unknown } } | null | undefined;
   const responseMessage = maybeError?.response?.message;
   if (typeof responseMessage === 'string' && responseMessage.trim().length > 0) {
+    if (responseMessage.toLowerCase().includes('failed to authenticate')) {
+      return 'Incorrect email or password. Please try again.';
+    }
     return responseMessage;
   }
-  if (err instanceof Error && err.message) return err.message;
+  if (err instanceof Error && err.message) {
+    if (err.message.toLowerCase().includes('failed to authenticate')) {
+      return 'Incorrect email or password. Please try again.';
+    }
+    return err.message;
+  }
   return 'Login failed. Please check your credentials.';
 }
 
@@ -23,14 +32,29 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  // Use custom rate limit hook
+  const {
+    attempts,
+    locked,
+    addAttempt,
+    resetAttempts,
+    maxAttempts,
+    windowMs,
+  } = useRateLimit(email);
+
   if (pb.authStore.isValid) return <Navigate to="/dashboard" replace />;
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
-    setLoading(true);
 
+    if (locked) {
+      setError(`Too many failed attempts. Please try again in 5 minutes.`);
+      return;
+    }
+
+    setLoading(true);
     try {
       const identity = email.trim();
       const requestKeyBase = `login-${Date.now()}`;
@@ -50,9 +74,11 @@ export default function Login() {
       }
 
       setSuccess('Signed in successfully!');
+      resetAttempts();
       setTimeout(() => navigate('/dashboard', { replace: true }), 1000);
     } catch (err: unknown) {
       setError(getErrorMessage(err));
+      addAttempt();
     } finally {
       setLoading(false);
     }
@@ -133,15 +159,18 @@ export default function Login() {
             <button 
               type="submit" 
               className="group relative w-full flex justify-center items-center gap-2 rounded-xl bg-(--primary) py-3.5 px-4 text-white text-sm font-bold shadow-lg shadow-(--primary)/20 hover:bg-(--primary)/90 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed disabled:active:scale-100" 
-              disabled={loading}
+              disabled={loading || locked}
             >
               {loading ? (
                 <Icon icon="line-md:loading-twotone-loop" width="20" />
               ) : (
                 " "
               )}
-              {loading ? 'Signing in...' : 'Sign In'}
+              {locked ? 'Locked (wait 5 min)' : loading ? 'Signing in...' : 'Sign In'}
             </button>
+            {locked && (
+              <p className="text-xs text-red-500 text-center mt-2">Too many failed attempts. Please try again in 5 minutes.</p>
+            )}
           </form>
 
           <div className="mt-6 pt-4 border-t border-gray-100 text-center">

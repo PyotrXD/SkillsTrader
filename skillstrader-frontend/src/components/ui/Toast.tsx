@@ -36,7 +36,7 @@ export default function Toast({ type = 'info', message, duration = 4000, onClose
         role={type === 'error' ? 'alert' : 'status'}
         className={`w-full flex items-start gap-3 bg-white ${borderClass} rounded-lg p-4 shadow-xl ring-1 ring-black/5 transform transition-all duration-200 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'}`}
       >
-        <div className={`flex-shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-full ${iconWrapperClass} ring-1`}> 
+        <div className={`shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-full ${iconWrapperClass} ring-1`}> 
           <Icon icon={icon} width="20" />
         </div>
 
@@ -47,7 +47,7 @@ export default function Toast({ type = 'info', message, duration = 4000, onClose
               <Icon icon="mdi:close" width="16" />
             </button>
           </div>
-          <div className="mt-1 text-sm text-gray-700 break-words">{message}</div>
+          <div className="mt-1 text-sm text-gray-700 wrap-break-word">{message}</div>
         </div>
       </div>
     </div>

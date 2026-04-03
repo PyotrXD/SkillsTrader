@@ -1,0 +1,93 @@
+
+[
+	{
+		"id": 1,
+		"title": "Frontend Developer",
+		"openings": 2,
+		"employer_id": 3,
+		"status": "Open",
+		"location": "Quezon City",
+		"description": "React + TypeScript developer for web applications."
+	},
+	{
+		"id": 2,
+		"title": "Logistics Coordinator",
+		"openings": 1,
+		"employer_id": 2,
+		"status": "Open",
+		"location": "Manila",
+		"description": "Coordinate shipments and warehouse operations."
+	},
+	{
+		"id": 3,
+		"title": "Account Manager",
+		"openings": 1,
+		"employer_id": 5,
+		"status": "Filled",
+		"location": "Singapore",
+		"description": "Client-facing role managing strategic accounts."
+	},
+    {
+        "id": 4,
+        "title": "Production Supervisor",
+        "openings": 3,
+        "employer_id": 1,
+        "status": "Open",
+        "location": "Makati",
+        "description": "Oversee manufacturing processes and teams."
+    },
+    {
+        "id": 5,
+        "title": "Food Safety Specialist",
+        "openings": 1,
+        "employer_id": 4,
+        "status": "Open",
+        "location": "Cebu City",
+        "description": "Ensure compliance with food safety regulations."
+    },
+    {
+        "id": 6,
+        "title": "Warehouse Manager",
+        "openings": 1,
+        "employer_id": 2,
+        "status": "Open",
+        "location": "Manila",
+        "description": "Manage warehouse operations and inventory control."
+    },
+    {
+        "id": 7,
+        "title": "Software Engineer",
+        "openings": 2,
+        "employer_id": 5,
+        "status": "Open",
+        "location": "Singapore",
+        "description": "Develop and maintain software applications."
+    },
+    {
+        "id": 8,
+        "title": "Quality Control Inspector",
+        "openings": 2,
+        "employer_id": 1,
+        "status": "Open",
+        "location": "Makati",
+        "description": "Inspect products for quality assurance."
+    },
+    {
+        "id": 9,
+        "title": "Supply Chain Analyst",
+        "openings": 1,
+        "employer_id": 2,
+        "status": "Open",
+        "location": "Manila",
+        "description": "Analyze supply chain data to optimize operations."
+    },
+    {
+        "id": 10,
+        "title": "Customer Service Representative",
+        "openings": 3,
+        "employer_id": 4,
+        "status": "Open",
+        "location": "Cebu City",
+        "description": "Handle customer inquiries and support."
+    }
+]

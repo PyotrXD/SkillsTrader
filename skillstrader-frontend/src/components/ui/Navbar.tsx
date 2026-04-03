@@ -76,7 +76,7 @@ export default function Navbar({ role, email }: NavbarProps) {
 
           {menuOpen && (
             <div className="absolute right-0 top-12 min-w-[240px] bg-white border border-[var(--border)] rounded-2xl shadow-xl py-2 flex flex-col z-20 overflow-hidden">
-              <div className="px-5 py-3 border-b border-[var(--border)] mb-1 bg-[#faf9f7]">
+              <div className="px-5 py-3 border-b border-[var(--border)] mb-1 bg-white">
                 <strong className="block text-[14px] leading-tight font-bold text-[var(--text)]">{role}</strong>
                 <span className="block text-[12px] text-[var(--muted)] truncate">{email}</span>
               </div>

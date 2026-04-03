@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getPocketBaseUiError, pb, type UserRole } from '../lib/pocketbase/pb';
+import Candidates from "../components/custom/Candidates";
+import Employers from "../components/custom/Employers";
+import JobOrders from "../components/custom/JobOrders";
+import Placements from "../components/custom/Placements";
 
 type Option = {
   id: string;
@@ -281,10 +285,8 @@ const ENTITIES: EntityConfig[] = [
   },
 ];
 
-export const RECORD_ENTITY_ITEMS = ENTITIES.map((entity) => ({
-  key: entity.key,
-  label: entity.label,
-}));
+// List of entities for Sidebar navigation
+export const RECORD_ENTITY_ITEMS = ENTITIES.map(({ key, label }) => ({ key, label }));
 
 function toArrayString(value: unknown): string {
   if (!Array.isArray(value)) return '';
@@ -614,255 +616,267 @@ export default function RecordsWorkspace({ role, activeKey }: Props) {
   const showForm = isCreating || editingRecord !== null;
 
   return (
-    <section className="bg-[var(--surface)] border border-[var(--border)] rounded-[18px] shadow-[0_14px_44px_rgba(26,23,20,0.08),var(--inset)] p-[18px]" aria-label="Core records workspace">
-      <div className="grid gap-3.5">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5" aria-label="Search and filters">
-            <input
-              className="w-full border border-[var(--border)] bg-white text-[var(--text)] rounded-xl px-[11px] py-[10px] text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
-              placeholder={`Search ${activeConfig.label.toLowerCase()}...`}
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-
-            {activeConfig.statusField && activeConfig.statusOptions ? (
-              <select
-                className="w-full border border-[var(--border)] bg-white text-[var(--text)] rounded-xl px-[11px] py-[10px] text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
-                value={statusValue}
-                onChange={(event) => setStatusValue(event.target.value)}
-              >
-                <option value="">Any status</option>
-                {activeConfig.statusOptions.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
-            ) : null}
-
-            {activeConfig.dateFields && activeConfig.dateFields.length > 0 ? (
-              <select
-                className="w-full border border-[var(--border)] bg-white text-[var(--text)] rounded-xl px-[11px] py-[10px] text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
-                value={dateField}
-                onChange={(event) => setDateField(event.target.value)}
-              >
-                {activeConfig.dateFields.map((item) => (
-                  <option key={item.field} value={item.field}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            ) : null}
-
-            {activeConfig.dateFields && activeConfig.dateFields.length > 0 ? (
+    <>
+      {activeKey === 'candidates' ? (
+        <Candidates />
+      ) : activeKey === 'employer' ? (
+        <Employers />
+      ) : activeKey === 'placements' ? (
+        <Placements />
+      ) : activeKey === 'job_orders' ? (
+        <JobOrders />
+      ) : (
+        <section className="bg-(--surface) border border-(--border) rounded-[18px] shadow-[0_14px_44px_rgba(26,23,20,0.08),var(--inset)] p-4.5" aria-label="Core records workspace">
+          <div className="grid gap-3.5">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5" aria-label="Search and filters">
               <input
-                className="w-full border border-[var(--border)] bg-white text-[var(--text)] rounded-xl px-[11px] py-[10px] text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
-                type="date"
-                value={dateFrom}
-                onChange={(event) => setDateFrom(event.target.value)}
+                className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
+                placeholder={`Search ${activeConfig.label.toLowerCase()}...`}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
               />
-            ) : null}
 
-            {activeConfig.dateFields && activeConfig.dateFields.length > 0 ? (
-              <input
-                className="w-full border border-[var(--border)] bg-white text-[var(--text)] rounded-xl px-[11px] py-[10px] text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
-                type="date"
-                value={dateTo}
-                onChange={(event) => setDateTo(event.target.value)}
-              />
-            ) : null}
+              {activeConfig.statusField && activeConfig.statusOptions ? (
+                <select
+                  className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
+                  value={statusValue}
+                  onChange={(event) => setStatusValue(event.target.value)}
+                >
+                  <option value="">Any status</option>
+                  {activeConfig.statusOptions.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
 
-            <button type="button" className="border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] rounded-full px-3.5 py-2.5 text-[13px] font-bold cursor-pointer transition-all duration-150 hover:brightness-105 active:translate-y-[1px] active:filter-none inline-flex items-center justify-center no-underline" onClick={() => void loadRecords()}>
-              Apply filters
-            </button>
+              {activeConfig.dateFields && activeConfig.dateFields.length > 0 ? (
+                <select
+                  className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
+                  value={dateField}
+                  onChange={(event) => setDateField(event.target.value)}
+                >
+                  {activeConfig.dateFields.map((item) => (
+                    <option key={item.field} value={item.field}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
 
-            {!showForm ? (
-              <button type="button" className="border-none text-white bg-gradient-to-br from-[var(--primary)] to-[var(--primary2)] shadow-[0_8px_26px_rgba(200,75,49,0.18)] rounded-full px-3.5 py-2.5 text-[13px] font-bold cursor-pointer transition-all duration-150 hover:brightness-105 active:translate-y-[1px] active:filter-none inline-flex items-center justify-center no-underline" onClick={startCreate}>
-                New {activeConfig.label.slice(0, -1)}
+              {activeConfig.dateFields && activeConfig.dateFields.length > 0 ? (
+                <input
+                  className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
+                  type="date"
+                  value={dateFrom}
+                  onChange={(event) => setDateFrom(event.target.value)}
+                />
+              ) : null}
+
+              {activeConfig.dateFields && activeConfig.dateFields.length > 0 ? (
+                <input
+                  className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
+                  type="date"
+                  value={dateTo}
+                  onChange={(event) => setDateTo(event.target.value)}
+                />
+              ) : null}
+
+              <button type="button" className="border border-(--border) bg-(--surface) text-(--text) rounded-full px-3.5 py-2.5 text-[13px] font-bold cursor-pointer transition-all duration-150 hover:brightness-105 active:translate-y-px active:filter-none inline-flex items-center justify-center no-underline" onClick={() => void loadRecords()}>
+                Apply filters
               </button>
-            ) : null}
-        </div>
 
-        {showForm ? (
-          <form className="border border-[var(--border)] rounded-2xl p-3.5 grid gap-3 bg-white" onSubmit={submitForm}>
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="m-0 text-[17px]">{editingRecord ? 'Edit record' : 'Create record'}</h2>
-              <div className="flex items-center gap-2">
-                <button type="button" className="border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] rounded-full px-3.5 py-2.5 text-[13px] font-bold cursor-pointer transition-all duration-150 hover:brightness-105 active:translate-y-[1px] active:filter-none inline-flex items-center justify-center no-underline" onClick={cancelForm}>
-                  Cancel
+              {!showForm ? (
+                <button type="button" className="border-none text-white bg-linear-to-br from-(--primary) to-(--primary2) shadow-[0_8px_26px_rgba(200,75,49,0.18)] rounded-full px-3.5 py-2.5 text-[13px] font-bold cursor-pointer transition-all duration-150 hover:brightness-105 active:translate-y-px active:filter-none inline-flex items-center justify-center no-underline" onClick={startCreate}>
+                  New {activeConfig.label.slice(0, -1)}
                 </button>
-                <button type="submit" className="border-none text-white bg-gradient-to-br from-[var(--primary)] to-[var(--primary2)] shadow-[0_8px_26px_rgba(200,75,49,0.18)] rounded-full px-3.5 py-2.5 text-[13px] font-bold cursor-pointer transition-all duration-150 hover:brightness-105 active:translate-y-[1px] active:filter-none inline-flex items-center justify-center no-underline disabled:opacity-70" disabled={isSaving}>
-                  {isSaving ? 'Saving...' : 'Save'}
-                </button>
-              </div>
+              ) : null}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-              {activeConfig.fields.map((field) => {
-                const value = formData[field.name] ?? '';
-
-                if (field.type === 'textarea') {
-                  return (
-                    <label key={field.name} className="grid gap-[5px] col-span-1 md:col-span-2">
-                      <span className="text-[12px] text-[var(--muted)] font-bold">{field.label}</span>
-                      <textarea
-                        className="w-full border border-[var(--border)] bg-white text-[var(--text)] rounded-xl px-[11px] py-[10px] text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] min-h-[88px] resize-y"
-                        value={value}
-                        onChange={(event) =>
-                          setFormData((prev) => ({ ...prev, [field.name]: event.target.value }))
-                        }
-                      />
-                    </label>
-                  );
-                }
-
-                if (field.type === 'select' && field.options) {
-                  return (
-                    <label key={field.name} className="grid gap-[5px]">
-                      <span className="text-[12px] text-[var(--muted)] font-bold">{field.label}</span>
-                      <select
-                        className="w-full border border-[var(--border)] bg-white text-[var(--text)] rounded-xl px-[11px] py-[10px] text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
-                        value={value}
-                        onChange={(event) =>
-                          setFormData((prev) => ({ ...prev, [field.name]: event.target.value }))
-                        }
-                      >
-                        <option value="">Select...</option>
-                        {field.options.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  );
-                }
-
-                if (field.type === 'bool') {
-                  return (
-                    <label key={field.name} className="grid gap-[5px]">
-                      <span className="text-[12px] text-[var(--muted)] font-bold">{field.label}</span>
-                      <select
-                        className="w-full border border-[var(--border)] bg-white text-[var(--text)] rounded-xl px-[11px] py-[10px] text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
-                        value={value}
-                        onChange={(event) =>
-                          setFormData((prev) => ({ ...prev, [field.name]: event.target.value }))
-                        }
-                      >
-                        <option value="">Not set</option>
-                        <option value="true">Yes</option>
-                        <option value="false">No</option>
-                      </select>
-                    </label>
-                  );
-                }
-
-                if (field.type === 'relation' && field.relationKey) {
-                  const options = relationOptions[field.relationKey] ?? [];
-                  return (
-                    <label key={field.name} className="grid gap-[5px]">
-                      <span className="text-[12px] text-[var(--muted)] font-bold">{field.label}</span>
-                      <select
-                        className="w-full border border-[var(--border)] bg-white text-[var(--text)] rounded-xl px-[11px] py-[10px] text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
-                        value={value}
-                        onChange={(event) =>
-                          setFormData((prev) => ({ ...prev, [field.name]: event.target.value }))
-                        }
-                      >
-                        <option value="">Select...</option>
-                        {options.map((option) => (
-                          <option key={option.id} value={option.id}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  );
-                }
-
-                if (field.type === 'file') {
-                  return (
-                    <label key={field.name} className="grid gap-[5px] col-span-1 md:col-span-2">
-                      <span className="text-[12px] text-[var(--muted)] font-bold">{field.label}</span>
-                      <input
-                        className="w-full border border-[var(--border)] bg-white text-[var(--text)] rounded-xl px-[11px] py-[10px] text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
-                        type="file"
-                        onChange={(event) => {
-                          const selected = event.target.files?.[0] ?? null;
-                          setFiles((prev) => ({ ...prev, [field.name]: selected }));
-                        }}
-                      />
-                    </label>
-                  );
-                }
-
-                const inputType = field.type === 'number' || field.type === 'date' || field.type === 'email' ? field.type : 'text';
-
-                return (
-                  <label key={field.name} className="grid gap-[5px]">
-                    <span className="text-[12px] text-[var(--muted)] font-bold">{field.label}</span>
-                    <input
-                      className="w-full border border-[var(--border)] bg-white text-[var(--text)] rounded-xl px-[11px] py-[10px] text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
-                      type={inputType}
-                      value={value}
-                      onChange={(event) =>
-                        setFormData((prev) => ({ ...prev, [field.name]: event.target.value }))
-                      }
-                    />
-                  </label>
-                );
-              })}
-            </div>
-
-            {formError ? <p className="m-0 text-[#9f2d20] text-[13px]">{formError}</p> : null}
-          </form>
-        ) : null}
-
-        {error ? <p className="m-0 text-[#9f2d20] text-[13px]">{error}</p> : null}
-
-        <div className="grid gap-2.5" aria-live="polite">
-          {isLoading ? <p className="m-0 text-[var(--muted)] text-[13px]">Loading {activeConfig.label.toLowerCase()}...</p> : null}
-          {!isLoading && filteredRecords.length === 0 ? (
-            <p className="m-0 text-[var(--muted)] text-[13px]">No records found.</p>
-          ) : null}
-
-          {!isLoading
-            ? filteredRecords.map((record) => (
-                <article key={record.id} className="border border-[var(--border)] rounded-2xl bg-white p-3 grid gap-2">
-                  <div className="flex justify-between gap-2 items-center">
-                    <h3 className="m-0 text-[12px] text-[var(--muted)] font-mono">{record.id}</h3>
-                    <div className="flex gap-2">
-                      <button type="button" className="border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] rounded-full px-3.5 py-2.5 text-[13px] font-bold cursor-pointer transition-all duration-150 hover:brightness-105 active:translate-y-[1px] active:filter-none inline-flex items-center justify-center no-underline" onClick={() => startEdit(record)}>
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] rounded-full px-3.5 py-2.5 text-[13px] font-bold cursor-pointer transition-all duration-150 hover:brightness-105 active:translate-y-[1px] active:filter-none inline-flex items-center justify-center no-underline disabled:opacity-50"
-                        disabled={!canDelete}
-                        onClick={() => void removeRecord(record)}
-                        title={canDelete ? 'Delete record' : 'Staff cannot delete records'}
-                      >
-                        Delete
-                      </button>
-                    </div>
+            {showForm ? (
+              <form className="border border-(--border) rounded-2xl p-3.5 grid gap-3 bg-white" onSubmit={submitForm}>
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="m-0 text-[17px]">{editingRecord ? 'Edit record' : 'Create record'}</h2>
+                  <div className="flex items-center gap-2">
+                    <button type="button" className="border border-(--border) bg-(--surface) text-(--text) rounded-full px-3.5 py-2.5 text-[13px] font-bold cursor-pointer transition-all duration-150 hover:brightness-105 active:translate-y-px active:filter-none inline-flex items-center justify-center no-underline" onClick={cancelForm}>
+                      Cancel
+                    </button>
+                    <button type="submit" className="border-none text-white bg-linear-to-br from-(--primary) to-(--primary2) shadow-[0_8px_26px_rgba(200,75,49,0.18)] rounded-full px-3.5 py-2.5 text-[13px] font-bold cursor-pointer transition-all duration-150 hover:brightness-105 active:translate-y-px active:filter-none inline-flex items-center justify-center no-underline disabled:opacity-70" disabled={isSaving}>
+                      {isSaving ? 'Saving...' : 'Save'}
+                    </button>
                   </div>
+                </div>
 
-                  <dl className="m-0 grid grid-cols-2 lg:grid-cols-5 gap-2">
-                    {activeConfig.columns.map((column) => {
-                      const raw = valueAtPath(record, column.path);
-                      const rendered = renderValue(raw);
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                  {activeConfig.fields.map((field) => {
+                    const value = formData[field.name] ?? '';
+
+                    if (field.type === 'textarea') {
                       return (
-                        <div key={`${record.id}-${column.path}`} className="grid gap-[3px]">
-                          <dt className="text-[11px] text-[var(--muted)] font-bold">{column.label}</dt>
-                          <dd className="m-0 text-[13px]">{rendered}</dd>
-                        </div>
+                        <label key={field.name} className="grid gap-1.25 col-span-1 md:col-span-2">
+                          <span className="text-[12px] text-(--muted) font-bold">{field.label}</span>
+                          <textarea
+                            className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-(--primary) min-h-22 resize-y"
+                            value={value}
+                            onChange={(event) =>
+                              setFormData((prev) => ({ ...prev, [field.name]: event.target.value }))
+                            }
+                          />
+                        </label>
                       );
-                    })}
-                  </dl>
-                </article>
-              ))
-            : null}
-        </div>
-      </div>
-    </section>
+                    }
+
+                    if (field.type === 'select' && field.options) {
+                      return (
+                        <label key={field.name} className="grid gap-1.25">
+                          <span className="text-[12px] text-(--muted) font-bold">{field.label}</span>
+                          <select
+                            className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
+                            value={value}
+                            onChange={(event) =>
+                              setFormData((prev) => ({ ...prev, [field.name]: event.target.value }))
+                            }
+                          >
+                            <option value="">Select...</option>
+                            {field.options.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      );
+                    }
+
+                    if (field.type === 'bool') {
+                      return (
+                        <label key={field.name} className="grid gap-1.25">
+                          <span className="text-[12px] text-(--muted) font-bold">{field.label}</span>
+                          <select
+                            className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
+                            value={value}
+                            onChange={(event) =>
+                              setFormData((prev) => ({ ...prev, [field.name]: event.target.value }))
+                            }
+                          >
+                            <option value="">Not set</option>
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                          </select>
+                        </label>
+                      );
+                    }
+
+                    if (field.type === 'relation' && field.relationKey) {
+                      const options = relationOptions[field.relationKey] ?? [];
+                      return (
+                        <label key={field.name} className="grid gap-1.25">
+                          <span className="text-[12px] text-(--muted) font-bold">{field.label}</span>
+                          <select
+                            className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
+                            value={value}
+                            onChange={(event) =>
+                              setFormData((prev) => ({ ...prev, [field.name]: event.target.value }))
+                            }
+                          >
+                            <option value="">Select...</option>
+                            {options.map((option) => (
+                              <option key={option.id} value={option.id}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      );
+                    }
+
+                    if (field.type === 'file') {
+                      return (
+                        <label key={field.name} className="grid gap-1.25 col-span-1 md:col-span-2">
+                          <span className="text-[12px] text-(--muted) font-bold">{field.label}</span>
+                          <input
+                            className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
+                            type="file"
+                            onChange={(event) => {
+                              const selected = event.target.files?.[0] ?? null;
+                              setFiles((prev) => ({ ...prev, [field.name]: selected }));
+                            }}
+                          />
+                        </label>
+                      );
+                    }
+
+                    const inputType = field.type === 'number' || field.type === 'date' || field.type === 'email' ? field.type : 'text';
+
+                    return (
+                        <label key={field.name} className="grid gap-1.25">
+                          <span className="text-[12px] text-(--muted) font-bold">{field.label}</span>
+                        <input
+                          className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
+                          type={inputType}
+                          value={value}
+                          onChange={(event) =>
+                            setFormData((prev) => ({ ...prev, [field.name]: event.target.value }))
+                          }
+                        />
+                      </label>
+                    );
+                  })}
+                </div>
+
+                {formError ? <p className="m-0 text-[#9f2d20] text-[13px]">{formError}</p> : null}
+              </form>
+            ) : null}
+
+            {error ? <p className="m-0 text-[#9f2d20] text-[13px]">{error}</p> : null}
+
+            <div className="grid gap-2.5" aria-live="polite">
+              {isLoading ? <p className="m-0 text-(--muted) text-[13px]">Loading {activeConfig.label.toLowerCase()}...</p> : null}
+              {!isLoading && filteredRecords.length === 0 ? (
+                <p className="m-0 text-(--muted) text-[13px]">No records found.</p>
+              ) : null}
+
+              {!isLoading
+                ? filteredRecords.map((record) => (
+                    <article key={record.id} className="border border-(--border) rounded-2xl bg-white p-3 grid gap-2">
+                      <div className="flex justify-between gap-2 items-center">
+                        <h3 className="m-0 text-[12px] text-(--muted) font-mono">{record.id}</h3>
+                        <div className="flex gap-2">
+                          <button type="button" className="border border-(--border) bg-(--surface) text-(--text) rounded-full px-3.5 py-2.5 text-[13px] font-bold cursor-pointer transition-all duration-150 hover:brightness-105 active:translate-y-px active:filter-none inline-flex items-center justify-center no-underline" onClick={() => startEdit(record)}>
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="border border-(--border) bg-(--surface) text-(--text) rounded-full px-3.5 py-2.5 text-[13px] font-bold cursor-pointer transition-all duration-150 hover:brightness-105 active:translate-y-px active:filter-none inline-flex items-center justify-center no-underline disabled:opacity-50"
+                            disabled={!canDelete}
+                            onClick={() => void removeRecord(record)}
+                            title={canDelete ? 'Delete record' : 'Staff cannot delete records'}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+
+                      <dl className="m-0 grid grid-cols-2 lg:grid-cols-5 gap-2">
+                        {activeConfig.columns.map((column) => {
+                          const raw = valueAtPath(record, column.path);
+                          const rendered = renderValue(raw);
+                          return (
+                            <div key={`${record.id}-${column.path}`} className="grid gap-0.75">
+                              <dt className="text-[11px] text-(--muted) font-bold">{column.label}</dt>
+                              <dd className="m-0 text-[13px]">{rendered}</dd>
+                            </div>
+                          );
+                        })}
+                      </dl>
+                    </article>
+                  ))
+                : null}
+            </div>
+          </div>
+        </section>
+      )}
+    </>
   );
 }

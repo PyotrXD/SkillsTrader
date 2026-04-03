@@ -1,0 +1,92 @@
+[
+  {
+    "id": 1,
+    "email": "admin@example.com",
+    "name": "Admin User",
+    "role": "administrator"
+  },
+  {
+    "id": 2,
+    "email": "manager@example.com",
+    "name": "Manager User",
+    "role": "manager"
+  },
+  {
+    "id": 3,
+    "email": "staff@example.com",
+    "name": "Staff User",
+    "role": "staff"
+  },
+    {
+        "id": 4,
+        "email": "user@example.com",
+        "name": "User One",
+        "role": "staff"
+    },
+    {
+        "id": 5,
+        "email": "user2@example.com",
+        "name": "User Two",
+        "role": "staff"
+    },
+    {
+        "id": 6,
+        "email": "user3@example.com",
+        "name": "User Three",
+        "role": "staff"
+    },
+    {
+        "id": 7,
+        "email": "user4@example.com",
+        "name": "User Four",
+        "role": "staff"
+    },
+    {
+        "id": 8,
+        "email": "user5@example.com",
+        "name": "User Five",
+        "role": "staff"
+    },
+    {
+        "id": 9,
+        "email": "user6@example.com",
+        "name": "User Six",
+        "role": "staff"
+    },
+    {
+        "id": 10,
+        "email": "user7@example.com",
+        "name": "User Seven",
+        "role": "staff"
+    },
+    {
+        "id": 11,
+        "email": "user8@example.com",
+        "name": "User Eight",
+        "role": "staff"
+    },
+    {
+        "id": 12,
+        "email": "user9@example.com",
+        "name": "User Nine",
+        "role": "staff"
+    },
+    {
+        "id": 13,
+        "email": "user10@example.com",
+        "name": "User Ten",
+        "role": "staff"
+    },
+    {
+        "id": 14,
+        "email": "user11@example.com",
+        "name": "User Eleven",
+        "role": "staff"
+    },
+    {
+        "id": 15,
+        "email": "user12@example.com",
+        "name": "User Twelve",
+        "role": "staff"
+    }
+]

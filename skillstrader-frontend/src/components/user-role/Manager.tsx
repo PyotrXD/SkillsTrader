@@ -5,6 +5,7 @@ import Navbar from '../ui/Navbar';
 import DashboardMetrics from '../../pages/DashboardMetrics';
 import Sidebar from '../custom/Sidebar';
 import RecordsWorkspace from '../../pages/RecordsWorkspace';
+import { UsersPanel } from '../custom/Users';
 
 export default function Manager() {
   const email = pb.authStore.record?.email ?? 'your account';
@@ -27,7 +28,7 @@ export default function Manager() {
       <div className="flex-1 flex flex-col min-w-0">
         <Navbar role="Manager" email={email} />
 
-        <div className="w-full max-w-[1160px] mx-auto px-5 py-6 md:px-10 md:py-8">
+        <div className="w-full mx-auto px-5 py-6 md:p-6 sm:p-3">
           <main className="grid gap-5">
             <section className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius)] shadow-[var(--shadow),var(--inset)] px-6 py-6">
               <p className="text-[11px] font-bold tracking-[0.12em] uppercase text-[var(--primary)] mb-2.5">Manager</p>
@@ -38,7 +39,11 @@ export default function Manager() {
             </section>
 
             <DashboardMetrics />
-            <RecordsWorkspace role="manager" activeKey={activeKey} />
+            {activeKey === 'users' ? (
+              <UsersPanel />
+            ) : (
+              <RecordsWorkspace role="manager" activeKey={activeKey} />
+            )}
           </main>
         </div>
       </div>

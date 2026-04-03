@@ -139,8 +139,8 @@ export default function Sidebar({
           <button
             type="button"
             title={isCollapsed ? 'Users' : undefined}
-            className={`${NAV_BASE} ${sizeClass} ${onUsersPage ? NAV_ACTIVE : NAV_IDLE}`}
-            onClick={() => navigate('/dashboard/admin/users/new')}
+            className={`${NAV_BASE} ${sizeClass} ${activeKey === 'users' || onUsersPage ? NAV_ACTIVE : NAV_IDLE}`}
+            onClick={() => onSelect('users')}
           >
             <span className="shrink-0">{USERS_ICON}</span>
             {!isCollapsed && <span>Users</span>}
@@ -149,7 +149,7 @@ export default function Sidebar({
 
         {/* Entity items */}
         {RECORD_ENTITY_ITEMS.map((entity) => {
-          const selected = entity.key === activeKey && !onUsersPage;
+          const selected = entity.key === activeKey && activeKey !== 'users' && !onUsersPage;
           const icon = ENTITY_ICONS[entity.key];
           return (
             <button

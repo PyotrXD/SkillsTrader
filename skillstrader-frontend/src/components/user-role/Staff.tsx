@@ -27,7 +27,7 @@ export default function Staff() {
       <div className="flex-1 flex flex-col min-w-0">
         <Navbar role="Staff" email={email} />
 
-        <div className="w-full max-w-[1160px] mx-auto px-5 py-6 md:px-10 md:py-8">
+        <div className="w-full mx-auto px-5 py-6 md:p-6 sm:p-3">
           <main className="grid gap-5">
             <section className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius)] shadow-[var(--shadow),var(--inset)] px-6 py-6">
               <p className="text-[11px] font-bold tracking-[0.12em] uppercase text-[var(--primary)] mb-2.5">Staff</p>

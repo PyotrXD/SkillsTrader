@@ -31,6 +31,25 @@ npm run dev
 
 ## Deployment (Production)
 
+### Portable Release Bundles (Windows + Linux)
+
+Generate both deployment zip bundles from repository root:
+
+```powershell
+npm run package:all
+```
+
+Output files:
+- `release/dist/skillstrader-win-x64.zip`
+- `release/dist/skillstrader-linux-x64.zip`
+
+Per-target commands:
+- `npm run package:win`
+- `npm run package:linux`
+
+Detailed install/run steps for extracted bundles:
+- `release/README-deploy.md`
+
 ### 1) Prerequisites
 
 - OS: Windows Server or Linux VM.

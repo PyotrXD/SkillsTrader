@@ -1,0 +1,15 @@
+﻿[Unit]
+Description=SkillsTrader PocketBase Service
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/skillstrader
+ExecStart=/opt/skillstrader/start.sh
+Restart=always
+RestartSec=5
+User=www-data
+Group=www-data
+
+[Install]
+WantedBy=multi-user.target

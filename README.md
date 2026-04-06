@@ -23,11 +23,13 @@
 ## Local Development
 
 ```powershell
+npm run setup
 npm run dev
 ```
 
 - Frontend: `http://127.0.0.1:5173/dashboard`
 - PocketBase Dashboard: `http://127.0.0.1:8091/_/`
+- Run `npm run setup` again after pulling changes that update `package.json` or `package-lock.json`.
 
 ## Deployment (Production)
 
@@ -76,7 +78,7 @@ Reference files:
 From repository root:
 
 ```powershell
-npm ci
+npm run setup
 npm run build
 ```
 
@@ -152,6 +154,6 @@ More details:
 
 1. Backup `pb_data`.
 2. Pull latest code.
-3. Rebuild frontend (`npm ci && npm run build`).
+3. Reinstall dependencies and rebuild frontend (`npm run setup && npm run build`).
 4. Restart PocketBase service.
 5. Re-test login, record create/update/delete, and audit logs.

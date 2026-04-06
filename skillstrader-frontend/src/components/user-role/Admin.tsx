@@ -5,6 +5,7 @@ import Navbar from '../ui/Navbar';
 import Sidebar from '../custom/Sidebar';
 import RecordsWorkspace from '../../pages/RecordsWorkspace';
 import { UsersPanel } from '../custom/Users';
+import AuditLog from '../custom/AuditLog';
 
 export default function Admin() {
   const email = pb.authStore.record?.email ?? 'your account';
@@ -31,6 +32,8 @@ export default function Admin() {
           <main className="grid gap-5">
             {activeKey === 'users' ? (
               <UsersPanel />
+            ) : activeKey === 'audit_log' ? (
+              <AuditLog />
             ) : (
               <RecordsWorkspace role="administrator" activeKey={activeKey} />
             )}

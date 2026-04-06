@@ -211,7 +211,7 @@ export default function Placements() {
                 <div className="ml-2 flex-shrink-0">
                   <button type="button" onClick={() => { setSearch(''); setStatusFilter(''); setPage(1); }} className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-red-100 text-red-700 font-semibold text-xs hover:bg-red-200 transition-colors">
                     <Icon icon="tabler:x" width="18" height="18" />
-                    Clear All
+                    Clear Filter
                   </button>
                 </div>
               )}

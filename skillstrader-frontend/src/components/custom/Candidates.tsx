@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import type { FormEvent } from "react";
 import { Icon } from "@iconify/react";
 import Modal from "../ui/Modal";
@@ -8,6 +8,10 @@ import Filter from "../ui/Filter";
 import Selection from "../ui/Selection";
 import Pagination from "../ui/Pagination";
 import candidatesData from "../../data/candidates.json";
+import defaultProfile from "../../assets/images/default-profile.png";
+import { generateResumeHtml } from './resumeTemplate';
+import { getUserRole, pb } from '../../lib/pocketbase/pb';
+import { addAuditLog } from '../../utils/auditLog';
 
 type CandidateForm = {
   id?: number | string;
@@ -26,7 +30,11 @@ type CandidateForm = {
   consent_source: string;
   consent_version: string;
   action_required?: string[];
+  profile_photo?: File | string | null;
+  documents?: Record<string, string | File | null>;
 };
+
+type ArchivedCandidate = CandidateForm & { archived_at?: string; archived_by?: string };
 
 const candidateStatuses = [
   "Applied",
@@ -55,6 +63,8 @@ const initialForm: CandidateForm = {
   consent_source: "",
   consent_version: "",
   action_required: [],
+  profile_photo: null,
+  documents: {},
 };
 
 function getCandidateFlags(c: CandidateForm): string[] {
@@ -151,6 +161,7 @@ export default function Candidates() {
     setForm(initialForm);
     setIsModalOpen(true);
     setError("");
+    setActiveTab('info');
   }
   function handleCloseModal() {
     setIsModalOpen(false);
@@ -161,6 +172,7 @@ export default function Candidates() {
     setForm({ ...candidate, action_required: candidate.action_required ?? getCandidateFlags(candidate) });
     setIsEditModalOpen(true);
     setError("");
+    setActiveTab('info');
   }
   function handleCloseEditModal() {
     setIsEditModalOpen(false);
@@ -177,6 +189,14 @@ export default function Candidates() {
   }
   function handleView(candidate: CandidateForm) {
     setViewCandidate(candidate);
+    setViewTab('info');
+    addAuditLog({
+      actor_email: pb.authStore.record?.email ?? 'unknown',
+      actor_role: getUserRole() ?? 'staff',
+      action: 'view',
+      entity: 'Candidate',
+      entity_name: candidate.full_name || String(candidate.id ?? '—'),
+    });
   }
   function handleCloseViewModal() {
     setViewCandidate(null);
@@ -189,6 +209,13 @@ export default function Candidates() {
     try {
       // TODO: PB create
       setCandidates((prev) => [{ ...form, id: Date.now() }, ...prev]);
+      addAuditLog({
+        actor_email: pb.authStore.record?.email ?? 'unknown',
+        actor_role: getUserRole() ?? 'staff',
+        action: 'create',
+        entity: 'Candidate',
+        entity_name: form.full_name || 'New Candidate',
+      });
       showFeedback("success", "Candidate added successfully.");
       setIsModalOpen(false);
     } catch {
@@ -209,6 +236,13 @@ export default function Candidates() {
           c.id === editCandidate?.id ? { ...form, id: c.id } : c,
         ),
       );
+      addAuditLog({
+        actor_email: pb.authStore.record?.email ?? 'unknown',
+        actor_role: getUserRole() ?? 'staff',
+        action: 'update',
+        entity: 'Candidate',
+        entity_name: form.full_name || String(editCandidate?.id ?? '—'),
+      });
       showFeedback("success", "Candidate updated successfully.");
       setIsEditModalOpen(false);
     } catch {
@@ -221,12 +255,17 @@ export default function Candidates() {
   async function onDeleteSubmit() {
     setIsSubmitting(true);
     try {
-      // TODO: PB delete
-      setCandidates((prev) => prev.filter((c) => c.id !== deleteCandidate?.id));
-      showFeedback("success", "Candidate deleted successfully.");
+      // Archive instead of permanent delete (client-side)
+      if (!deleteCandidate) {
+        showFeedback("error", "No candidate selected.");
+        setIsDeleteModalOpen(false);
+        return;
+      }
+
+      handleArchive(deleteCandidate);
       setIsDeleteModalOpen(false);
     } catch {
-      showFeedback("error", "Failed to delete candidate.");
+      showFeedback("error", "Failed to archive candidate.");
     } finally {
       setIsSubmitting(false);
     }
@@ -256,6 +295,167 @@ export default function Candidates() {
   const availableFlags = ["Not Interviewed", "Not Scheduled", "Docs Missing"];
   const formFlags = form.action_required && form.action_required.length ? form.action_required : getCandidateFlags(form);
 
+  const documentTypes: Array<[string, string]> = [
+    ["resume", "Resume"],
+    ["passport", "Passport"],
+    ["visa", "VISA"],
+    ["nbi_clearance", "NBI Clearance"],
+    ["police_clearance", "Police Clearance"],
+    ["offer_letter", "Offer Letter"],
+    ["dmw_approved_contract", "DMW Approved Contract"],
+    ["overseas_employment_contract", "Overseas Employment Contract"],
+    ["employer_contact", "Employer Contact"],
+    ["other", "Other"],
+  ];
+
+  const [viewTab, setViewTab] = useState<'info' | 'documents'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'documents'>('info');
+
+  // Archive state + auth
+  const [archivedCandidates, setArchivedCandidates] = useState<ArchivedCandidate[]>([]);
+  const [isArchiveOpen, setIsArchiveOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [adminPasswordInput, setAdminPasswordInput] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [staffViewOnly, setStaffViewOnly] = useState(false);
+
+  const userRole = useMemo(() => getUserRole() ?? 'staff', []);
+
+  // Print / PDF helpers
+  const printRef = useRef<HTMLDivElement | null>(null);
+
+  const profileUrl = useMemo(() => {
+    if (!viewCandidate) return defaultProfile;
+    const pp = viewCandidate.profile_photo;
+    if (pp) {
+      if (typeof pp === 'string' && pp) return pp;
+      if (pp instanceof File) {
+        try { return URL.createObjectURL(pp); } catch (e) { /* fallthrough */ }
+      }
+    }
+    return defaultProfile;
+  }, [viewCandidate]);
+
+  useEffect(() => {
+    return () => {
+      try {
+        if (profileUrl && profileUrl.startsWith('blob:')) URL.revokeObjectURL(profileUrl);
+      } catch (e) {
+        // ignore
+      }
+    };
+  }, [profileUrl]);
+
+  const [formProfilePreviewUrl, setFormProfilePreviewUrl] = useState<string | null>(null);
+  useEffect(() => {
+    const pp = form.profile_photo;
+    if (!pp) { setFormProfilePreviewUrl(null); return; }
+    if (typeof pp === 'string') { setFormProfilePreviewUrl(pp); return; }
+    if (pp instanceof File) {
+      const url = URL.createObjectURL(pp);
+      setFormProfilePreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    }
+    return undefined;
+  }, [form.profile_photo]);
+
+  function handleDownloadPdf() {
+    if (!viewCandidate) return;
+    const imgSrc = profileUrl;
+    const html = generateResumeHtml(viewCandidate as Record<string, any>, imgSrc);
+
+    const w = window.open('', '_blank');
+    if (!w) return;
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => {
+      try { w.print(); } catch (e) { /* ignore */ }
+    }, 500);
+  }
+
+  function handleDocumentDownload(key: string, doc: File | string) {
+    if (typeof doc === 'string') {
+      const a = document.createElement('a');
+      a.href = doc;
+      a.download = key;
+      a.target = '_blank';
+      a.rel = 'noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } else if (doc instanceof File) {
+      const url = URL.createObjectURL(doc);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = doc.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+  }
+
+  // Archive handlers
+  function handleArchive(candidate: CandidateForm) {
+    setCandidates((prev) => prev.filter((c) => c.id !== candidate.id));
+    setArchivedCandidates((prev) => [
+      { ...candidate, archived_at: new Date().toISOString(), archived_by: userRole },
+      ...prev,
+    ]);
+    addAuditLog({
+      actor_email: pb.authStore.record?.email ?? 'unknown',
+      actor_role: getUserRole() ?? 'staff',
+      action: 'archive',
+      entity: 'Candidate',
+      entity_name: candidate.full_name || String(candidate.id ?? '—'),
+    });
+    showFeedback('success', 'Candidate archived.');
+  }
+
+  function handleRestore(candidate: ArchivedCandidate) {
+    setArchivedCandidates((prev) => prev.filter((c) => c.id !== candidate.id));
+    setCandidates((prev) => [{ ...candidate, archived_at: undefined, archived_by: undefined }, ...prev]);
+    addAuditLog({
+      actor_email: pb.authStore.record?.email ?? 'unknown',
+      actor_role: getUserRole() ?? 'staff',
+      action: 'restore',
+      entity: 'Candidate',
+      entity_name: candidate.full_name || String(candidate.id ?? '—'),
+    });
+    showFeedback('success', 'Candidate restored.');
+  }
+
+  function handleOpenArchive() {
+    if (userRole === 'staff') {
+      // Staff must authenticate to view archive (view-only)
+      setIsAuthModalOpen(true);
+      return;
+    }
+    setStaffViewOnly(false);
+    setIsArchiveOpen(true);
+  }
+
+  function handleViewArchived(candidate: ArchivedCandidate) {
+    setIsArchiveOpen(false);
+    handleView(candidate as CandidateForm);
+  }
+
+  function handleAdminAuthSubmit(e?: React.FormEvent) {
+    e?.preventDefault?.();
+    const ADMIN_PASS = import.meta.env.VITE_ADMIN_PASSWORD ?? 'admin123';
+    if (adminPasswordInput === ADMIN_PASS) {
+      setIsAuthModalOpen(false);
+      setIsArchiveOpen(true);
+      setStaffViewOnly(true);
+      setAdminPasswordInput('');
+      setAuthError('');
+    } else {
+      setAuthError('Incorrect admin password');
+    }
+  }
+
   return (
     <div className="flex-1 flex flex-col min-w-0">
       <div className="w-full mx-auto">
@@ -277,12 +477,21 @@ export default function Candidates() {
                   Manage candidate records and status.
                 </p>
               </div>
-              <button
-                className="ml-auto border-none text-white bg-linear-to-br from-(--primary) to-(--primary2) rounded-full px-4 py-2 font-bold transition-all duration-150 hover:brightness-110 hover:scale-105"
-                onClick={handleOpenModal}
-              >
-                + Add Candidate
-              </button>
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  className="border-none text-white bg-linear-to-br from-(--primary) to-(--primary2) rounded-xl px-4 py-2 font-bold transition-all duration-150 hover:brightness-110 hover:scale-105"
+                  onClick={handleOpenModal}
+                >
+                  + Add Candidate
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpenArchive}
+                  className="border border-(--border) bg-white text-(--text) rounded-xl px-4 py-2 font-bold transition-all duration-150 hover:bg-(--surface2)"
+                >
+                  Archive
+                </button>
+              </div>
             </div>
 
             {/* Search, Status Filter, Date Range */}
@@ -305,34 +514,6 @@ export default function Candidates() {
                   placeholder="Filter by status"
                 />
               </div>
-              {/* <label className="grid gap-1 min-w-35">
-                <span className="text-xs font-bold text-(--muted)">
-                  Start date
-                </span>
-                <input
-                  type="date"
-                  className="border border-(--border) bg-white text-(--text) rounded-xl px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
-                  value={dateFrom}
-                  onChange={(e) => {
-                    setDateFrom(e.target.value);
-                    setPage(1);
-                  }}
-                />
-              </label>
-              <label className="grid gap-1 min-w-35">
-                <span className="text-xs font-bold text-(--muted)">
-                  End date
-                </span>
-                <input
-                  type="date"
-                  className="border border-(--border) bg-white text-(--text) rounded-xl px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
-                  value={dateTo}
-                  onChange={(e) => {
-                    setDateTo(e.target.value);
-                    setPage(1);
-                  }}
-                />
-              </label> */}
             </div>
 
             {/* Quick filter pills */}
@@ -345,7 +526,7 @@ export default function Candidates() {
                     setQuickFilter((prev) => (prev === qf.key ? "" : qf.key));
                     setPage(1);
                   }}
-                  className={`px-3.5 py-1.5 rounded-full text-sm font-semibold border transition-all duration-150 ${
+                  className={`px-3.5 py-1.5 rounded-xl text-sm font-semibold border transition-all duration-150 ${
                     quickFilter === qf.key
                       ? "bg-(--primary) text-white border-(--primary) shadow"
                       : "bg-white text-(--text) border-(--border) hover:bg-(--surface2)"
@@ -369,10 +550,10 @@ export default function Candidates() {
                     setSearch("");
                     setPage(1);
                   }}
-                  className="px-4 py-1.5 flex items-center gap-1 rounded-full bg-red-100 text-red-700 font-semibold text-xs hover:bg-red-200 transition-colors"
+                  className="px-4 py-1.5 flex items-center gap-1 rounded-xl bg-red-100 text-red-700 font-semibold text-xs hover:bg-red-200 transition-colors"
                 >
                   <Icon icon="tabler:x" width="15" height="15" />
-                  Clear all
+                  Clear Filter
                 </button>
               )}
             </div>
@@ -431,7 +612,8 @@ export default function Candidates() {
                       return (
                         <tr
                           key={c.id}
-                          className="border-b border-(--border) last:border-b-0 hover:bg-(--surface2)/60 transition-colors"
+                          onClick={() => handleView(c)}
+                          className="border-b border-(--border) last:border-b-0 hover:bg-(--surface2)/60 transition-colors cursor-pointer"
                         >
                           <td className="px-4 py-3 text-(--muted)">
                             {(page - 1) * perPage + idx + 1}
@@ -444,32 +626,32 @@ export default function Candidates() {
                           </td>
                           <td className="px-4 py-3">
                             <span
-                              className={`inline-block px-3 py-1 rounded-full text-xs font-semibold capitalize ${statusBadge[c.status] ?? "bg-gray-100 text-gray-700"}`}
+                              className={`inline-block px-3 py-1 rounded-xl text-xs font-semibold capitalize ${statusBadge[c.status] ?? "bg-gray-100 text-gray-700"}`}
                             >
                               {c.status}
                             </span>
                           </td>
-                              <td className="px-4 py-3">
-                                <div className="flex flex-wrap gap-1">
-                                  {(Array.isArray(flags) && flags.length > 0) ? (
-                                    flags.map((flag) => (
-                                      <span
-                                        key={flag}
-                                        className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${flagBadge[flag]}`}
-                                      >
-                                        {flag}
-                                      </span>
-                                    ))
-                                  ) : null}
-                                </div>
-                              </td>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap gap-1">
+                              {(Array.isArray(flags) && flags.length > 0) ? (
+                                flags.map((flag) => (
+                                  <span
+                                    key={flag}
+                                    className={`inline-block px-2.5 py-0.5 rounded-xl text-xs font-semibold ${flagBadge[flag]}`}
+                                  >
+                                    {flag}
+                                  </span>
+                                ))
+                              ) : null}
+                            </div>
+                          </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1.5">
                               <button
                                 type="button"
                                 title="View"
-                                onClick={() => handleView(c)}
-                                className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-(--surface2) text-(--text) font-semibold text-xs hover:bg-(--border) transition-colors"
+                                onClick={(e) => { e.stopPropagation(); handleView(c); }}
+                                className="px-3 py-1.5 flex items-center gap-1 rounded-xl bg-(--surface2) text-(--text) font-semibold text-xs hover:bg-(--border) transition-colors"
                               >
                                 <Icon
                                   icon="tabler:eye"
@@ -478,32 +660,32 @@ export default function Candidates() {
                                 />
                                 View
                               </button>
-                              <button
-                                type="button"
-                                title="Edit"
-                                onClick={() => handleEdit(c)}
-                                className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-blue-100 text-blue-700 font-semibold text-xs hover:bg-blue-200 transition-colors"
-                              >
-                                <Icon
-                                  icon="tabler:edit"
-                                  width="15"
-                                  height="15"
-                                />
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                title="Delete"
-                                onClick={() => handleDelete(c)}
-                                className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-red-100 text-red-700 font-semibold text-xs hover:bg-red-200 transition-colors"
-                              >
-                                <Icon
-                                  icon="tabler:trash"
-                                  width="15"
-                                  height="15"
-                                />
-                                Delete
-                              </button>
+                              {(userRole === 'administrator' || userRole === 'manager') && (
+                                <>
+                                  <button
+                                    type="button"
+                                    title="Edit"
+                                    onClick={(e) => { e.stopPropagation(); handleEdit(c); }}
+                                    className="px-3 py-1.5 flex items-center gap-1 rounded-xl bg-blue-100 text-blue-700 font-semibold text-xs hover:bg-blue-200 transition-colors"
+                                  >
+                                    <Icon
+                                      icon="tabler:edit"
+                                      width="15"
+                                      height="15"
+                                    />
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    title="Archive"
+                                    onClick={(e) => { e.stopPropagation(); handleDelete(c); }}
+                                    className="px-3 py-1.5 flex items-center gap-1 rounded-xl bg-red-100 text-red-700 font-semibold text-xs hover:bg-red-200 transition-colors"
+                                  >
+                                    <Icon icon="tabler:archive" width="15" height="15" />
+                                    Archive
+                                  </button>
+                                </>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -521,44 +703,172 @@ export default function Candidates() {
               title="Candidate Details"
             >
               {viewCandidate && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-sm">
-                  <div className="col-span-2 flex flex-col gap-0.5">
-                    <span className="text-xs font-bold text-(--muted)">Action Required</span>
-                    <div className="flex flex-wrap gap-1">
-                      {(Array.isArray(viewCandidate.action_required) && viewCandidate.action_required.length ? viewCandidate.action_required : getCandidateFlags(viewCandidate)).length === 0 ? null : (
-                        (Array.isArray(viewCandidate.action_required) && viewCandidate.action_required.length ? viewCandidate.action_required : getCandidateFlags(viewCandidate)).map((flag) => (
-                          <span key={flag} className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${flagBadge[flag]}`}>
-                            {flag}
-                          </span>
-                        ))
+                <div>
+                  <div className="flex items-center justify-between gap-3 mb-6">
+                    <div className="inline-flex items-center gap-1 p-1 bg-(--surface2) rounded-xl">
+                      <button
+                        type="button"
+                        onClick={() => setViewTab('info')}
+                        className={`px-3 py-1 rounded-lg text-sm font-semibold transition ${viewTab === 'info' ? 'bg-white text-(--primary) border border-(--border) shadow-sm' : 'text-(--muted) hover:bg-(--surface3)'}`}
+                      >
+                        Informations
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setViewTab('documents')}
+                        className={`px-3 py-1 rounded-lg text-sm font-semibold transition ${viewTab === 'documents' ? 'bg-white text-(--primary) border border-(--border) shadow-sm' : 'text-(--muted) hover:bg-(--surface3)'}`}
+                      >
+                        Documents
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {viewTab === 'info' && (
+                        <button
+                          type="button"
+                          onClick={handleDownloadPdf}
+                          className="px-3 py-1.5 rounded-xl bg-(--primary) text-white text-sm font-semibold hover:brightness-95"
+                        >
+                          Download PDF
+                        </button>
                       )}
                     </div>
                   </div>
-                  {(
-                    [
-                      ["Full Name", viewCandidate.full_name],
-                      ["Email", viewCandidate.email],
-                      ["Phone", viewCandidate.phone],
-                      ["Address", viewCandidate.address],
-                      ["Status", viewCandidate.status],
-                      ["Desired Salary", viewCandidate.desired_salary],
-                      ["Skills", viewCandidate.skills],
-                      ["Education", viewCandidate.education],
-                      ["Work History", viewCandidate.work_history],
-                      ["Certifications", viewCandidate.certifications],
-                    ] as [string, string][]
-                  ).map(([label, value]) => (
-                    <div key={label} className="flex flex-col gap-0.5">
-                      <span className="text-xs font-bold text-(--muted)">
-                        {label}
-                      </span>
-                      <span className="text-(--text) font-medium">
-                        {value || "—"}
-                      </span>
+
+                  {viewTab === 'info' ? (
+                    <div className="grid grid-cols-1 gap-4 text-sm">
+                      <div className="col-span-1">
+                        <div ref={printRef} className="p-4 border border-(--border) rounded-lg bg-white">
+                          <div className="flex items-center gap-8">
+                            <img src={profileUrl} alt="profile" className="w-24 h-24 rounded-full object-cover border border-(--border)" />
+                            <div>
+                              <h2 className="text-xl font-bold">{viewCandidate.full_name || '—'}</h2>
+                              <div className="text-(--muted)">{viewCandidate.email || '—'}</div>
+                              {viewCandidate.phone ? (
+                                <div className="text-(--muted)">{viewCandidate.phone}</div>
+                              ) : null}
+                              <div className="text-(--muted)">{viewCandidate.address || '—'}</div>
+                            </div>
+                          </div>
+
+                          <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <h3 className="text-xs font-bold text-(--muted) uppercase">Skills</h3>
+                              <p className="mt-2 text-(--text)">{viewCandidate.skills || '—'}</p>
+
+                              <h3 className="mt-3 text-xs font-bold text-(--muted) uppercase">Education</h3>
+                              <p className="mt-2 text-(--text)">{viewCandidate.education || '—'}</p>
+
+                              <h3 className="mt-3 text-xs font-bold text-(--muted) uppercase">Certifications</h3>
+                              <p className="mt-2 text-(--text)">{viewCandidate.certifications || '—'}</p>
+                            </div>
+
+                            <div>
+                              <h3 className="text-xs font-bold text-(--muted) uppercase">Work History</h3>
+                              <p className="mt-2 text-(--text)">{viewCandidate.work_history || '—'}</p>
+
+                              <h3 className="mt-3 text-xs font-bold text-(--muted) uppercase">Status & Salary</h3>
+                              <p className="mt-2 text-(--text)">Status: {viewCandidate.status || '—'}</p>
+                              <p className="mt-1 text-(--text)">Desired salary: {viewCandidate.desired_salary || '—'}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  ))}
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                      {documentTypes.map(([key, label]) => (
+                        <div key={key} className="p-3 border border-(--border) rounded-xl bg-white">
+                          <div className="text-xs font-bold text-(--muted) uppercase mb-2">{label}</div>
+                          {viewCandidate.documents?.[key]
+                            ? (
+                              <button
+                                type="button"
+                                onClick={() => handleDocumentDownload(key, viewCandidate.documents![key] as File | string)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-(--border) rounded-xl bg-white text-xs font-semibold text-(--primary) cursor-pointer hover:bg-(--surface2) transition-colors"
+                              >
+                                <Icon icon="tabler:download" width="14" height="14" />
+                                {typeof viewCandidate.documents[key] === 'string'
+                                  ? 'Download'
+                                  : (viewCandidate.documents[key] as File).name}
+                              </button>
+                            )
+                            : <span className="text-xs text-(--muted)">No file uploaded</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
+            </Modal>
+
+            {/* Auth modal for staff to view archive (enter admin password) */}
+            <Modal open={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} title="Admin Authentication">
+              <form onSubmit={handleAdminAuthSubmit} className="grid gap-3">
+                <p className="text-sm text-(--muted)">Enter admin password to view archived candidates (view-only).</p>
+                <label className="grid gap-1">
+                  <input
+                    type="password"
+                    value={adminPasswordInput}
+                    onChange={(e) => setAdminPasswordInput(e.target.value)}
+                    className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-3 py-2 text-sm"
+                    placeholder="Admin password"
+                    required
+                  />
+                </label>
+                {authError && <div className="text-sm text-[#9f2d20]">{authError}</div>}
+                <div className="flex justify-end gap-2">
+                  <button type="button" className="border border-(--border) bg-white text-(--text) rounded-xl px-4 py-2" onClick={() => setIsAuthModalOpen(false)}>Cancel</button>
+                  <button type="submit" className="border-none text-white bg-(--primary) rounded-xl px-4 py-2">Submit</button>
+                </div>
+              </form>
+            </Modal>
+
+            {/* Archive Modal */}
+            <Modal open={isArchiveOpen} onClose={() => setIsArchiveOpen(false)} title="Archived Candidates">
+              <div className="grid gap-3 text-sm">
+                {archivedCandidates.length === 0 ? (
+                  <div className="py-6 text-center text-(--muted)">No archived candidates</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm text-left">
+                      <thead>
+                        <tr className="bg-(--surface2)">
+                          <th className="px-4 py-2 font-bold text-(--muted)">Full name</th>
+                          <th className="px-4 py-2 font-bold text-(--muted)">Email</th>
+                          <th className="px-4 py-2 font-bold text-(--muted)">Archived At</th>
+                          <th className="px-4 py-2 font-bold text-(--muted)">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {archivedCandidates.map((ac) => (
+                          <tr key={ac.id} className="border-b border-(--border)">
+                            <td className="px-4 py-2 font-semibold">{ac.full_name || '—'}</td>
+                            <td className="px-4 py-2">{ac.email || '—'}</td>
+                            <td className="px-4 py-2">{ac.archived_at ? new Date(ac.archived_at).toLocaleString() : '—'}</td>
+                            <td className="px-4 py-2">
+                              <div className="flex items-center gap-2">
+                                {(userRole === 'administrator' || userRole === 'manager') && (
+                                  <button type="button" onClick={() => handleRestore(ac)} className="cursor-pointer px-3 py-1.5 rounded-xl bg-green-100 text-green-700 text-xs font-semibold">Restore</button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setIsArchiveOpen(false)}
+                    className="border border-(--border) bg-white text-(--text) rounded-xl px-4 py-2 font-bold transition-all duration-150 hover:bg-(--surface2) hover:scale-105"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
             </Modal>
 
             {/* Add / Edit Modal */}
@@ -571,178 +881,231 @@ export default function Candidates() {
                 className="grid grid-cols-1 md:grid-cols-2 gap-2.5"
                 onSubmit={isModalOpen ? onSubmit : onEditSubmit}
               >
-                <label className="grid gap-1.25">
-                  <span className="text-sm text-(--muted) font-bold">Full Name</span>
-                  <input
-                    className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
-                    value={form.full_name}
-                    onChange={(e) => setForm((f) => ({ ...f, full_name: e.target.value }))}
-                    placeholder="Full name"
-                    required
-                  />
-                </label>
-                <label className="grid gap-1.25">
-                  <span className="text-sm text-(--muted) font-bold">Email</span>
-                  <input
-                    className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                    placeholder="Email"
-                    required
-                  />
-                </label>
-                <label className="grid gap-1.25">
-                  <span className="text-sm text-(--muted) font-bold">Phone</span>
-                  <input
-                    className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
-                    value={form.phone}
-                    onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                    placeholder="Phone"
-                    required
-                  />
-                </label>
-                <label className="grid gap-1.25">
-                  <span className="text-sm text-(--muted) font-bold">Address</span>
-                  <input
-                    className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
-                    value={form.address}
-                    onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
-                    placeholder="Address"
-                    required
-                  />
-                </label>
-                <label className="grid gap-1.25">
-                  <span className="text-sm text-(--muted) font-bold">Education</span>
-                  <input
-                    className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
-                    value={form.education}
-                    onChange={(e) => setForm((f) => ({ ...f, education: e.target.value }))}
-                    placeholder="Education"
-                    required
-                  />
-                </label>
-                <label className="grid gap-1.25">
-                  <span className="text-sm text-(--muted) font-bold">Work History</span>
-                  <input
-                    className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
-                    value={form.work_history}
-                    onChange={(e) => setForm((f) => ({ ...f, work_history: e.target.value }))}
-                    placeholder="Work history"
-                    required
-                  />
-                </label>
-                <label className="grid gap-1.25">
-                  <span className="text-sm text-(--muted) font-bold">Skills</span>
-                  <input
-                    className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
-                    value={form.skills}
-                    onChange={(e) => setForm((f) => ({ ...f, skills: e.target.value }))}
-                    placeholder="Skills"
-                    required
-                  />
-                </label>
-                <label className="grid gap-1.25">
-                  <span className="text-sm text-(--muted) font-bold">Certifications</span>
-                  <input
-                    className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
-                    value={form.certifications}
-                    onChange={(e) => setForm((f) => ({ ...f, certifications: e.target.value }))}
-                    placeholder="Certifications"
-                    required
-                  />
-                </label>
-                <label className="grid gap-1.25">
-                  <span className="text-sm text-(--muted) font-bold">Desired Salary</span>
-                  <input
-                    className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
-                    value={form.desired_salary}
-                    onChange={(e) => setForm((f) => ({ ...f, desired_salary: e.target.value }))}
-                    placeholder="Desired salary"
-                    required
-                  />
-                </label>
-                <label className="grid gap-1.25">
-                  <span className="text-sm text-(--muted) font-bold">Status</span>
-                  <Selection
-                    value={form.status}
-                    onChange={(val) => setForm((f) => ({ ...f, status: val }))}
-                    options={candidateStatuses.map((s) => ({ value: s, label: s }))}
-                    placeholder="Select status"
-                    required
-                  />
-                </label>
-                {/* <label className="grid gap-1.25">
-                  <span className="text-sm text-(--muted) font-bold">Consent Given</span>
-                  <Selection
-                    value={form.consent_given ? "yes" : "no"}
-                    onChange={(val) => setForm((f) => ({ ...f, consent_given: val === "yes" }))}
-                    options={[
-                      { value: "yes", label: "Yes" },
-                      { value: "no", label: "No" },
-                    ]}
-                    placeholder="Consent given?"
-                  />
-                </label>
-                <label className="grid gap-1.25">
-                  <span className="text-sm text-(--muted) font-bold">Consent Date</span>
-                  <input
-                    type="date"
-                    className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
-                    value={form.consent_at}
-                    onChange={(e) => setForm((f) => ({ ...f, consent_at: e.target.value }))}
-                  />
-                </label> */}
-                {/* <label className="grid gap-1.25">
-                  <span className="text-sm text-(--muted) font-bold">Consent Source</span>
-                  <input
-                    className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
-                    value={form.consent_source}
-                    onChange={(e) => setForm((f) => ({ ...f, consent_source: e.target.value }))}
-                    placeholder="Consent source"
-                  />
-                </label> */}
-                {/* <label className="grid gap-1.25">
-                  <span className="text-sm text-(--muted) font-bold">Consent Version</span>
-                  <input
-                    className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
-                    value={form.consent_version}
-                    onChange={(e) => setForm((f) => ({ ...f, consent_version: e.target.value }))}
-                    placeholder="Consent version"
-                  />
-                </label> */}
-                <label className="col-span-2 grid gap-1.25">
-                  <span className="text-sm text-(--muted) font-bold">Action Required</span>
-                  <div className="flex flex-wrap gap-2 items-center">
-                    {availableFlags.map((flag) => (
-                      <label key={flag} className="inline-flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={!!form.action_required?.includes(flag)}
-                          onChange={(e) => {
-                            const checked = e.target.checked;
-                            setForm((prev) => {
-                              const current = prev.action_required ?? [];
-                              const next = checked
-                                ? Array.from(new Set([...current, flag]))
-                                : current.filter((f) => f !== flag);
-                              return { ...prev, action_required: next };
-                            });
-                          }}
-                          className="w-4 h-4"
-                        />
-                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${flagBadge[flag]}`}>
-                          {flag}
-                        </span>
-                      </label>
-                    ))}
-                    {/* no placeholder when no flags selected */}
+                <div className="col-span-2 mb-4">
+                  <div className="inline-flex items-center gap-1 p-1 bg-(--surface2) rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('info')}
+                      className={`px-3 py-1 rounded-lg text-sm font-semibold transition ${activeTab === 'info' ? 'bg-white text-(--primary) border border-(--border) shadow-sm' : 'text-(--muted) hover:bg-(--surface3)'}`}
+                    >
+                      Informations
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('documents')}
+                      className={`px-3 py-1 rounded-lg text-sm font-semibold transition ${activeTab === 'documents' ? 'bg-white text-(--primary) border border-(--border) shadow-sm' : 'text-(--muted) hover:bg-(--surface3)'}`}
+                    >
+                      Documents
+                    </button>
                   </div>
-                </label>
+                </div>
+
+                {activeTab === 'info' ? (
+                  <>
+                    <div className="col-span-2 flex flex-col items-center gap-3 mb-2">
+                      <img
+                        src={formProfilePreviewUrl ?? defaultProfile}
+                        alt="Profile preview"
+                        className="w-20 h-20 rounded-full object-cover border border-(--border)"
+                      />
+                      <label className="inline-flex items-center gap-2 px-3 py-2 border border-(--border) rounded-xl bg-white text-sm text-(--text) cursor-pointer hover:bg-(--surface2) transition-colors">
+                        <Icon icon="tabler:camera" width="16" height="16" />
+                        <span className="font-medium">Upload Profile Photo</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] ?? null;
+                            setForm((f) => ({ ...f, profile_photo: file }));
+                          }}
+                        />
+                      </label>
+                    </div>
+                    <label className="grid gap-1.25">
+                      <span className="text-sm text-(--muted) font-bold">Full Name</span>
+                      <input
+                        className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
+                        value={form.full_name}
+                        onChange={(e) => setForm((f) => ({ ...f, full_name: e.target.value }))}
+                        placeholder="Full name"
+                        required
+                      />
+                    </label>
+                    <label className="grid gap-1.25">
+                      <span className="text-sm text-(--muted) font-bold">Email</span>
+                      <input
+                        className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
+                        type="email"
+                        value={form.email}
+                        onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                        placeholder="Email"
+                        required
+                      />
+                    </label>
+                    <label className="grid gap-1.25">
+                      <span className="text-sm text-(--muted) font-bold">Phone</span>
+                      <input
+                        className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
+                        value={form.phone}
+                        onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                        placeholder="Phone"
+                        required
+                      />
+                    </label>
+                    <label className="grid gap-1.25">
+                      <span className="text-sm text-(--muted) font-bold">Address</span>
+                      <input
+                        className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
+                        value={form.address}
+                        onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+                        placeholder="Address"
+                        required
+                      />
+                    </label>
+                    <label className="grid gap-1.25">
+                      <span className="text-sm text-(--muted) font-bold">Education</span>
+                      <input
+                        className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
+                        value={form.education}
+                        onChange={(e) => setForm((f) => ({ ...f, education: e.target.value }))}
+                        placeholder="Education"
+                        required
+                      />
+                    </label>
+                    <label className="grid gap-1.25">
+                      <span className="text-sm text-(--muted) font-bold">Work History</span>
+                      <input
+                        className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
+                        value={form.work_history}
+                        onChange={(e) => setForm((f) => ({ ...f, work_history: e.target.value }))}
+                        placeholder="Work history"
+                        required
+                      />
+                    </label>
+                    <label className="grid gap-1.25">
+                      <span className="text-sm text-(--muted) font-bold">Skills</span>
+                      <input
+                        className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
+                        value={form.skills}
+                        onChange={(e) => setForm((f) => ({ ...f, skills: e.target.value }))}
+                        placeholder="Skills"
+                        required
+                      />
+                    </label>
+                    <label className="grid gap-1.25">
+                      <span className="text-sm text-(--muted) font-bold">Certifications</span>
+                      <input
+                        className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
+                        value={form.certifications}
+                        onChange={(e) => setForm((f) => ({ ...f, certifications: e.target.value }))}
+                        placeholder="Certifications"
+                        required
+                      />
+                    </label>
+                    <label className="grid gap-1.25">
+                      <span className="text-sm text-(--muted) font-bold">Desired Salary</span>
+                      <input
+                        className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
+                        value={form.desired_salary}
+                        onChange={(e) => setForm((f) => ({ ...f, desired_salary: e.target.value }))}
+                        placeholder="Desired salary"
+                        required
+                      />
+                    </label>
+                    <label className="grid gap-1.25">
+                      <span className="text-sm text-(--muted) font-bold">Status</span>
+                      <Selection
+                        value={form.status}
+                        onChange={(val) => setForm((f) => ({ ...f, status: val }))}
+                        options={candidateStatuses.map((s) => ({ value: s, label: s }))}
+                        placeholder="Select status"
+                        required
+                      />
+                    </label>
+                    <label className="col-span-2 grid gap-1.25">
+                      <span className="text-sm text-(--muted) font-bold">Action Required</span>
+                      <div className="flex flex-wrap gap-2 items-center">
+                        {availableFlags.map((flag) => {
+                          const isActive = (form.action_required ?? []).includes(flag);
+                          return (
+                            <button
+                              key={flag}
+                              type="button"
+                              onClick={() => {
+                                setForm((prev) => {
+                                  const current = prev.action_required ?? [];
+                                  const next = current.includes(flag)
+                                    ? current.filter((f) => f !== flag)
+                                    : Array.from(new Set([...current, flag]));
+                                  return { ...prev, action_required: next };
+                                });
+                              }}
+                              className={`px-3 py-1 rounded-xl text-sm font-semibold border transition-all duration-150 ${
+                                isActive
+                                  ? 'bg-(--primary) text-white border-(--primary) shadow'
+                                  : 'bg-white text-(--text) border-(--border) hover:bg-(--surface2)'
+                              }`}
+                            >
+                              {flag}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </label>
+                  </>
+                ) : (
+                  <>
+                    {documentTypes.map(([key, label]) => (
+                      <div key={key} className="col-span-1 p-3 border border-(--border) rounded-xl bg-white">
+                        <div className="text-xs font-bold text-(--muted) uppercase mb-2">{label}</div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <label
+                            htmlFor={`file-${key}`}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-(--border) rounded-xl bg-white text-xs font-semibold text-(--text) cursor-pointer hover:bg-(--surface2) transition-colors"
+                          >
+                            <Icon icon="tabler:upload" width="14" height="14" />
+                            Upload
+                          </label>
+                          <input
+                            id={`file-${key}`}
+                            type="file"
+                            accept="*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0] ?? null;
+                              setForm((prev) => ({ ...prev, documents: { ...(prev.documents ?? {}), [key]: file } }));
+                            }}
+                            className="hidden"
+                          />
+                          {form.documents?.[key]
+                            ? (typeof form.documents[key] === 'string'
+                                ? (
+                                  <a
+                                    href={form.documents[key] as string}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 text-xs text-(--primary) font-medium underline"
+                                  >
+                                    <Icon icon="tabler:file" width="13" height="13" />
+                                    Existing file
+                                  </a>
+                                )
+                                : (
+                                  <span className="inline-flex items-center gap-1 text-xs text-(--text) font-medium truncate max-w-40">
+                                    <Icon icon="tabler:file" width="13" height="13" />
+                                    {(form.documents[key] as File).name}
+                                  </span>
+                                ))
+                            : <span className="text-xs text-(--muted)">No file selected</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
                 <div className="col-span-2 flex justify-end gap-2 mt-4">
                   <button
                     type="button"
-                    className="border border-(--border) bg-white text-(--text) rounded-full px-4 py-2 font-bold transition-all duration-150 hover:bg-(--surface2) hover:scale-105"
+                    className="border border-(--border) bg-white text-(--text) rounded-xl px-4 py-2 font-bold transition-all duration-150 hover:bg-(--surface2) hover:scale-105"
                     onClick={
                       isModalOpen ? handleCloseModal : handleCloseEditModal
                     }
@@ -752,7 +1115,7 @@ export default function Candidates() {
                   </button>
                   <button
                     type="submit"
-                    className="border-none text-white bg-linear-to-br from-(--primary) to-(--primary2) rounded-full px-4 py-2 font-bold transition-all duration-150 hover:brightness-110 hover:scale-105"
+                    className="border-none text-white bg-linear-to-br from-(--primary) to-(--primary2) rounded-xl px-4 py-2 font-bold transition-all duration-150 hover:brightness-110 hover:scale-105"
                     disabled={isSubmitting}
                   >
                     {isSubmitting
@@ -773,26 +1136,26 @@ export default function Candidates() {
             </Modal>
 
             {/* Delete Modal */}
-            <Modal open={isDeleteModalOpen} onClose={handleCloseDeleteModal} title="Delete Candidate">
+            <Modal open={isDeleteModalOpen} onClose={handleCloseDeleteModal} title="Archive Candidate">
               <form onSubmit={e => { e.preventDefault(); onDeleteSubmit(); }} className="flex flex-col gap-6">
                 <div className="flex flex-col items-center text-center">
                   <div className="w-full flex flex-col items-center justify-center mb-2">
                     <div className="w-16 h-16 flex items-center justify-center rounded-full bg-red-100 mb-2">
-                      <Icon icon="tabler:alert-triangle" width="38" height="38" className="text-red-500" />
+                      <Icon icon="tabler:archive" width="38" height="38" className="text-red-500" />
                     </div>
                   </div>
                   <p className="text-base font-semibold text-(--text) mb-1">
-                    Are you sure you want to <span className="text-red-600 font-bold">delete</span> this candidate?
+                    Are you sure you want to <span className="text-red-600 font-bold">archive</span> this candidate?
                   </p>
                   <p className="text-sm text-(--muted)">
                     <span className="font-bold">{deleteCandidate?.full_name}</span> ({deleteCandidate?.email})
                   </p>
-                  {/* Action Required removed from Delete modal (only in Add/Edit) */}
+                  {/* Confirmation modal for archiving candidates */}
                 </div>
                 <div className="flex justify-end gap-2 mt-2">
                   <button
                     type="button"
-                    className="border border-(--border) bg-white text-(--text) rounded-full px-4 py-2 font-bold transition-all duration-150 hover:bg-(--surface2) hover:scale-105"
+                    className="border border-(--border) bg-white text-(--text) rounded-xl px-4 py-2 font-bold transition-all duration-150 hover:bg-(--surface2) hover:scale-105"
                     onClick={handleCloseDeleteModal}
                     disabled={isSubmitting}
                   >
@@ -800,10 +1163,10 @@ export default function Candidates() {
                   </button>
                   <button
                     type="submit"
-                    className="border-none text-white bg-linear-to-br from-red-500 to-red-700 rounded-full px-4 py-2 font-bold transition-all duration-150 hover:brightness-110 hover:scale-105 shadow-md shadow-red-200"
+                    className="border-none text-white bg-linear-to-br from-red-500 to-red-700 rounded-xl px-4 py-2 font-bold transition-all duration-150 hover:brightness-110 hover:scale-105 shadow-md shadow-red-200"
                     disabled={isSubmitting}
                   >
-                    {isSubmitting ? "Deleting..." : "Delete"}
+                    {isSubmitting ? "Archiving..." : "Archive"}
                   </button>
                 </div>
                 {error && (

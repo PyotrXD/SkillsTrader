@@ -214,7 +214,7 @@ export default function Employers() {
                   className="px-4 py-1.5 flex items-center gap-1 rounded-full bg-red-100 text-red-700 font-semibold text-sm hover:bg-red-200 transition-colors"
                 >
                   <Icon icon="tabler:x" width="18" height="18" />
-                  Clear All
+                  Clear Filter
                 </button>
               )}
             </div>

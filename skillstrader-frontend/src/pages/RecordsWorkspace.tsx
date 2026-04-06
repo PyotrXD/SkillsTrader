@@ -286,7 +286,9 @@ const ENTITIES: EntityConfig[] = [
 ];
 
 // List of entities for Sidebar navigation
-export const RECORD_ENTITY_ITEMS = ENTITIES.map(({ key, label }) => ({ key, label }));
+export const RECORD_ENTITY_ITEMS = ENTITIES
+  .filter((it) => it.key !== 'documents')
+  .map(({ key, label }) => ({ key, label }));
 
 function toArrayString(value: unknown): string {
   if (!Array.isArray(value)) return '';
@@ -379,7 +381,14 @@ export default function RecordsWorkspace({ role, activeKey }: Props) {
 
   const activeConfig = useMemo(() => ENTITIES.find((entity) => entity.key === activeKey) ?? ENTITIES[0], [activeKey]);
 
+  // Keys that have dedicated custom components which handle their own data fetching.
+  const SKIP_INTERNAL_FETCH_KEYS = new Set(['candidates', 'employer', 'job_orders', 'placements']);
+
   useEffect(() => {
+    // Don't load relation options when a custom component is active — those components
+    // manage their own data and calling these here causes duplicate requests.
+    if (SKIP_INTERNAL_FETCH_KEYS.has(activeConfig.key)) return;
+
     let mounted = true;
 
     loadRelationOptions()
@@ -393,7 +402,7 @@ export default function RecordsWorkspace({ role, activeKey }: Props) {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [activeConfig.key]);
 
   useEffect(() => {
     setIsCreating(false);
@@ -460,8 +469,17 @@ export default function RecordsWorkspace({ role, activeKey }: Props) {
   }, [activeConfig, dateField, dateFrom, dateTo, query, statusValue]);
 
   useEffect(() => {
+    // Skip internal record loading when a custom component (which fetches its own data)
+    // is active. This prevents duplicate PocketBase requests when viewing pages like
+    // Candidates, Employers, Job Orders and Placements.
+    if (SKIP_INTERNAL_FETCH_KEYS.has(activeConfig.key)) {
+      setRecords([]);
+      setIsLoading(false);
+      return;
+    }
+
     void loadRecords();
-  }, [loadRecords]);
+  }, [loadRecords, activeConfig.key]);
 
   const filteredRecords = useMemo(() => {
     if (!query.trim()) return records;

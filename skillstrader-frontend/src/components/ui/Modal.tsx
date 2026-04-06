@@ -33,13 +33,13 @@ export default function Modal({ open, onClose, children, title }: ModalProps) {
         aria-hidden="true"
       />
       {/* Modal content */}
-      <div className="relative z-10 w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-(--border) overflow-hidden animate-[fadeInScale_0.18s_ease]">
+      <div className="relative z-10 w-full max-w-3xl bg-white rounded-2xl shadow-2xl border border-(--border) overflow-hidden animate-[fadeInScale_0.18s_ease]">
         {title && (
           <div className="px-8 pt-4 pb-3 border-b border-(--border) bg-white flex items-center justify-between">
             <h2 className="text-2xl font-bold text-(--text) bg-white tracking-tight m-0">{title}</h2>
             <button
               type="button"
-              className="ml-4 p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors focus:outline-none"
+              className="ml-4 p-1.5 cursor-pointer rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors focus:outline-none"
               aria-label="Close"
               onClick={onClose}
               style={{ marginRight: '-0.5rem' }}

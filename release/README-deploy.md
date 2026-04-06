@@ -35,14 +35,20 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 -InitializeEnv
 ```
 
 4. Edit `.env` and set:
-- `VITE_POCKETBASE_URL=https://<your-domain>`
+- `PB_HTTP=0.0.0.0:8091` (LAN-accessible default; use `127.0.0.1:8091` for local-only binding)
 - `PB_ENCRYPTION_KEY=<exactly 32 chars>`
+- Optional when frontend/API are on different origins: `VITE_POCKETBASE_URL=https://<your-domain>`
 
 5. Start server:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\start.ps1
 ```
+
+App/Dashboard URLs after start:
+- Local machine: `http://127.0.0.1:8091`
+- LAN devices: `http://<server-lan-ip>:8091`
+- Ensure Windows Defender Firewall allows inbound TCP on your configured PocketBase port (default `8091`).
 
 6. Create a first superuser:
 
@@ -61,14 +67,20 @@ cd /opt/skillstrader
 ```
 
 3. Edit `.env` and set:
-- `VITE_POCKETBASE_URL=https://<your-domain>`
+- `PB_HTTP=0.0.0.0:8091` (LAN-accessible default; use `127.0.0.1:8091` for local-only binding)
 - `PB_ENCRYPTION_KEY=<exactly 32 chars>`
+- Optional when frontend/API are on different origins: `VITE_POCKETBASE_URL=https://<your-domain>`
 
 4. Start manually:
 
 ```bash
 ./start.sh
 ```
+
+App/Dashboard URLs after start:
+- Local machine: `http://127.0.0.1:8091`
+- LAN devices: `http://<server-lan-ip>:8091`
+- Ensure Linux firewall (`ufw`/`firewalld`/cloud security group) allows inbound TCP on your configured PocketBase port (default `8091`).
 
 5. Optional `systemd` service:
 
@@ -88,6 +100,7 @@ sudo systemctl status skillstrader
 ## Reverse Proxy / TLS
 
 Use Nginx, Caddy, or Traefik to terminate TLS on `443`, then proxy to `http://127.0.0.1:8091`.
+When using a local reverse proxy, set `PB_HTTP=127.0.0.1:8091` in `.env`.
 
 ## Optional Data Migration
 

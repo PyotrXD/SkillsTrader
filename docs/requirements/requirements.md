@@ -107,7 +107,7 @@ Source: `docs/requirements/requirements-checklist.csv`
   - Confirm `pb_hooks/main.pb.js` create/update/delete request hooks call `e.next()` so requests are not blocked.
   - Re-test user creation in PocketBase Dashboard with required fields (`email`, `password`, `passwordConfirm`, `role`).
 - [ ] **Keep local/prod port configuration aligned**
-  - Current default PocketBase host is `127.0.0.1:8091` in dev setup and frontend defaults.
+  - Current default PocketBase host is `0.0.0.0:8091` in scripts; switch to `127.0.0.1:8091` when local-only binding is required.
   - Verify no local process conflicts with the chosen port before release.
 - [ ] **Finalize role terminology across docs and UI**
   - App currently uses `administrator`, `manager`, `staff`.

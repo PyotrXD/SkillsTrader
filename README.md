@@ -27,8 +27,12 @@ npm run setup
 npm run dev
 ```
 
-- Frontend: `http://127.0.0.1:5173/dashboard`
-- PocketBase Dashboard: `http://127.0.0.1:8091/_/`
+- Frontend (this machine): `http://127.0.0.1:5173/dashboard`
+- PocketBase Dashboard (this machine): `http://127.0.0.1:8091/_/`
+- LAN access: `npm run dev` now binds to `0.0.0.0` and prints LAN URLs in the console.
+- Optional local-only override:
+  - `PB_HTTP=127.0.0.1:8091`
+  - `VITE_DEV_HOST=127.0.0.1`
 - Run `npm run setup` again after pulling changes that update `package.json` or `package-lock.json`.
 
 ## Deployment (Production)
@@ -59,15 +63,17 @@ Detailed install/run steps for extracted bundles:
 - `pocketbase` binary (or `pocketbase.exe`) in the repo root.
 - Open ports:
   - Public HTTPS: `443` (reverse proxy)
-  - Internal PocketBase: `8091` (bind to localhost only)
+  - PocketBase/API: `8091` (or your custom `PB_HTTP` port)
+- Ensure host firewall allows inbound TCP on your chosen PocketBase port for LAN clients.
 
 ### 2) Required Environment Variables
 
-- Frontend:
-  - `VITE_POCKETBASE_URL=https://<your-domain>`
-  - For single-host deploys, point this to your public HTTPS domain.
 - PocketBase:
+  - `PB_HTTP=0.0.0.0:8091` (LAN-accessible default; use `127.0.0.1:8091` for local-only binding)
   - `PB_ENCRYPTION_KEY=<exactly 32 chars>`
+- Frontend (optional):
+  - `VITE_POCKETBASE_URL=https://<your-domain>` only when frontend and API are on different origins.
+  - If unset, frontend auto-uses browser origin in production.
 
 Reference files:
 - `.env.example`
@@ -91,7 +97,7 @@ From repository root:
 
 ```powershell
 .\pocketbase.exe serve `
-  --http 127.0.0.1:8091 `
+  --http 0.0.0.0:8091 `
   --dir pb_data `
   --hooksDir pb_hooks `
   --publicDir skillstrader-frontend/dist `
@@ -110,12 +116,14 @@ Notes:
 ```
 
 Then open:
-- `http://127.0.0.1:8091/_/`
+- Local machine: `http://127.0.0.1:8091/_/`
+- LAN devices: `http://<server-lan-ip>:8091/_/`
 
 ### 6) Reverse Proxy + TLS (Recommended)
 
 Put Nginx/Caddy/Traefik in front and terminate TLS there.
 Proxy all traffic to `http://127.0.0.1:8091` and keep websocket upgrade headers enabled.
+When using a local reverse proxy, set `PB_HTTP=127.0.0.1:8091` so PocketBase is not exposed directly.
 
 If your public URL is `https://app.example.com`, set:
 - `VITE_POCKETBASE_URL=https://app.example.com`

@@ -18,8 +18,11 @@ if [[ -z "${PB_ENCRYPTION_KEY:-}" || ${#PB_ENCRYPTION_KEY} -ne 32 ]]; then
   exit 1
 fi
 
+PB_HTTP="${PB_HTTP:-0.0.0.0:8091}"
+echo "Starting PocketBase on ${PB_HTTP}"
+
 exec ./pocketbase serve \
-  --http 127.0.0.1:8091 \
+  --http "$PB_HTTP" \
   --dir pb_data \
   --hooksDir pb_hooks \
   --publicDir skillstrader-frontend/dist \

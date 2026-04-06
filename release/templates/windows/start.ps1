@@ -34,8 +34,16 @@ if ([string]::IsNullOrWhiteSpace($env:PB_ENCRYPTION_KEY) -or $env:PB_ENCRYPTION_
   throw "PB_ENCRYPTION_KEY must be exactly 32 characters in .env"
 }
 
+$pbHttp = if ([string]::IsNullOrWhiteSpace($env:PB_HTTP)) {
+  "0.0.0.0:8091"
+} else {
+  $env:PB_HTTP.Trim()
+}
+
+Write-Host "Starting PocketBase on $pbHttp"
+
 & .\\pocketbase.exe serve `
-  --http 127.0.0.1:8091 `
+  --http $pbHttp `
   --dir pb_data `
   --hooksDir pb_hooks `
   --publicDir skillstrader-frontend/dist `

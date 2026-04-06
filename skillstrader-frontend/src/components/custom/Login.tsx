@@ -3,7 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { pb } from '../../lib/pocketbase/pb';
 import { Icon } from '@iconify/react';
 import Toast from '../ui/Toast';
-import { useRateLimit } from '../../hooks/useRateLimit';
+import Modal from '../ui/Modal';
 
 function getErrorMessage(err: unknown): string {
   const maybeError = err as { response?: { message?: unknown } } | null | undefined;
@@ -32,15 +32,15 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // Use custom rate limit hook
-  const {
-    attempts,
-    locked,
-    addAttempt,
-    resetAttempts,
-    maxAttempts,
-    windowMs,
-  } = useRateLimit(email);
+  // Modal state for Contact the Admin
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactNotes, setContactNotes] = useState("");
+  const [contactLoading, setContactLoading] = useState(false);
+  const [contactSuccess, setContactSuccess] = useState<string | null>(null);
+  const [contactError, setContactError] = useState<string | null>(null);
+
+
 
   if (pb.authStore.isValid) return <Navigate to="/dashboard" replace />;
 
@@ -49,10 +49,7 @@ export default function Login() {
     setError(null);
     setSuccess(null);
 
-    if (locked) {
-      setError(`Too many failed attempts. Please try again in 5 minutes.`);
-      return;
-    }
+
 
     setLoading(true);
     try {
@@ -62,7 +59,7 @@ export default function Login() {
         await pb.collection('users').authWithPassword(identity, password, {
           requestKey: `${requestKeyBase}-users`,
         });
-      } catch (err: unknown) {
+      } catch (err: any) {
         const status = (err as { status?: unknown } | null | undefined)?.status;
         const message = getErrorMessage(err).toLowerCase();
         const likelyBadIdentity = status === 400 && message.includes('authenticate');
@@ -74,11 +71,16 @@ export default function Login() {
       }
 
       setSuccess('Signed in successfully!');
-      resetAttempts();
       setTimeout(() => navigate('/dashboard', { replace: true }), 1000);
-    } catch (err: unknown) {
-      setError(getErrorMessage(err));
-      addAttempt();
+    } catch (err: any) {
+      // Handle backend rate limit error
+      const status = err?.status || err?.response?.status;
+      const message = (err?.response?.message || err?.message || '').toLowerCase();
+      if (status === 429 || message.includes('too many') || message.includes('rate limit')) {
+        setError('Too many attempts. Please try again later.');
+      } else {
+        setError(getErrorMessage(err));
+      }
     } finally {
       setLoading(false);
     }
@@ -126,7 +128,7 @@ export default function Login() {
             {/* Password Field */}
             <div>
               <div className="flex justify-between mb-2">
-                <label htmlFor="password" text-sm className="text-sm font-semibold text-gray-700">
+                <label htmlFor="password" className="text-sm font-semibold text-gray-700">
                   Password
                 </label>
               </div>
@@ -159,34 +161,36 @@ export default function Login() {
             <button 
               type="submit" 
               className="group relative w-full flex justify-center items-center gap-2 rounded-xl bg-(--primary) py-3.5 px-4 text-white text-sm font-bold shadow-lg shadow-(--primary)/20 hover:bg-(--primary)/90 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed disabled:active:scale-100" 
-              disabled={loading || locked}
+              disabled={loading}
             >
               {loading ? (
                 <Icon icon="line-md:loading-twotone-loop" width="20" />
               ) : (
                 " "
               )}
-              {locked ? 'Locked (wait 5 min)' : loading ? 'Signing in...' : 'Sign In'}
+              {loading ? 'Signing in...' : 'Sign In'}
             </button>
-            {locked && (
-              <p className="text-xs text-red-500 text-center mt-2">Too many failed attempts. Please try again in 5 minutes.</p>
-            )}
           </form>
 
           <div className="mt-6 pt-4 border-t border-gray-100 text-center">
             <p className="text-sm text-gray-500 font-medium">
               Don't have an account?{' '}
-              <a 
-                href="#" 
-                className="font-bold text-(--primary) hover:text-(--primary)/80 transition-colors" 
-                onClick={(e) => e.preventDefault()}
+              <a
+                href="#"
+                className="font-bold text-(--primary) hover:text-(--primary)/80 transition-colors"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setShowContactModal(true);
+                }}
               >
-                Contact the developer
+                Contact the Admin
               </a>
             </p>
           </div>
         </section>
 
+
+        {/* Toasts for login */}
         {error && (
           <Toast
             type="error"
@@ -194,7 +198,6 @@ export default function Login() {
             onClose={() => setError(null)}
           />
         )}
-
         {success && (
           <Toast
             type="success"
@@ -203,8 +206,84 @@ export default function Login() {
           />
         )}
 
+        {/* Modal for Contact the Admin */}
+        <Modal open={showContactModal} onClose={() => {
+          setShowContactModal(false);
+          setContactEmail("");
+          setContactNotes("");
+          setContactError(null);
+          setContactSuccess(null);
+        }} title="Request an Account">
+          <form
+            className="space-y-5"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setContactError(null);
+              setContactSuccess(null);
+              setContactLoading(true);
+              // TODO: Replace this with actual email sending logic (e.g. API call or EmailJS)
+              try {
+                // Simulate async email sending
+                await new Promise((res) => setTimeout(res, 1200));
+                setContactSuccess("Your request has been sent to the admin. Please wait for a response.");
+                setContactEmail("");
+                setContactNotes("");
+              } catch (err) {
+                setContactError("Failed to send request. Please try again later.");
+              } finally {
+                setContactLoading(false);
+              }
+            }}
+          >
+            <div>
+              <label htmlFor="contact-email" className="block text-sm font-semibold text-gray-700 mb-2">
+                Email
+              </label>
+              <input
+                type="email"
+                id="contact-email"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-(--primary) focus:ring-4 focus:ring-(--primary)/10 outline-none transition-all text-gray-900 placeholder:text-gray-400"
+                value={contactEmail}
+                onChange={(e) => setContactEmail(e.target.value)}
+                placeholder="Enter your email"
+                autoComplete="email"
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="contact-notes" className="block text-sm font-semibold text-gray-700 mb-2">
+                Notes / Reason
+              </label>
+              <textarea
+                id="contact-notes"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-(--primary) focus:ring-4 focus:ring-(--primary)/10 outline-none transition-all text-gray-900 placeholder:text-gray-400 min-h-[80px]"
+                value={contactNotes}
+                onChange={(e) => setContactNotes(e.target.value)}
+                placeholder="Describe why you need an account"
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-full flex justify-center items-center gap-2 rounded-xl bg-(--primary) py-3.5 px-4 text-white text-sm font-bold shadow-lg shadow-(--primary)/20 hover:bg-(--primary)/90 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed disabled:active:scale-100"
+              disabled={contactLoading}
+            >
+              {contactLoading ? (
+                <Icon icon="line-md:loading-twotone-loop" width="20" />
+              ) : null}
+              {contactLoading ? 'Sending...' : 'Send Request'}
+            </button>
+            {contactError && (
+              <p className="text-xs text-red-500 text-center mt-2">{contactError}</p>
+            )}
+            {contactSuccess && (
+              <p className="text-xs text-green-600 text-center mt-2">{contactSuccess}</p>
+            )}
+          </form>
+        </Modal>
+
         <p className="mt-6 text-center text-xs text-gray-400 font-medium">
-          &copy; {new Date().getFullYear()} SkilsTrader. All rights reserved.
+          &copy; {new Date().getFullYear()} SkillsTrader. All rights reserved.
         </p>
       </div>
     </main>

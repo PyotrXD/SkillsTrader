@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { pb } from '../../lib/pocketbase/pb';
 import Navbar from '../ui/Navbar';
-import DashboardMetrics from '../../pages/DashboardMetrics';
 import Sidebar from '../custom/Sidebar';
 import RecordsWorkspace from '../../pages/RecordsWorkspace';
 import { UsersPanel } from '../custom/Users';
@@ -30,15 +29,6 @@ export default function Manager() {
 
         <div className="w-full mx-auto px-5 py-6 md:p-6 sm:p-3">
           <main className="grid gap-5">
-            <section className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius)] shadow-[var(--shadow),var(--inset)] px-6 py-6">
-              <p className="text-[11px] font-bold tracking-[0.12em] uppercase text-[var(--primary)] mb-2.5">Manager</p>
-              <h1 className="font-[var(--font-display)] text-[clamp(26px,2.7vw,36px)] font-bold leading-[1.12] tracking-[-0.02em] m-0">Core CRUD Workspace</h1>
-              <p className="mt-2.5 text-[var(--muted)] text-[14px] leading-[1.7] max-w-[70ch]">
-                Manage all core entities with create, edit, delete, and filter workflows.
-              </p>
-            </section>
-
-            <DashboardMetrics />
             {activeKey === 'users' ? (
               <UsersPanel />
             ) : (

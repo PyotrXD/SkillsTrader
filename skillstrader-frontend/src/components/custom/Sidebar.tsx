@@ -44,13 +44,7 @@ const ENTITY_ICONS: Record<string, ReactElement> = {
       <line x1="8" y1="2" x2="8" y2="6" />
       <line x1="3" y1="10" x2="21" y2="10" />
     </svg>
-  ),
-  documents: (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
-      <polyline points="13 2 13 9 20 9" />
-    </svg>
-  ),
+  )
 };
 
 const USERS_ICON = (
@@ -71,6 +65,17 @@ const COLLAPSE_ICON_OPEN = (
 const COLLAPSE_ICON_CLOSED = (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <polyline points="9 18 15 12 9 6" />
+  </svg>
+);
+
+const AUDIT_LOG_ICON = (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+    <line x1="8" y1="13" x2="16" y2="13" />
+    <line x1="8" y1="17" x2="12" y2="17" />
+    <circle cx="17" cy="17" r="3" />
+    <line x1="19.5" y1="19.5" x2="21" y2="21" />
   </svg>
 );
 
@@ -166,6 +171,30 @@ export default function Sidebar({
             </button>
           );
         })}
+
+        {/* Audit Log — Administrator only */}
+        {role === 'administrator' && (
+          <>
+            {!isCollapsed && (
+              <div className="mt-2 mb-0.5 px-1">
+                <span className="text-[10px] font-bold tracking-widest uppercase text-(--muted)">
+                  Admin
+                </span>
+              </div>
+            )}
+            <button
+              type="button"
+              title={isCollapsed ? 'Audit Log' : undefined}
+              className={`${NAV_BASE} ${sizeClass} ${
+                activeKey === 'audit_log' && !onUsersPage ? NAV_ACTIVE : NAV_IDLE
+              }`}
+              onClick={() => onSelect('audit_log')}
+            >
+              <span className="shrink-0">{AUDIT_LOG_ICON}</span>
+              {!isCollapsed && <span>Audit Log</span>}
+            </button>
+          </>
+        )}
       </nav>
     </aside>
   );

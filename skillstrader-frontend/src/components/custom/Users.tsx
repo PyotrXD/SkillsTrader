@@ -433,7 +433,7 @@ export function UsersPanel() {
                       className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-red-100 text-red-700 font-semibold text-sm hover:bg-red-200 transition-colors"
                     >
                       <Icon icon="tabler:x" width="20" height="20" />
-                      Clear all
+                      Clear Filter
                     </button>
                   </div>
                 )}

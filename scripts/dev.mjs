@@ -58,6 +58,35 @@ function startProcess(command, args, name) {
   return child;
 }
 
+function ensureFrontendDependencies() {
+  const npmArgs = ['--prefix', 'skillstrader-frontend', 'ls', '--depth=0'];
+  const check = isWindows
+    ? spawnSync(
+        process.env.ComSpec || 'cmd.exe',
+        ['/d', '/s', '/c', ['npm', ...npmArgs].map(quoteCmdArg).join(' ')],
+        {
+          cwd: repoRoot,
+          stdio: 'ignore',
+          windowsHide: true,
+        },
+      )
+    : spawnSync('npm', npmArgs, {
+        cwd: repoRoot,
+        stdio: 'ignore',
+        windowsHide: true,
+      });
+
+  if (check.status === 0) {
+    return;
+  }
+
+  console.error('[dev] Frontend dependencies are missing or out of sync.');
+  console.error('[dev] Run one of the following, then retry:');
+  console.error('[dev]   npm run setup');
+  console.error('[dev]   npm run setup:frontend');
+  process.exit(check.status ?? 1);
+}
+
 const pocketBaseExe = isWindows
   ? path.join(repoRoot, 'pocketbase.exe')
   : path.join(repoRoot, 'pocketbase');
@@ -83,6 +112,8 @@ if (encryptionKey) {
     );
   }
 }
+
+ensureFrontendDependencies();
 
 const pocketBase = startProcess(
   pocketBaseExe,

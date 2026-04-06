@@ -1,5 +1,7 @@
 {
   "scripts": {
+    "setup": "npm ci && npm --prefix skillstrader-frontend ci",
+    "setup:frontend": "npm --prefix skillstrader-frontend ci",
     "dev": "node scripts/dev.mjs",
     "dev:frontend": "npm --prefix skillstrader-frontend run dev",
     "build": "npm --prefix skillstrader-frontend run build",

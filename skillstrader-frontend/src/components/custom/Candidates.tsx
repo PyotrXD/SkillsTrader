@@ -7,7 +7,6 @@ import Searchbar from "../ui/Searchbar";
 import Filter from "../ui/Filter";
 import Selection from "../ui/Selection";
 import Pagination from "../ui/Pagination";
-import candidatesData from "../../data/candidates.json";
 import defaultProfile from "../../assets/images/default-profile.png";
 import { generateResumeHtml } from './resumeTemplate';
 import { getUserRole, pb } from '../../lib/pocketbase/pb';
@@ -109,9 +108,47 @@ export default function Candidates() {
   const [totalPages, setTotalPages] = useState(1);
   const [pagedCandidates, setPagedCandidates] = useState<CandidateForm[]>([]);
 
-  // Fetch candidates from local JSON
+  // Fetch candidates from PocketBase
   useEffect(() => {
-    setCandidates(candidatesData as CandidateForm[]);
+    async function fetchCandidates() {
+      try {
+        const [items, token] = await Promise.all([
+          pb.collection('candidates').getFullList<Record<string, any>>({ sort: '-created' }),
+          pb.files.getToken(),
+        ]);
+        setCandidates(
+          items.map((item) => ({
+            id: item.id,
+            full_name: item.full_name ?? '',
+            email: item.email ?? '',
+            phone: item.phone ?? '',
+            address: item.address ?? '',
+            education: item.education ?? '',
+            work_history: item.work_history ?? '',
+            skills: item.skills ?? '',
+            certifications: item.certifications ?? '',
+            desired_salary: item.desired_salary ?? '',
+            status: item.status ?? 'Applied',
+            consent_given: item.consent_given ?? false,
+            consent_at: item.consent_at ?? '',
+            consent_source: item.consent_source ?? '',
+            consent_version: item.consent_version ?? '',
+            action_required: [],
+            profile_photo: item.photo
+              ? pb.files.getURL(item, item.photo, { token })
+              : null,
+            documents: {
+              resume: item.resume ? pb.files.getURL(item, item.resume, { token }) : null,
+              passport: item.passport ? pb.files.getURL(item, item.passport, { token }) : null,
+              visa: item.visa ? pb.files.getURL(item, item.visa, { token }) : null,
+            },
+          }))
+        );
+      } catch {
+        setCandidates([]);
+      }
+    }
+    fetchCandidates();
   }, []);
 
   // Filtered candidates (memoized)
@@ -207,8 +244,42 @@ export default function Candidates() {
     setIsSubmitting(true);
     setError("");
     try {
-      // TODO: PB create
-      setCandidates((prev) => [{ ...form, id: Date.now() }, ...prev]);
+      const payload: Record<string, any> = {
+        full_name: form.full_name,
+        email: form.email,
+        phone: form.phone,
+        address: form.address,
+        education: form.education,
+        work_history: form.work_history,
+        skills: form.skills || null,
+        certifications: form.certifications,
+        desired_salary: form.desired_salary,
+        status: form.status,
+        consent_given: form.consent_given,
+        consent_at: form.consent_at || null,
+        consent_source: form.consent_source,
+        consent_version: form.consent_version,
+      };
+      if (form.profile_photo instanceof File) payload['photo'] = form.profile_photo;
+      if (form.documents) {
+        const knownFields = ['resume', 'passport', 'visa'];
+        for (const [key, val] of Object.entries(form.documents)) {
+          if (knownFields.includes(key) && val instanceof File) payload[key] = val;
+        }
+      }
+      const record = await pb.collection('candidates').create(payload);
+      const token = await pb.files.getToken();
+      const newCandidate: CandidateForm = {
+        ...form,
+        id: record.id,
+        profile_photo: record.photo ? pb.files.getURL(record, record.photo, { token }) : null,
+        documents: {
+          resume: record.resume ? pb.files.getURL(record, record.resume, { token }) : null,
+          passport: record.passport ? pb.files.getURL(record, record.passport, { token }) : null,
+          visa: record.visa ? pb.files.getURL(record, record.visa, { token }) : null,
+        },
+      };
+      setCandidates((prev) => [newCandidate, ...prev]);
       addAuditLog({
         actor_email: pb.authStore.record?.email ?? 'unknown',
         actor_role: getUserRole() ?? 'staff',
@@ -218,9 +289,11 @@ export default function Candidates() {
       });
       showFeedback("success", "Candidate added successfully.");
       setIsModalOpen(false);
-    } catch {
-      setError("Failed to add candidate.");
-      showFeedback("error", "Failed to add candidate.");
+      setForm(initialForm);
+    } catch (err: any) {
+      const detail = err?.data ? JSON.stringify(err.data) : (err?.message ?? '');
+      setError(`Failed to add candidate. ${detail}`);
+      showFeedback("error", `Failed to add candidate. ${detail}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -230,10 +303,44 @@ export default function Candidates() {
     setIsSubmitting(true);
     setError("");
     try {
-      // TODO: PB update
+      const payload: Record<string, any> = {
+        full_name: form.full_name,
+        email: form.email,
+        phone: form.phone,
+        address: form.address,
+        education: form.education,
+        work_history: form.work_history,
+        skills: form.skills || null,
+        certifications: form.certifications,
+        desired_salary: form.desired_salary,
+        status: form.status,
+        consent_given: form.consent_given,
+        consent_at: form.consent_at || null,
+        consent_source: form.consent_source,
+        consent_version: form.consent_version,
+      };
+      if (form.profile_photo instanceof File) payload['photo'] = form.profile_photo;
+      if (form.documents) {
+        const knownFields = ['resume', 'passport', 'visa'];
+        for (const [key, val] of Object.entries(form.documents)) {
+          if (knownFields.includes(key) && val instanceof File) payload[key] = val;
+        }
+      }
+      const updatedRecord = await pb.collection('candidates').update(String(editCandidate?.id), payload);
+      const token = await pb.files.getToken();
+      const updatedCandidate: CandidateForm = {
+        ...form,
+        id: updatedRecord.id,
+        profile_photo: updatedRecord.photo ? pb.files.getURL(updatedRecord, updatedRecord.photo, { token }) : null,
+        documents: {
+          resume: updatedRecord.resume ? pb.files.getURL(updatedRecord, updatedRecord.resume, { token }) : null,
+          passport: updatedRecord.passport ? pb.files.getURL(updatedRecord, updatedRecord.passport, { token }) : null,
+          visa: updatedRecord.visa ? pb.files.getURL(updatedRecord, updatedRecord.visa, { token }) : null,
+        },
+      };
       setCandidates((prev) =>
         prev.map((c) =>
-          c.id === editCandidate?.id ? { ...form, id: c.id } : c,
+          c.id === editCandidate?.id ? updatedCandidate : c,
         ),
       );
       addAuditLog({
@@ -245,9 +352,10 @@ export default function Candidates() {
       });
       showFeedback("success", "Candidate updated successfully.");
       setIsEditModalOpen(false);
-    } catch {
-      setError("Failed to update candidate.");
-      showFeedback("error", "Failed to update candidate.");
+    } catch (err: any) {
+      const detail = err?.data ? JSON.stringify(err.data) : (err?.message ?? '');
+      setError(`Failed to update candidate. ${detail}`);
+      showFeedback("error", `Failed to update candidate. ${detail}`);
     } finally {
       setIsSubmitting(false);
     }

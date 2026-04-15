@@ -115,7 +115,7 @@ export default function Login() {
                 <input
                   type="email"
                   id="email"
-                  className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-(--primary) focus:ring-4 focus:ring-(--primary)/10 outline-none transition-all text-gray-900 placeholder:text-gray-400"
+                  className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-md focus:bg-white focus:border-(--primary) focus:ring-4 focus:ring-(--primary)/10 outline-none transition-all text-gray-900 placeholder:text-gray-400"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
@@ -139,7 +139,7 @@ export default function Login() {
                 <input
                   type={showPassword ? 'text' : 'password'}
                   id="password"
-                  className="w-full pl-11 pr-11 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-(--primary) focus:ring-4 focus:ring-(--primary)/10 outline-none transition-all text-gray-900 placeholder:text-gray-400"
+                  className="w-full pl-11 pr-11 py-3 bg-gray-50 border border-gray-200 rounded-md focus:bg-white focus:border-(--primary) focus:ring-4 focus:ring-(--primary)/10 outline-none transition-all text-gray-900 placeholder:text-gray-400"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
@@ -160,7 +160,7 @@ export default function Login() {
 
             <button 
               type="submit" 
-              className="group relative w-full flex justify-center items-center gap-2 rounded-xl bg-(--primary) py-3.5 px-4 text-white text-sm font-bold shadow-lg shadow-(--primary)/20 hover:bg-(--primary)/90 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed disabled:active:scale-100" 
+              className="group relative w-full flex justify-center items-center gap-2 rounded-md bg-(--primary) py-3.5 px-4 text-white text-sm font-bold shadow-lg shadow-(--primary)/20 hover:bg-(--primary)/90 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed disabled:active:scale-100" 
               disabled={loading}
             >
               {loading ? (
@@ -242,7 +242,7 @@ export default function Login() {
               <input
                 type="email"
                 id="contact-email"
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-(--primary) focus:ring-4 focus:ring-(--primary)/10 outline-none transition-all text-gray-900 placeholder:text-gray-400"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-md focus:bg-white focus:border-(--primary) focus:ring-4 focus:ring-(--primary)/10 outline-none transition-all text-gray-900 placeholder:text-gray-400"
                 value={contactEmail}
                 onChange={(e) => setContactEmail(e.target.value)}
                 placeholder="Enter your email"
@@ -256,7 +256,7 @@ export default function Login() {
               </label>
               <textarea
                 id="contact-notes"
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-(--primary) focus:ring-4 focus:ring-(--primary)/10 outline-none transition-all text-gray-900 placeholder:text-gray-400 min-h-[80px]"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-md focus:bg-white focus:border-(--primary) focus:ring-4 focus:ring-(--primary)/10 outline-none transition-all text-gray-900 placeholder:text-gray-400 min-h-[80px]"
                 value={contactNotes}
                 onChange={(e) => setContactNotes(e.target.value)}
                 placeholder="Describe why you need an account"
@@ -265,7 +265,7 @@ export default function Login() {
             </div>
             <button
               type="submit"
-              className="w-full flex justify-center items-center gap-2 rounded-xl bg-(--primary) py-3.5 px-4 text-white text-sm font-bold shadow-lg shadow-(--primary)/20 hover:bg-(--primary)/90 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed disabled:active:scale-100"
+              className="w-full flex justify-center items-center gap-2 rounded-md bg-(--primary) py-3.5 px-4 text-white text-sm font-bold shadow-lg shadow-(--primary)/20 hover:bg-(--primary)/90 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed disabled:active:scale-100"
               disabled={contactLoading}
             >
               {contactLoading ? (

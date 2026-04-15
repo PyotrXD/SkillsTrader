@@ -34,7 +34,7 @@ export default function Selection({
       )}
       <div className={`relative w-full`}>
         <select
-          className="w-full appearance-none border border-(--border) bg-white text-(--text) rounded-xl px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--primary) transition-all disabled:bg-gray-100 disabled:cursor-not-allowed"
+          className="w-full appearance-none border border-(--border) bg-white text-(--text) rounded-md px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--primary) transition-all disabled:bg-gray-100 disabled:cursor-not-allowed"
           value={value}
           onChange={e => onChange(e.target.value)}
           disabled={disabled}

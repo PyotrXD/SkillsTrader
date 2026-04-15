@@ -102,14 +102,14 @@ export default function ValidationModal({
           <button
             ref={cancelRef}
             type="button"
-            className="px-4 py-2 rounded-full border border-(--border) bg-white text-(--text) text-base font-semibold cursor-pointer hover:bg-(--surface2) transition-colors"
+            className="px-4 py-2 rounded-md border border-(--border) bg-white text-(--text) text-base font-semibold cursor-pointer hover:bg-(--surface2) transition-colors"
             onClick={onCancel}
           >
             {cancelLabel}
           </button>
           <button
             type="button"
-            className={`px-4 py-2 rounded-full text-base font-semibold cursor-pointer border-none transition-all hover:brightness-110 active:scale-95 ${
+            className={`px-4 py-2 rounded-md text-base font-semibold cursor-pointer border-none transition-all hover:brightness-110 active:scale-95 ${
               destructive
                 ? 'bg-gradient-to-br from-(--primary) to-(--primary2) text-white shadow-[0_4px_14px_rgba(200,75,49,0.25)]'
                 : 'bg-(--text) text-white'

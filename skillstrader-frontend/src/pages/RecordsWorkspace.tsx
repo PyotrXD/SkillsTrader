@@ -4,6 +4,7 @@ import Candidates from "../components/custom/Candidates";
 import Employers from "../components/custom/Employers";
 import JobOrders from "../components/custom/JobOrders";
 import Placements from "../components/custom/Placements";
+import Positions from "../components/custom/Positions";
 
 type Option = {
   id: string;
@@ -283,12 +284,52 @@ const ENTITIES: EntityConfig[] = [
       { label: 'Verified by', path: 'expand.verified_by.email' },
     ],
   },
+  {
+    key: 'positions',
+    label: 'Positions',
+    collection: 'positions',
+    sort: '-updated',
+    expand: 'employer',
+    searchFields: ['title', 'description', 'salary_range', 'status', 'client_company_id'],
+    statusField: 'status',
+    statusOptions: ['open', 'closed', 'filled'],
+    fields: [
+      { name: 'title', label: 'Title', type: 'text', required: true },
+      { name: 'description', label: 'Description', type: 'textarea' },
+      { name: 'required_skills', label: 'Required skills (comma separated)', type: 'tags' },
+      { name: 'salary_range', label: 'Salary range (display)', type: 'text' },
+      { name: 'salary_min', label: 'Salary min', type: 'number' },
+      { name: 'salary_max', label: 'Salary max', type: 'number' },
+      { name: 'salary_currency', label: 'Salary currency', type: 'text' },
+      { name: 'openings', label: 'Openings', type: 'number', required: true },
+      { name: 'client_company_id', label: 'Client company ID', type: 'text' },
+      { name: 'employer', label: 'Employer', type: 'relation', relationKey: 'employer', required: true },
+      { name: 'status', label: 'Status', type: 'select', required: true, options: ['open', 'closed', 'filled'] },
+    ],
+    columns: [
+      { label: 'Title', path: 'title' },
+      { label: 'Employer', path: 'expand.employer.company_name' },
+      { label: 'Status', path: 'status' },
+      { label: 'Openings', path: 'openings' },
+      { label: 'Salary range', path: 'salary_range' },
+    ],
+  },
 ];
 
 // List of entities for Sidebar navigation
-export const RECORD_ENTITY_ITEMS = ENTITIES
-  .filter((it) => it.key !== 'documents')
-  .map(({ key, label }) => ({ key, label }));
+// Ensure Positions appears directly below Candidates in the sidebar
+export const RECORD_ENTITY_ITEMS = (() => {
+  const items = ENTITIES
+    .filter((it) => it.key !== 'documents')
+    .map(({ key, label }) => ({ key, label }));
+  const candidatesIdx = items.findIndex((it) => it.key === 'candidates');
+  const positionsIdx = items.findIndex((it) => it.key === 'positions');
+  if (candidatesIdx !== -1 && positionsIdx !== -1 && positionsIdx !== candidatesIdx + 1) {
+    const [positionsItem] = items.splice(positionsIdx, 1);
+    items.splice(candidatesIdx + 1, 0, positionsItem);
+  }
+  return items;
+})();
 
 function toArrayString(value: unknown): string {
   if (!Array.isArray(value)) return '';
@@ -643,6 +684,8 @@ export default function RecordsWorkspace({ role, activeKey }: Props) {
         <Placements />
       ) : activeKey === 'job_orders' ? (
         <JobOrders />
+      ) : activeKey === 'positions' ? (
+        <Positions />
       ) : (
         <section className="bg-(--surface) border border-(--border) rounded-[18px] shadow-[0_14px_44px_rgba(26,23,20,0.08),var(--inset)] p-4.5" aria-label="Core records workspace">
           <div className="grid gap-3.5">

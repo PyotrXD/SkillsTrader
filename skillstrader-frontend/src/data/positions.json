@@ -1,0 +1,32 @@
+[
+  {
+    "id": 1,
+    "industry": "Information Technology",
+    "title": "Software Developer",
+    "description": "Build and maintain web applications, collaborate with product teams, and ship clean code."
+  },
+  {
+    "id": 2,
+    "industry": "Hospitality",
+    "title": "Cook",
+    "description": "Prepare meals, manage kitchen stations, and maintain food safety and presentation standards."
+  },
+    {
+        "id": 3,
+        "industry": "Logistics",
+        "title": "Warehouse Worker",
+        "description": "Handle inventory, pack and ship orders, and maintain a clean and organized warehouse."
+    },
+    {
+        "id": 4,
+        "industry": "Manufacturing",
+        "title": "Machine Operator",
+        "description": "Operate machinery, monitor production processes, and ensure quality control standards are met."
+    },
+    {
+        "id": 5,
+        "industry": "Food Service",
+        "title": "Barista",
+        "description": "Prepare and serve coffee beverages, maintain cleanliness of the café area, and provide excellent customer service."
+    }
+]

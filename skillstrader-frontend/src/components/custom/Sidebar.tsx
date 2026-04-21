@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { RECORD_ENTITY_ITEMS } from '../../pages/RecordsWorkspace';
 import type { UserRole } from '../../lib/pocketbase/pb';
+import { Icon } from '@iconify/react/dist/offline.cjs';
 
 type Props = {
   activeKey: string;
@@ -17,6 +18,9 @@ const ENTITY_ICONS: Record<string, ReactElement> = {
       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
       <circle cx="12" cy="7" r="4" />
     </svg>
+  ),
+  positions: (
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"><path d="M2.217 14.02a9 9 0 1 0 16.566-7.04a9 9 0 0 0-16.566 7.04m14.646 2.845L22.5 22.5"/><path d="M7.5 7.5a3 3 0 1 0 6 0a3 3 0 0 0-6 0m3 4.5v4.5m4.224-1.5a4.473 4.473 0 0 0-8.449 0"/></g></svg>
   ),
   employer: (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -44,7 +48,7 @@ const ENTITY_ICONS: Record<string, ReactElement> = {
       <line x1="8" y1="2" x2="8" y2="6" />
       <line x1="3" y1="10" x2="21" y2="10" />
     </svg>
-  )
+  ),
 };
 
 const USERS_ICON = (

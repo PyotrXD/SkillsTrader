@@ -13,6 +13,7 @@ import { generateResumeHtml } from './resumeTemplate';
 import { getUserRole, pb } from '../../lib/pocketbase/pb';
 import { addAuditLog } from '../../utils/auditLog';
 import type { CandidateForm, ArchivedCandidate } from '../../types/Candidate';
+import {hasChanges} from '../../utils/hasChanges';
 
 const candidateStatuses = [
   "Applied",
@@ -139,12 +140,22 @@ export default function Candidates() {
             consent_at: item.consent_at ?? '',
             consent_source: item.consent_source ?? '',
             consent_version: item.consent_version ?? '',
-            action_required: [],
+            action_required: Array.isArray(item.action_required) && item.action_required.length
+              ? item.action_required
+              : getCandidateFlags({ status: item.status ?? 'Applied', consent_given: item.consent_given ?? false } as CandidateForm),
             profile_photo: item.photo ? pb.files.getURL(item, item.photo, { token }) : null,
             documents: {
               resume: item.resume ? pb.files.getURL(item, item.resume, { token }) : null,
               passport: item.passport ? pb.files.getURL(item, item.passport, { token }) : null,
               visa: item.visa ? pb.files.getURL(item, item.visa, { token }) : null,
+              nbi_clearance: item.nbi_clearance ? pb.files.getURL(item, item.nbi_clearance, { token }) : null,
+              police_clearance: item.police_clearance ? pb.files.getURL(item, item.police_clearance, { token }) : null,
+              offer_letter: item.offer_letter ? pb.files.getURL(item, item.offer_letter, { token }) : null,
+              dmw_approved_contract: item.dmw_approved_contract ? pb.files.getURL(item, item.dmw_approved_contract, { token }) : null,
+              overseas_employment_certificate: item.overseas_employment_certificate ? pb.files.getURL(item, item.overseas_employment_certificate, { token }) : null,
+              peos_certificate: item.peos_certificate ? pb.files.getURL(item, item.peos_certificate, { token }) : null,
+              e_registration_file: item.e_registration_file ? pb.files.getURL(item, item.e_registration_file, { token }) : null,
+              other: item.other ? pb.files.getURL(item, item.other, { token }) : null,
             },
           }))
         );
@@ -170,14 +181,16 @@ export default function Candidates() {
         const matchesStatus = statusFilter ? c.status === statusFilter : true;
         const matchesDateFrom = dateFrom ? c.consent_at >= dateFrom : true;
         const matchesDateTo = dateTo ? c.consent_at <= dateTo : true;
-        const flags = getCandidateFlags(c);
+        const savedFlags = Array.isArray(c.action_required) && c.action_required.length
+          ? c.action_required
+          : getCandidateFlags(c);
         const matchesQuick =
-          quickFilter === "not-interviewed" ? flags.includes("Not Interviewed")
-            : quickFilter === "not-scheduled" ? flags.includes("Not Scheduled")
-            : quickFilter === "missing-docs" ? flags.includes("Docs Missing")
+          quickFilter === "not-interviewed" ? savedFlags.includes("Not Interviewed")
+            : quickFilter === "not-scheduled" ? savedFlags.includes("Not Scheduled")
+            : quickFilter === "missing-docs" ? savedFlags.includes("Docs Missing")
             : true;
-        return matchesSearch && matchesStatus && matchesDateFrom && matchesDateTo && matchesQuick;
-      }),
+                return matchesSearch && matchesStatus && matchesDateFrom && matchesDateTo && matchesQuick;
+              }),
     [candidates, search, statusFilter, dateFrom, dateTo, quickFilter],
   );
 
@@ -228,7 +241,9 @@ export default function Candidates() {
       ...candidate,
       position_screened: candidate.position_screened ?? '',
       notes: candidate.notes ?? '',
-      action_required: candidate.action_required ?? getCandidateFlags(candidate),
+      action_required: candidate.action_required?.length
+        ? candidate.action_required
+        : getCandidateFlags(candidate),
     });
     setIsEditModalOpen(true);
     setError("");
@@ -239,7 +254,12 @@ export default function Candidates() {
   function handleCloseDeleteModal() { setIsDeleteModalOpen(false); setDeleteCandidate(null); }
 
   function handleView(candidate: CandidateForm) {
-    setViewCandidate(candidate);
+    setViewCandidate({
+      ...candidate,
+      action_required: candidate.action_required?.length
+        ? candidate.action_required
+        : getCandidateFlags(candidate),
+    });
     setViewTab('info');
     addAuditLog({
       actor_email: pb.authStore.record?.email ?? 'unknown',
@@ -249,6 +269,7 @@ export default function Candidates() {
       entity_name: candidate.full_name || String(candidate.id ?? '—'),
     });
   }
+  
   function handleCloseViewModal() { setViewCandidate(null); }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -266,6 +287,7 @@ export default function Candidates() {
         status: form.status, consent_given: form.consent_given,
         consent_at: form.consent_at || null, consent_source: form.consent_source,
         consent_version: form.consent_version,
+        action_required: form.action_required ?? [],
       };
       if (form.profile_photo instanceof File) payload['photo'] = form.profile_photo;
       if (form.documents) {
@@ -302,6 +324,26 @@ export default function Candidates() {
     e.preventDefault();
     setIsSubmitting(true);
     setError("");
+
+    // Check kung may nagbago BAGO mag-try
+    const changed = hasChanges(editCandidate!, form, [
+      'last_name', 'first_name', 'middle_name', 'email', 'phone',
+      'home_address', 'permanent_address', 'suffix', 'prefix',
+      'marital_status', 'status', 'action_required', 'notes',
+      'work_history', 'certifications', 'desired_salary',
+      'position_screened', 'skills', 'pagibig_number',
+      'highest_educ_attainment', 'school_elementary', 'school_junior_high',
+      'school_senior_high', 'school_college', 'school_other_name',
+      'consent_given', 'profile_photo', 'documents',
+    ]);
+
+    if (!changed) {
+      showFeedback("info", "No changes detected. Nothing was updated.");
+      setIsEditModalOpen(false);
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       const computedFullNameEdit = [form.last_name, form.first_name, form.middle_name].filter(Boolean).join(' ') || form.full_name || 'Unknown';
       const payload: Record<string, any> = {
@@ -313,6 +355,7 @@ export default function Candidates() {
         status: form.status, consent_given: form.consent_given,
         consent_at: form.consent_at || null, consent_source: form.consent_source,
         consent_version: form.consent_version,
+        action_required: form.action_required ?? [],
       };
       if (form.profile_photo instanceof File) payload['photo'] = form.profile_photo;
       if (form.documents) {
@@ -427,11 +470,18 @@ export default function Candidates() {
     setTimeout(() => { try { w.print(); } catch (e) { } }, 500);
   }
 
-  function handleDocumentDownload(key: string, doc: File | string) {
+  async function handleDocumentDownload(key: string, doc: File | string) {
     if (typeof doc === 'string') {
-      const a = document.createElement('a');
-      a.href = doc; a.download = key; a.target = '_blank'; a.rel = 'noreferrer';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      try {
+        const freshToken = await pb.files.getToken();
+        // Strip any existing token query param first
+        const baseUrl = doc.split('?')[0];
+        const urlWithToken = `${baseUrl}?token=${freshToken}`;
+        window.open(urlWithToken, '_blank', 'noreferrer');
+      } catch {
+        const baseUrl = doc.split('?')[0];
+        window.open(baseUrl, '_blank', 'noreferrer');
+      }
     } else if (doc instanceof File) {
       const url = URL.createObjectURL(doc);
       const a = document.createElement('a');
@@ -648,7 +698,7 @@ export default function Candidates() {
                             const isActive = (viewCandidate.action_required ?? []).includes(flag);
                             return (
                               <span key={flag} className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-sm border ${isActive ? 'bg-(--primary) text-white border-(--primary) shadow-sm' : 'bg-white text-(--text) border-(--border)'}`}>
-                                {isActive && <Icon icon="tabler:check" width="12" height="12" />}{flag}
+                                {flag}
                               </span>
                             );
                           })}
@@ -694,7 +744,7 @@ export default function Candidates() {
                           {viewCandidate.documents?.[key]
                             ? <button type="button" onClick={() => handleDocumentDownload(key, viewCandidate.documents![key] as File | string)} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-(--border) rounded-xl bg-white text-xs font-semibold text-(--primary) cursor-pointer hover:bg-(--surface2) transition-colors">
                                 <Icon icon="tabler:download" width="14" height="14" />
-                                {typeof viewCandidate.documents[key] === 'string' ? 'Download' : (viewCandidate.documents[key] as File).name}
+                                {typeof viewCandidate.documents[key] === 'string' ? 'Download File' : (viewCandidate.documents[key] as File).name}
                               </button>
                             : <span className="text-sm text-(--muted) flex items-center gap-1.5"><Icon icon="teenyicons:file-no-access-outline" width="20" height="20" />No file uploaded</span>}
                         </div>
@@ -819,7 +869,7 @@ export default function Candidates() {
                             return (
                               <button key={flag} type="button" onClick={() => setForm((prev) => { const current = prev.action_required ?? []; const next = current.includes(flag) ? current.filter((f) => f !== flag) : [...new Set([...current, flag])]; return { ...prev, action_required: next }; })}
                                 className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-sm font-medium border transition-all duration-150 ${isActive ? 'bg-(--primary) text-white border-(--primary) shadow-sm' : 'bg-white text-(--text) border-(--border) hover:bg-(--surface2)'}`}>
-                                {isActive && <Icon icon="tabler:check" width="12" height="12" />}{flag}
+                                {flag}
                               </button>
                             );
                           })}
@@ -876,8 +926,30 @@ export default function Candidates() {
                           <input id={`file-${key}`} type="file" accept="*" onChange={(e) => setForm((prev) => ({ ...prev, documents: { ...(prev.documents ?? {}), [key]: e.target.files?.[0] ?? null } }))} className="hidden" />
                           {form.documents?.[key]
                             ? typeof form.documents[key] === 'string'
-                              ? <a href={form.documents[key] as string} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-(--primary) font-medium underline"><Icon icon="tabler:file" width="13" height="13" />Existing file</a>
-                              : <span className="inline-flex items-center gap-1 text-xs text-(--text) font-medium truncate max-w-40"><Icon icon="tabler:file" width="13" height="13" />{(form.documents[key] as File).name}</span>
+                              ? <span className="inline-flex items-center gap-1 text-xs text-(--text) font-medium truncate max-w-40">
+                                  <Icon icon="tabler:file" width="13" height="13" />
+                                  Uploaded file
+                                  <button
+                                    type="button"
+                                    onClick={() => setForm((prev) => ({ ...prev, documents: { ...(prev.documents ?? {}), [key]: null } }))}
+                                    className="ml-1 text-(--muted) hover:text-red-500 transition-colors"
+                                    title="Remove file"
+                                  >
+                                    <Icon icon="tabler:x" width="13" height="13" />
+                                  </button>
+                                </span>
+                              : <span className="inline-flex items-center gap-1 text-xs text-(--text) font-medium truncate max-w-100">
+                                  <Icon icon="tabler:file" width="18" height="18" />
+                                  {(form.documents[key] as File).name}
+                                  <button
+                                    type="button"
+                                    onClick={() => setForm((prev) => ({ ...prev, documents: { ...(prev.documents ?? {}), [key]: null } }))}
+                                    className="ml-1 text-gray-500 hover:text-red-500 transition-colors"
+                                    title="Remove file"
+                                  >
+                                    <Icon icon="tabler:x" width="18" height="18" />
+                                  </button>
+                                </span>
                             : <span className="text-sm text-(--muted)">No file selected</span>}
                         </div>
                       </div>

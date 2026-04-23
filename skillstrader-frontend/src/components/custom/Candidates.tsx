@@ -103,63 +103,89 @@ export default function Candidates() {
     async function fetchCandidates() {
       try {
         const [items, token] = await Promise.all([
-          pb.collection('candidates').getFullList<Record<string, any>>({ sort: '-created', requestKey: null }),
+          pb.collection('candidates').getFullList<Record<string, any>>({
+            sort: '-created',
+            requestKey: null,
+          }),
           pb.files.getToken(),
         ]);
+
+        // Get all documents for all candidates
+        const allDocuments = await pb.collection('documents').getFullList<Record<string, any>>({
+          filter: `candidate != ""`, // Get all documents with a candidate relation
+        });
+
+        // Create a map of candidate ID -> documents array
+        const documentsByCandidate: Record<string, any[]> = {};
+        allDocuments.forEach((doc) => {
+          const candidateId = doc.candidate;
+          if (!documentsByCandidate[candidateId]) {
+            documentsByCandidate[candidateId] = [];
+          }
+          documentsByCandidate[candidateId].push(doc);
+        });
+
         setCandidates(
-          items.map((item) => ({
-            id: item.id,
-            full_name: item.full_name ?? '',
-            last_name: item.last_name ?? '',
-            first_name: item.first_name ?? '',
-            middle_name: item.middle_name ?? '',
-            prefix: item.prefix ?? '',
-            suffix: item.suffix ?? '',
-            marital_status: item.marital_status ?? '',
-            home_address: item.home_address ?? '',
-            permanent_address: item.permanent_address ?? '',
-            pagibig_number: item.pagibig_number ?? '',
-            highest_educ_attainment: item.highest_educ_attainment ?? '',
-            school_elementary: item.school_elementary ?? '',
-            school_junior_high: item.school_junior_high ?? '',
-            school_senior_high: item.school_senior_high ?? '',
-            school_college: item.school_college ?? '',
-            school_other: item.school_other ?? '',
-            email: item.email ?? '',
-            phone: item.phone ?? '',
-            address: item.address ?? '',
-            education: item.education ?? '',
-            work_history: item.work_history ?? '',
-            skills: item.skills ?? '',
-            certifications: item.certifications ?? '',
-            desired_salary: item.desired_salary ?? '',
-            position_screened: item.position_screened ?? '',
-            notes: item.notes ?? '',
-            status: item.status ?? 'Applied',
-            consent_given: item.consent_given ?? false,
-            consent_at: item.consent_at ?? '',
-            consent_source: item.consent_source ?? '',
-            consent_version: item.consent_version ?? '',
-            action_required: Array.isArray(item.action_required) && item.action_required.length
-              ? item.action_required
-              : getCandidateFlags({ status: item.status ?? 'Applied', consent_given: item.consent_given ?? false } as CandidateForm),
-            profile_photo: item.photo ? pb.files.getURL(item, item.photo, { token }) : null,
-            documents: {
-              resume: item.resume ? pb.files.getURL(item, item.resume, { token }) : null,
-              passport: item.passport ? pb.files.getURL(item, item.passport, { token }) : null,
-              visa: item.visa ? pb.files.getURL(item, item.visa, { token }) : null,
-              nbi_clearance: item.nbi_clearance ? pb.files.getURL(item, item.nbi_clearance, { token }) : null,
-              police_clearance: item.police_clearance ? pb.files.getURL(item, item.police_clearance, { token }) : null,
-              offer_letter: item.offer_letter ? pb.files.getURL(item, item.offer_letter, { token }) : null,
-              dmw_approved_contract: item.dmw_approved_contract ? pb.files.getURL(item, item.dmw_approved_contract, { token }) : null,
-              overseas_employment_certificate: item.overseas_employment_certificate ? pb.files.getURL(item, item.overseas_employment_certificate, { token }) : null,
-              peos_certificate: item.peos_certificate ? pb.files.getURL(item, item.peos_certificate, { token }) : null,
-              e_registration_file: item.e_registration_file ? pb.files.getURL(item, item.e_registration_file, { token }) : null,
-              other: item.other ? pb.files.getURL(item, item.other, { token }) : null,
-            },
-          }))
+          items.map((item) => {
+            // Build documents object from documents records
+            const documents: Record<string, string | null> = {};
+            const candidateDocs = documentsByCandidate[item.id] || [];
+
+            // Initialize all document types as null
+            documentTypes.forEach(([key]) => {
+              documents[key] = null;
+            });
+
+            // Map documents to their types
+            candidateDocs.forEach((doc: any) => {
+              if (doc.file) {
+                documents[doc.doc_type] = pb.files.getURL(doc, doc.file, { token });
+              }
+            });
+
+            return {
+              id: item.id,
+              full_name: item.full_name ?? '',
+              last_name: item.last_name ?? '',
+              first_name: item.first_name ?? '',
+              middle_name: item.middle_name ?? '',
+              prefix: item.prefix ?? '',
+              suffix: item.suffix ?? '',
+              marital_status: item.marital_status ?? '',
+              home_address: item.home_address ?? '',
+              permanent_address: item.permanent_address ?? '',
+              pagibig_number: item.pagibig_number ?? '',
+              highest_educ_attainment: item.highest_educ_attainment ?? '',
+              school_elementary: item.school_elementary ?? '',
+              school_junior_high: item.school_junior_high ?? '',
+              school_senior_high: item.school_senior_high ?? '',
+              school_college: item.school_college ?? '',
+              school_other: item.school_other ?? '',
+              email: item.email ?? '',
+              phone: item.phone ?? '',
+              address: item.address ?? '',
+              education: item.education ?? '',
+              work_history: item.work_history ?? '',
+              skills: item.skills ?? '',
+              certifications: item.certifications ?? '',
+              desired_salary: item.desired_salary ?? '',
+              position_screened: item.position_screened ?? '',
+              notes: item.notes ?? '',
+              status: item.status ?? 'Applied',
+              consent_given: item.consent_given ?? false,
+              consent_at: item.consent_at ?? '',
+              consent_source: item.consent_source ?? '',
+              consent_version: item.consent_version ?? '',
+              action_required: Array.isArray(item.action_required) && item.action_required.length
+                ? item.action_required
+                : getCandidateFlags({ status: item.status ?? 'Applied', consent_given: item.consent_given ?? false } as CandidateForm),
+              profile_photo: item.photo ? pb.files.getURL(item, item.photo, { token }) : null,
+              documents,
+            };
+          })
         );
-      } catch {
+      } catch (err) {
+        console.error('Failed to fetch candidates:', err);
         setCandidates([]);
       }
     }
@@ -279,35 +305,53 @@ export default function Candidates() {
     try {
       const computedFullName = [form.last_name, form.first_name, form.middle_name].filter(Boolean).join(' ') || form.full_name || 'Unknown';
       const payload: Record<string, any> = {
-        last_name: form.last_name, first_name: form.first_name, middle_name: form.middle_name,
-        full_name: computedFullName, email: form.email, phone: form.phone, address: form.address,
-        education: form.education, work_history: form.work_history, skills: form.skills || null,
-        certifications: form.certifications, desired_salary: form.desired_salary,
-        position_screened: form.position_screened || null, notes: form.notes || null,
-        status: form.status, consent_given: form.consent_given,
-        consent_at: form.consent_at || null, consent_source: form.consent_source,
+        last_name: form.last_name,
+        first_name: form.first_name,
+        middle_name: form.middle_name,
+        full_name: computedFullName,
+        email: form.email,
+        phone: form.phone,
+        address: form.address,
+        education: form.education,
+        work_history: form.work_history,
+        skills: form.skills || null,
+        certifications: form.certifications,
+        desired_salary: form.desired_salary,
+        position_screened: form.position_screened || null,
+        notes: form.notes || null,
+        status: form.status,
+        consent_given: form.consent_given,
+        consent_at: form.consent_at || null,
+        consent_source: form.consent_source,
         consent_version: form.consent_version,
         action_required: form.action_required ?? [],
       };
+      
       if (form.profile_photo instanceof File) payload['photo'] = form.profile_photo;
-      if (form.documents) {
-        for (const [key, val] of Object.entries(form.documents)) {
-          if (['resume', 'passport', 'visa'].includes(key) && val instanceof File) payload[key] = val;
-        }
-      }
+
+      // Create candidate record (NO file fields)
       const record = await pb.collection('candidates').create(payload);
+
+      // Create document records separately
+      await createDocumentsForCandidate(record.id, form.documents || {});
+
       const token = await pb.files.getToken();
       const newCandidate: CandidateForm = {
-        ...form, full_name: computedFullName, id: record.id,
+        ...form,
+        full_name: computedFullName,
+        id: record.id,
         profile_photo: record.photo ? pb.files.getURL(record, record.photo, { token }) : null,
-        documents: {
-          resume: record.resume ? pb.files.getURL(record, record.resume, { token }) : null,
-          passport: record.passport ? pb.files.getURL(record, record.passport, { token }) : null,
-          visa: record.visa ? pb.files.getURL(record, record.visa, { token }) : null,
-        },
+        documents: {}, // Empty for now, will be loaded on next fetch
       };
+
       setCandidates((prev) => [newCandidate, ...prev]);
-      addAuditLog({ actor_email: pb.authStore.record?.email ?? 'unknown', actor_role: getUserRole() ?? 'staff', action: 'create', entity: 'Candidate', entity_name: [form.last_name, form.first_name].filter(Boolean).join(', ') || computedFullName });
+      addAuditLog({
+        actor_email: pb.authStore.record?.email ?? 'unknown',
+        actor_role: getUserRole() ?? 'staff',
+        action: 'create',
+        entity: 'Candidate',
+        entity_name: [form.last_name, form.first_name].filter(Boolean).join(', ') || computedFullName,
+      });
       showFeedback("success", "Candidate added successfully.");
       setIsModalOpen(false);
       setForm(initialForm);
@@ -325,7 +369,6 @@ export default function Candidates() {
     setIsSubmitting(true);
     setError("");
 
-    // Check kung may nagbago BAGO mag-try
     const changed = hasChanges(editCandidate!, form, [
       'last_name', 'first_name', 'middle_name', 'email', 'phone',
       'home_address', 'permanent_address', 'suffix', 'prefix',
@@ -347,35 +390,53 @@ export default function Candidates() {
     try {
       const computedFullNameEdit = [form.last_name, form.first_name, form.middle_name].filter(Boolean).join(' ') || form.full_name || 'Unknown';
       const payload: Record<string, any> = {
-        last_name: form.last_name, first_name: form.first_name, middle_name: form.middle_name,
-        full_name: computedFullNameEdit, email: form.email, phone: form.phone, address: form.address,
-        education: form.education, work_history: form.work_history, skills: form.skills || null,
-        certifications: form.certifications, desired_salary: form.desired_salary,
-        position_screened: form.position_screened || null, notes: form.notes || null,
-        status: form.status, consent_given: form.consent_given,
-        consent_at: form.consent_at || null, consent_source: form.consent_source,
+        last_name: form.last_name,
+        first_name: form.first_name,
+        middle_name: form.middle_name,
+        full_name: computedFullNameEdit,
+        email: form.email,
+        phone: form.phone,
+        address: form.address,
+        education: form.education,
+        work_history: form.work_history,
+        skills: form.skills || null,
+        certifications: form.certifications,
+        desired_salary: form.desired_salary,
+        position_screened: form.position_screened || null,
+        notes: form.notes || null,
+        status: form.status,
+        consent_given: form.consent_given,
+        consent_at: form.consent_at || null,
+        consent_source: form.consent_source,
         consent_version: form.consent_version,
         action_required: form.action_required ?? [],
       };
+
       if (form.profile_photo instanceof File) payload['photo'] = form.profile_photo;
-      if (form.documents) {
-        for (const [key, val] of Object.entries(form.documents)) {
-          if (['resume', 'passport', 'visa'].includes(key) && val instanceof File) payload[key] = val;
-        }
-      }
+
+      // Update candidate record (NO file fields)
       const updatedRecord = await pb.collection('candidates').update(String(editCandidate?.id), payload);
+
+      // Update documents separately
+      await updateDocumentsForCandidate(String(editCandidate?.id), editCandidate?.documents || {}, form.documents || {});
+      
       const token = await pb.files.getToken();
       const updatedCandidate: CandidateForm = {
-        ...form, full_name: computedFullNameEdit, id: updatedRecord.id,
+        ...form,
+        full_name: computedFullNameEdit,
+        id: updatedRecord.id,
         profile_photo: updatedRecord.photo ? pb.files.getURL(updatedRecord, updatedRecord.photo, { token }) : null,
-        documents: {
-          resume: updatedRecord.resume ? pb.files.getURL(updatedRecord, updatedRecord.resume, { token }) : null,
-          passport: updatedRecord.passport ? pb.files.getURL(updatedRecord, updatedRecord.passport, { token }) : null,
-          visa: updatedRecord.visa ? pb.files.getURL(updatedRecord, updatedRecord.visa, { token }) : null,
-        },
+        documents: {}, // Empty for now, will be loaded on next fetch
       };
+
       setCandidates((prev) => prev.map((c) => c.id === editCandidate?.id ? updatedCandidate : c));
-      addAuditLog({ actor_email: pb.authStore.record?.email ?? 'unknown', actor_role: getUserRole() ?? 'staff', action: 'update', entity: 'Candidate', entity_name: [form.last_name, form.first_name].filter(Boolean).join(', ') || computedFullNameEdit });
+      addAuditLog({
+        actor_email: pb.authStore.record?.email ?? 'unknown',
+        actor_role: getUserRole() ?? 'staff',
+        action: 'update',
+        entity: 'Candidate',
+        entity_name: [form.last_name, form.first_name].filter(Boolean).join(', ') || computedFullNameEdit,
+      });
       showFeedback("success", "Candidate updated successfully.");
       setIsEditModalOpen(false);
     } catch (err: any) {
@@ -470,7 +531,7 @@ export default function Candidates() {
     setTimeout(() => { try { w.print(); } catch (e) { } }, 500);
   }
 
-  async function handleDocumentDownload(key: string, doc: File | string) {
+  async function handleDocumentDownload(_key: string, doc: File | string) {
     if (typeof doc === 'string') {
       try {
         const freshToken = await pb.files.getToken();
@@ -517,6 +578,50 @@ export default function Candidates() {
       setIsAuthModalOpen(false); setIsArchiveOpen(true); setStaffViewOnly(true);
       setAdminPasswordInput(''); setAuthError('');
     } else { setAuthError('Incorrect admin password'); }
+  }
+
+  // Create document records for newly uploaded files
+  async function createDocumentsForCandidate(candidateId: string, documents: Record<string, any>) {
+    const documentPromises = [];
+    for (const [key, val] of Object.entries(documents)) {
+      if (val instanceof File) {
+        documentPromises.push(
+          pb.collection('documents').create({
+            candidate: candidateId,
+            doc_type: key,
+            file: val,
+            status: 'Submitted',
+          })
+        );
+      }
+    }
+    if (documentPromises.length > 0) {
+      await Promise.all(documentPromises);
+    }
+  }
+
+  // Delete old documents and create new ones
+  async function updateDocumentsForCandidate(candidateId: string, oldDocuments: Record<string, any>, newDocuments: Record<string, any>) {
+    // Delete documents that were removed
+    for (const [_key, oldVal] of Object.entries(oldDocuments)) {
+      const newVal = newDocuments[_key];
+      if (oldVal && !newVal) {
+        // Find and delete the document record
+        try {
+          const existingDocs = await pb.collection('documents').getFullList({
+            filter: `candidate = "${candidateId}" && doc_type = "${_key}"`,
+          });
+          for (const doc of existingDocs) {
+            await pb.collection('documents').delete(doc.id);
+          }
+        } catch (err) {
+          console.error(`Failed to delete document type ${_key}:`, err);
+        }
+      }
+    }
+    
+    // Create new document records for newly uploaded files
+    await createDocumentsForCandidate(candidateId, newDocuments);
   }
 
   return (
@@ -926,7 +1031,7 @@ export default function Candidates() {
                           <input id={`file-${key}`} type="file" accept="*" onChange={(e) => setForm((prev) => ({ ...prev, documents: { ...(prev.documents ?? {}), [key]: e.target.files?.[0] ?? null } }))} className="hidden" />
                           {form.documents?.[key]
                             ? typeof form.documents[key] === 'string'
-                              ? <span className="inline-flex items-center gap-1 text-xs text-(--text) font-medium truncate max-w-40">
+                              ? <span className="inline-flex items-center gap-1 text-xs text-(--primary) font-medium truncate max-w-40">
                                   <Icon icon="tabler:file" width="13" height="13" />
                                   Uploaded file
                                   <button

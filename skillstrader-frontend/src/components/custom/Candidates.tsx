@@ -16,12 +16,17 @@ import type { CandidateForm, ArchivedCandidate } from '../../types/Candidate';
 import {hasChanges} from '../../utils/hasChanges';
 
 const candidateStatuses = [
-  "Applied",
-  "Screening",
-  "Screened",
-  "For Interview",
-  "Interviewed",
-  "Placed",
+  "New Applicant",
+  "Lined-Up",
+  "For final interview",
+  "For medical",
+  "Fit to work",
+  "Unfit to work",
+  "Pending medical",
+  "For deployment",
+  "Visa Arrived",
+  "Awaiting Visa",
+  "Deployed",
   "Rejected",
 ];
 
@@ -53,7 +58,7 @@ const initialForm: CandidateForm = {
   desired_salary: "",
   position_screened: "",
   notes: "",
-  status: "Applied",
+  status: "New Applicant",
   consent_given: false,
   consent_at: "",
   consent_source: "",
@@ -65,9 +70,12 @@ const initialForm: CandidateForm = {
 
 function getCandidateFlags(c: CandidateForm): string[] {
   const flags: string[] = [];
-  if (["Applied", "Screening", "Screened"].includes(c.status))
+
+  if (["New Applicant", "Lined-Up"].includes(c.status))
     flags.push("Not Interviewed");
-  if (c.status === "For Interview") flags.push("Not Scheduled");
+    
+  if (c.status === "For final interview") flags.push("Not Scheduled");
+  
   if (!c.consent_given) flags.push("Docs Missing");
   return flags;
 }
@@ -459,11 +467,20 @@ export default function Candidates() {
   }
 
   const statusBadge: Record<string, string> = {
-    Applied: "bg-gray-100 text-gray-700", Screening: "bg-yellow-100 text-yellow-800",
-    Screened: "bg-amber-100 text-amber-800", "For Interview": "bg-blue-100 text-blue-800",
-    Interviewed: "bg-indigo-100 text-indigo-800", "For Placement": "bg-purple-100 text-purple-800",
-    Placed: "bg-green-100 text-green-800", Rejected: "bg-red-100 text-red-800",
+    "New Applicant": "bg-gray-100 text-gray-700",
+    "Lined-Up": "bg-blue-100 text-blue-700",
+    "For final interview": "bg-indigo-100 text-indigo-700",
+    "For medical": "bg-purple-100 text-purple-700",
+    "Fit to work": "bg-green-100 text-green-700",
+    "Unfit to work": "bg-red-100 text-red-700",
+    "Pending medical": "bg-orange-100 text-orange-700",
+    "For deployment": "bg-sky-100 text-sky-700",
+    "Visa Arrived": "bg-emerald-100 text-emerald-700",
+    "Awaiting Visa": "bg-amber-100 text-amber-700",
+    "Deployed": "bg-teal-100 text-teal-700",
+    "Rejected": "bg-rose-100 text-rose-700",
   };
+
   const flagBadge: Record<string, string> = {
     "Not Interviewed": "bg-orange-100 text-orange-800",
     "Not Scheduled": "bg-sky-100 text-sky-800",
@@ -623,6 +640,52 @@ export default function Candidates() {
     // Create new document records for newly uploaded files
     await createDocumentsForCandidate(candidateId, newDocuments);
   }
+
+
+  const handleProfilePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validation: Dapat image lang
+    if (!file.type.startsWith("image/")) {
+      showFeedback("error", "Invalid file type. Please upload an image (JPG, PNG, etc.)");
+      e.target.value = "";
+      return;
+    }
+
+    // Validation para sa laki ng file
+    if (file.size > 2 * 1024 * 1024) {
+      showFeedback("error", "File is too large. Maximum size is 2MB.");
+      e.target.value = "";
+      return;
+    }
+
+    setForm((f) => ({ ...f, profile_photo: file }));
+  };
+
+  const handleDocumentFileChange = (e: React.ChangeEvent<HTMLInputElement>, key: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validation: Dapat PDF lang
+    if (file.type !== "application/pdf") {
+      showFeedback("error", "Invalid file type. Only PDF documents are allowed.");
+      e.target.value = "";
+      return;
+    }
+
+    // Validation para sa laki ng file
+    if (file.size > 5 * 1024 * 1024) {
+      showFeedback("error", "Document is too large. Maximum size is 5MB.");
+      e.target.value = "";
+      return;
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      documents: { ...(prev.documents ?? {}), [key]: file },
+    }));
+  };
 
   return (
     <div className="flex-1 flex flex-col min-w-0">
@@ -945,7 +1008,12 @@ export default function Candidates() {
                       <label className="inline-flex items-center gap-2 px-3 py-2 border border-(--border) rounded-md bg-white text-sm text-(--text) cursor-pointer hover:bg-(--surface2) transition-colors">
                         <Icon icon="tabler:camera" width="16" height="16" />
                         <span className="font-medium">Upload Profile Photo</span>
-                        <input type="file" accept="image/*" className="hidden" onChange={(e) => setForm((f) => ({ ...f, profile_photo: e.target.files?.[0] ?? null }))} />
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden" 
+                          onChange={handleProfilePhotoChange}
+                        />
                       </label>
                     </div>
                     <div className="col-span-2 grid grid-cols-1 md:grid-cols-3 gap-2 w-full">
@@ -991,7 +1059,7 @@ export default function Candidates() {
                     <div className="col-span-2 grid grid-cols-1 md:grid-cols-3 gap-2 w-full">
                       <label className="grid gap-1.25"><span className="text-sm text-(--muted) font-bold">Work History</span><input className="w-full border border-(--border) bg-white text-(--text) rounded-md px-2.75 py-2.5 text-sm outline-none" value={form.work_history} onChange={(e) => setForm((f) => ({ ...f, work_history: e.target.value }))} placeholder="e.g., Company - Role (2018-2020)" required /></label>
                       <label className="grid gap-1.25"><span className="text-sm text-(--muted) font-bold">Certifications</span><input className="w-full border border-(--border) bg-white text-(--text) rounded-md px-2.75 py-2.5 text-sm outline-none" value={form.certifications} onChange={(e) => setForm((f) => ({ ...f, certifications: e.target.value }))} placeholder="e.g., NC II, First Aid" required /></label>
-                      <label className="grid gap-1.25"><span className="text-sm text-(--muted) font-bold">Desired Salary</span><input className="w-full border border-(--border) bg-white text-(--text) rounded-md px-2.75 py-2.5 text-sm outline-none" value={form.desired_salary} onChange={(e) => setForm((f) => ({ ...f, desired_salary: e.target.value }))} placeholder="e.g., 25000" required /></label>
+                      <label className="grid gap-1.25"><span className="text-sm text-(--muted) font-bold">Desired Salary</span><input className="w-full border border-(--border) bg-white text-(--text) rounded-md px-2.75 py-2.5 text-sm outline-none" value={form.desired_salary} onChange={(e) => setForm((f) => ({ ...f, desired_salary: e.target.value }))} placeholder="" required /></label>
 
                       {/* Position — now using IndustryPositionPicker */}
                       <div className="grid gap-1.25">
@@ -1005,17 +1073,25 @@ export default function Candidates() {
                         />
                       </div>
 
-                      <label className="col-span-1 md:col-span-2 grid gap-1.25"><span className="text-sm text-(--muted) font-bold">Skills</span><input className="w-full border border-(--border) bg-white text-(--text) rounded-md px-2.75 py-2.5 text-sm outline-none" value={form.skills} onChange={(e) => setForm((f) => ({ ...f, skills: e.target.value }))} placeholder="e.g., JavaScript, React, TypeScript" required /></label>
+                      <label 
+                        className="col-span-1 md:col-span-2 grid gap-1.25">
+                          <span 
+                            className="text-sm text-(--muted) font-bold">
+                              Skills
+                          </span>
+                          <input 
+                            className="w-full border border-(--border) bg-white text-(--text) rounded-md px-2.75 py-2.5 text-sm outline-none" 
+                            value={form.skills} onChange={(e) => setForm((f) => ({ ...f, skills: e.target.value }))} placeholder="" required /></label>
                       <label className="grid gap-1.25"><span className="text-sm text-(--muted) font-bold">Pag-Ibig Number</span><input className="border border-(--border) rounded-md px-2.75 py-2.5 text-sm" placeholder="XXXXXXXXXXXX" value={form.pagibig_number} onChange={e => setForm(f => ({ ...f, pagibig_number: e.target.value }))} /></label>
                       <div className="col-span-1 md:col-span-2">
                         <Selection value={form.highest_educ_attainment} onChange={val => setForm(f => ({ ...f, highest_educ_attainment: val }))} options={[{ value: '', label: 'Select...' }, { value: 'Elementary', label: 'Elementary' }, { value: 'Highschool', label: 'Highschool' }, { value: 'College', label: 'College' }, { value: 'Postgraduate', label: 'Postgraduate' }]} label="Highest Educational Attainment" placeholder="Select..." />
                       </div>
-                      <label className="grid gap-1.25"><span className="text-sm text-(--muted) font-bold">Elementary School</span><input className="border border-(--border) rounded-md px-2.75 py-2.5 text-sm" placeholder="e.g., ABC Elementary" value={form.school_elementary} onChange={e => setForm(f => ({ ...f, school_elementary: e.target.value }))} /></label>
-                      <label className="grid gap-1.25"><span className="text-sm text-(--muted) font-bold">Junior High School</span><input className="border border-(--border) rounded-md px-2.75 py-2.5 text-sm" placeholder="e.g., XYZ Junior High" value={form.school_junior_high} onChange={e => setForm(f => ({ ...f, school_junior_high: e.target.value }))} /></label>
-                      <label className="grid gap-1.25"><span className="text-sm text-(--muted) font-bold">Senior High School</span><input className="border border-(--border) rounded-md px-2.75 py-2.5 text-sm" placeholder="e.g., Senior High Name" value={form.school_senior_high} onChange={e => setForm(f => ({ ...f, school_senior_high: e.target.value }))} /></label>
-                      <label className="grid gap-1.25"><span className="text-sm text-(--muted) font-bold">College</span><input className="border border-(--border) rounded-md px-2.75 py-2.5 text-sm" placeholder="e.g., University / College" value={form.school_college} onChange={e => setForm(f => ({ ...f, school_college: e.target.value }))} /></label>
+                      <label className="grid gap-1.25"><span className="text-sm text-(--muted) font-bold">Elementary School</span><input className="border border-(--border) rounded-md px-2.75 py-2.5 text-sm" placeholder="" value={form.school_elementary} onChange={e => setForm(f => ({ ...f, school_elementary: e.target.value }))} /></label>
+                      <label className="grid gap-1.25"><span className="text-sm text-(--muted) font-bold">Junior High School</span><input className="border border-(--border) rounded-md px-2.75 py-2.5 text-sm" placeholder="" value={form.school_junior_high} onChange={e => setForm(f => ({ ...f, school_junior_high: e.target.value }))} /></label>
+                      <label className="grid gap-1.25"><span className="text-sm text-(--muted) font-bold">Senior High School</span><input className="border border-(--border) rounded-md px-2.75 py-2.5 text-sm" placeholder="" value={form.school_senior_high} onChange={e => setForm(f => ({ ...f, school_senior_high: e.target.value }))} /></label>
+                      <label className="grid gap-1.25"><span className="text-sm text-(--muted) font-bold">College</span><input className="border border-(--border) rounded-md px-2.75 py-2.5 text-sm" placeholder="" value={form.school_college} onChange={e => setForm(f => ({ ...f, school_college: e.target.value }))} /></label>
                       <div className="col-span-1 md:col-span-2 grid gap-1.25">
-                        <label className="grid gap-1.25"><span className="text-sm text-(--muted) font-bold">Other School / Training Center</span><input className="w-full border border-(--border) rounded-md px-3 py-2.5 text-sm" placeholder="e.g., Training Center Name" value={form.school_other_name || ''} onChange={e => setForm(f => ({ ...f, school_other_name: e.target.value }))} /></label>
+                        <label className="grid gap-1.25"><span className="text-sm text-(--muted) font-bold">Other School / Training Center</span><input className="w-full border border-(--border) rounded-md px-3 py-2.5 text-sm" placeholder="" value={form.school_other_name || ''} onChange={e => setForm(f => ({ ...f, school_other_name: e.target.value }))} /></label>
                       </div>
                     </div>
                   </>
@@ -1028,7 +1104,13 @@ export default function Candidates() {
                           <label htmlFor={`file-${key}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-(--border) rounded-md bg-white text-sm text-(--text) cursor-pointer hover:bg-(--surface2) transition-colors">
                             <Icon icon="tabler:upload" width="14" height="14" />Upload
                           </label>
-                          <input id={`file-${key}`} type="file" accept="*" onChange={(e) => setForm((prev) => ({ ...prev, documents: { ...(prev.documents ?? {}), [key]: e.target.files?.[0] ?? null } }))} className="hidden" />
+                          <input 
+                            id={`file-${key}`} 
+                            type="file" 
+                            accept=".pdf,application/pdf" 
+                            onChange={(e) => handleDocumentFileChange(e, key)} 
+                            className="hidden" 
+                          />
                           {form.documents?.[key]
                             ? typeof form.documents[key] === 'string'
                               ? <span className="inline-flex items-center gap-1 text-xs text-(--primary) font-medium truncate max-w-40">

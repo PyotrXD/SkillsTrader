@@ -22,7 +22,7 @@ export default function Modal({ open, onClose, children, title }: ModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-30 flex items-center justify-center p-4"
       aria-modal="true"
       role="dialog"
     >
@@ -32,10 +32,13 @@ export default function Modal({ open, onClose, children, title }: ModalProps) {
         onClick={onClose}
         aria-hidden="true"
       />
-      {/* Modal content */}
-      <div className="relative z-10 w-full max-w-3xl bg-white rounded-2xl shadow-2xl border border-(--border) overflow-hidden animate-[fadeInScale_0.18s_ease]">
+
+      {/* Modal content - Inayos ko ang class dito */}
+      <div className="relative z-10 w-full max-w-3xl max-h-[90vh] flex flex-col bg-white rounded-2xl shadow-2xl border border-(--border) animate-[fadeInScale_0.18s_ease]">
+        
+        {/* Header (Fixed) */}
         {title && (
-          <div className="px-8 pt-4 pb-3 border-b border-(--border) bg-white flex items-center justify-between">
+          <div className="px-8 pt-4 pb-3 border-b border-(--border) bg-white flex items-center justify-between shrink-0 rounded-t-2xl">
             <h2 className="text-2xl font-bold text-(--text) bg-white tracking-tight m-0">{title}</h2>
             <button
               type="button"
@@ -48,7 +51,11 @@ export default function Modal({ open, onClose, children, title }: ModalProps) {
             </button>
           </div>
         )}
-        <div className="px-8 py-7">{children}</div>
+
+        {/* Scrollable Body */}
+        <div className="flex-1 overflow-y-auto px-8 py-7">
+          {children}
+        </div>
       </div>
     </div>
   );

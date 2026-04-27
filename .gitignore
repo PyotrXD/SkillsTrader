@@ -1,6 +1,11 @@
 # PocketBase
-pb_data/
-pb_data/**
+# Commit PocketBase data snapshots for cross-device development.
+# Ignore only runtime temp/lock files.
+pb_data/*.db-shm
+pb_data/*.db-wal
+pb_data/*.db-journal
+pb_data/.lock
+pb_data/types.d.ts
 backups/
 
 # Node / Frontend build artifacts

@@ -29,6 +29,24 @@ powershell -ExecutionPolicy Bypass -File scripts/pb-backup.ps1
 powershell -ExecutionPolicy Bypass -File scripts/pb-restore.ps1 -BackupZip backups\pb_data-YYYYMMDD-HHMMSS.zip
 ```
 
+## Git-tracked data snapshot (cross-device dev)
+
+For this project, `pb_data/` is intentionally tracked so pulls on another device include:
+- `data.db`
+- `auxiliary.db`
+- uploaded files in `storage/`
+
+Before committing DB updates:
+1. Stop PocketBase.
+2. Run `git add pb_data`.
+3. Commit and push.
+
+Ignored runtime artifacts:
+- `pb_data/*.db-wal`
+- `pb_data/*.db-shm`
+- `pb_data/*.db-journal`
+- `pb_data/.lock`
+
 ## Audit logs
 
 Schema:

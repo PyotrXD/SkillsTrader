@@ -1,9 +1,14 @@
 {
   "scripts": {
+    "setup": "npm ci && npm --prefix skillstrader-frontend ci",
+    "setup:frontend": "npm --prefix skillstrader-frontend ci",
     "dev": "node scripts/dev.mjs",
     "dev:frontend": "npm --prefix skillstrader-frontend run dev",
     "install:local-server": "powershell -ExecutionPolicy Bypass -File scripts/install-local-server.ps1",
     "build": "npm --prefix skillstrader-frontend run build",
+    "package:win": "node scripts/package-release.mjs --target win",
+    "package:linux": "node scripts/package-release.mjs --target linux",
+    "package:all": "node scripts/package-release.mjs --build --targets=win,linux",
     "lint": "npm --prefix skillstrader-frontend run lint",
     "preview": "npm --prefix skillstrader-frontend run preview",
     "serve:prod": "powershell -ExecutionPolicy Bypass -File scripts/serve-production.ps1",

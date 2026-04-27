@@ -13,6 +13,10 @@ node_modules/
 **/node_modules/
 dist/
 **/dist/
+release/dist/
+release/.staging/
+release/bin/
+!release/bin/.gitkeep
 
 # Env files (commit a .env.example instead)
 .env

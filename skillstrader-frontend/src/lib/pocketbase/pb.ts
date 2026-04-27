@@ -1,7 +1,23 @@
 import PocketBase from 'pocketbase';
 
-export const pocketBaseUrl =
-  import.meta.env.VITE_POCKETBASE_URL ?? 'http://127.0.0.1:8091';
+function resolvePocketBaseUrl() {
+  const configuredUrl = import.meta.env.VITE_POCKETBASE_URL?.trim();
+  if (configuredUrl) return configuredUrl;
+
+  if (typeof window !== 'undefined') {
+    if (import.meta.env.PROD) {
+      return window.location.origin;
+    }
+
+    const devPocketBasePort = import.meta.env.VITE_POCKETBASE_PORT?.trim() || '8091';
+    const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+    return `${protocol}//${window.location.hostname}:${devPocketBasePort}`;
+  }
+
+  return 'http://127.0.0.1:8091';
+}
+
+export const pocketBaseUrl = resolvePocketBaseUrl();
 
 export const pb = new PocketBase(pocketBaseUrl);
 const FORCE_LOGOUT_AT_KEY = 'skillstrader:forceLogoutAt';

@@ -1,4 +1,8 @@
-export function hasChanges<T extends Record<string, any>>(
+function isObjectLike(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+export function hasChanges<T extends Record<string, unknown>>(
   original: T,
   updated: T,
   fields?: (keyof T)[]
@@ -10,7 +14,7 @@ export function hasChanges<T extends Record<string, any>>(
     const upd = updated[key];
 
     // File objects always count as a change — cast to unknown first
-    if (typeof upd === 'object' && upd instanceof File) return true;
+    if (upd instanceof File) return true;
 
     // Arrays — compare by JSON
     if (Array.isArray(orig) && Array.isArray(upd)) {
@@ -19,8 +23,8 @@ export function hasChanges<T extends Record<string, any>>(
 
     // Objects (like documents) — compare by JSON
     if (
-      typeof orig === 'object' && orig !== null &&
-      typeof upd === 'object' && upd !== null
+      isObjectLike(orig) &&
+      isObjectLike(upd)
     ) {
       return JSON.stringify(orig) !== JSON.stringify(upd);
     }

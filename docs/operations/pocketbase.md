@@ -1,42 +1,76 @@
 # PocketBase Operations
 
-## Running with an app settings encryption key
+Operational reference for running, securing, backing up, and monitoring PocketBase in SkillsTrader.
 
-PocketBase supports encrypting sensitive app settings via the `--encryptionEnv` flag.
+## Standard Environment
 
-1. Create an env var named `PB_ENCRYPTION_KEY` with **exactly 32 characters**.
-2. Start PocketBase with:
+Required:
+- `PB_ENCRYPTION_KEY` with exactly 32 characters
+
+Optional but recommended:
+- Dedicated service account for running production process
+- Reverse proxy with TLS termination
+
+## Start Commands
+
+Production startup:
 
 ```powershell
-.\pocketbase.exe serve --dir pb_data --hooksDir pb_hooks --encryptionEnv PB_ENCRYPTION_KEY
+powershell -ExecutionPolicy Bypass -File scripts/serve-production.ps1
 ```
 
-If you use `npm run dev`, `scripts/dev.mjs` will automatically pass `--encryptionEnv PB_ENCRYPTION_KEY` when the env var is set and valid.
+Manual start (reference only):
 
-## Backups (local)
+```powershell
+.\pocketbase.exe serve --dir pb_data --hooksDir pb_hooks --publicDir skillstrader-frontend/dist --encryptionEnv PB_ENCRYPTION_KEY
+```
 
-Backups are stored in `backups/` (gitignored).
+## Backup and Restore Commands
 
-- Create a backup (recommended with PocketBase stopped):
+Backup:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/pb-backup.ps1
 ```
 
-- Restore from a backup zip:
+Restore:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/pb-restore.ps1 -BackupZip backups\pb_data-YYYYMMDD-HHMMSS.zip
 ```
 
-## Git-tracked data snapshot (cross-device dev)
+Restore drill:
 
-For this project, `pb_data/` is intentionally tracked so pulls on another device include:
-- `data.db`
-- `auxiliary.db`
-- uploaded files in `storage/`
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/pb-restore-drill.ps1 -BackupZip backups\pb_data-YYYYMMDD-HHMMSS.zip
+```
 
-Before committing DB updates:
+Drill evidence log:
+- `docs/operations/restore-drill-log.md`
+
+## Monitoring Command
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/pb-healthcheck.ps1
+```
+
+## Recurring Cadence Tracker
+
+| Task | Cadence | Owner | Proof Artifact |
+|---|---|---|---|
+| Backup | Daily | Unassigned | Backup zip in `backups/` |
+| Healthcheck review | Daily | Unassigned | Scheduler/job log |
+| Restore drill | Weekly | Unassigned | Row in `docs/operations/restore-drill-log.md` |
+| Runbook/doc review | Monthly | Unassigned | Row in `docs/operations/maintenance-checklist.md` |
+
+## Git-Tracked Data Snapshot (cross-device dev)
+
+This repository intentionally tracks `pb_data/`:
+- `pb_data/data.db`
+- `pb_data/auxiliary.db`
+- `pb_data/storage/`
+
+Before committing database updates:
 1. Stop PocketBase.
 2. Run `git add pb_data`.
 3. Commit and push.
@@ -47,11 +81,17 @@ Ignored runtime artifacts:
 - `pb_data/*.db-journal`
 - `pb_data/.lock`
 
-## Audit logs
+## Audit Logging
 
-Schema:
 - `audit_logs` collection is created via migrations.
+- `pb_hooks/main.pb.js` writes audit entries on create/update/delete.
 
-Hooks:
-- `pb_hooks/main.pb.js` writes audit entries on create/update/delete requests.
+Validation tip:
+- Include one audit verification check in each weekly restore drill.
 
+## Document Update Rule
+
+When scripts/ops flow changes, update these together:
+- `docs/operations/pocketbase.md`
+- `docs/operations/production-runbook.md`
+- `docs/operations/maintenance-checklist.md`

@@ -2,9 +2,12 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:frontend": "npm --prefix skillstrader-frontend run dev",
+    "install:local-server": "powershell -ExecutionPolicy Bypass -File scripts/install-local-server.ps1",
     "build": "npm --prefix skillstrader-frontend run build",
     "lint": "npm --prefix skillstrader-frontend run lint",
-    "preview": "npm --prefix skillstrader-frontend run preview"
+    "preview": "npm --prefix skillstrader-frontend run preview",
+    "serve:prod": "powershell -ExecutionPolicy Bypass -File scripts/serve-production.ps1",
+    "ops:healthcheck": "powershell -ExecutionPolicy Bypass -File scripts/pb-healthcheck.ps1"
   },
   "dependencies": {
     "pocketbase": "^0.26.8",

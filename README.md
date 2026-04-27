@@ -1,159 +1,108 @@
 # SkillsTrader
 
-## Session Rules
+## Overview
 
-- Frontend auto-logs out a signed-in user after **3 hours of inactivity**.
-- PocketBase invalidates all existing auth tokens on **server start** and on **graceful shutdown** via `pb_hooks/main.pb.js`.
-- Requirements checklist: `docs/requirements/requirements.md`.
-- PocketBase operations (backup/encryption/audit logs): `docs/operations/pocketbase.md`.
+SkillsTrader is a PocketBase-backed recruiting operations system with a React frontend.
 
-## Session Progress (March 9, 2026)
+Core stacks:
+- Backend/data/auth: PocketBase (`pocketbase.exe`, `pb_data/`, `pb_migrations/`, `pb_hooks/`)
+- Frontend: Vite + React (`skillstrader-frontend/`)
+- Operations tooling: PowerShell scripts in `scripts/`
 
-- Implemented a redesigned login page (`skillstrader-frontend/src/pages/Login.tsx`, `skillstrader-frontend/src/pages/login.css`) with responsive split layout, improved visual hierarchy, loading state, and inline auth feedback.
-- Updated authentication flow to support both regular users (`users`) and PocketBase superuser fallback (`_superusers`) during sign-in.
-- Centralized auth role handling in `skillstrader-frontend/src/pb.ts`, including:
-  - role typing (`administrator`, `manager`, `staff`)
-  - superuser-to-administrator role mapping
-  - collection detection helpers for auth-aware UI/logic
-- Confirmed route behavior in `skillstrader-frontend/src/App.tsx` and router bootstrap in `skillstrader-frontend/src/main.tsx` for:
-  - authenticated redirect to `/dashboard`
-  - protected admin create-user route
-  - fallback redirects for unknown paths
-
-## Local Development
+## Quick Start (Local)
 
 ```powershell
 npm run dev
 ```
 
+Default local URLs:
 - Frontend: `http://127.0.0.1:5173/dashboard`
-- PocketBase Dashboard: `http://127.0.0.1:8091/_/`
+- PocketBase Admin: `http://127.0.0.1:8091/_/`
 
-## PocketBase Data Sync Across Devices
+## Documentation Map
 
-This repo is configured to commit the PocketBase data snapshot in `pb_data/`:
-- `pb_data/data.db`
-- `pb_data/auxiliary.db`
-- uploaded files in `pb_data/storage/`
+| Doc | Purpose | Update When |
+|---|---|---|
+| `README.md` | Entry point and navigation | Commands, architecture, or doc paths change |
+| `docs/requirements/requirements.md` | Human-readable requirements tracker | Requirement status/owner/priority changes |
+| `docs/requirements/requirements-checklist.csv` | Spreadsheet-friendly requirement tracker | Same updates as `requirements.md` |
+| `docs/requirements/pocketbase-alignment.md` | Mapping between requirements and PocketBase schema | Migrations or model decisions change |
+| `docs/operations/pocketbase.md` | Command reference and operating standards | Script behavior or ops cadence changes |
+| `docs/operations/production-runbook.md` | Step-by-step production startup/verification | Deployment workflow changes |
+| `docs/operations/restore-drill-log.md` | Weekly restore drill evidence log | Every drill |
+| `docs/operations/maintenance-checklist.md` | Recurring operations + docs maintenance tracker | Weekly/monthly review |
 
-Recommended workflow before committing DB changes:
-1. Stop PocketBase (`Ctrl+C` if running via `npm run dev`).
-2. Stage DB changes: `git add pb_data`
-3. Commit and push.
+## Production Commands
 
-On another device:
-1. Pull latest changes.
-2. Run `npm ci`.
-3. Start with `npm run dev`.
-
-Important:
-- Treat committed `pb_data/` as sensitive data (it can contain real records and auth-related data).
-- Runtime temp files (`*.db-wal`, `*.db-shm`, `*.db-journal`, `.lock`) remain ignored.
-
-## Deployment (Production)
-
-### 1) Prerequisites
-
-- OS: Windows Server or Linux VM.
-- Node.js 20+ and npm.
-- `pocketbase` binary (or `pocketbase.exe`) in the repo root.
-- Open ports:
-  - Public HTTPS: `443` (reverse proxy)
-  - Internal PocketBase: `8091` (bind to localhost only)
-
-### 2) Required Environment Variables
-
-- Frontend:
-  - `VITE_POCKETBASE_URL=https://<your-domain>`
-  - For single-host deploys, point this to your public HTTPS domain.
-- PocketBase:
-  - `PB_ENCRYPTION_KEY=<exactly 32 chars>`
-
-Reference files:
-- `.env.example`
-- `skillstrader-frontend/.env.example`
-
-### 3) Build Frontend
-
-From repository root:
+Install/bootstrap on a target Windows server:
 
 ```powershell
-npm ci
-npm run build
+npm run install:local-server
 ```
 
-This produces static assets at:
-- `skillstrader-frontend/dist`
-
-### 4) Run PocketBase With Hooks and Built Frontend
-
-From repository root:
+Start production mode:
 
 ```powershell
-.\pocketbase.exe serve `
-  --http 127.0.0.1:8091 `
-  --dir pb_data `
-  --hooksDir pb_hooks `
-  --publicDir skillstrader-frontend/dist `
-  --encryptionEnv PB_ENCRYPTION_KEY
+powershell -ExecutionPolicy Bypass -File scripts/serve-production.ps1
 ```
 
-Notes:
-- `--hooksDir pb_hooks` is required for session invalidation and audit logging hooks.
-- Migrations in `pb_migrations/` are applied automatically on startup.
-- Because of `pb_hooks/main.pb.js`, every PocketBase restart logs out all existing users.
-
-### 5) Create/Update Superuser (First Deploy)
-
-```powershell
-.\pocketbase.exe superuser upsert admin@example.com StrongPassword123! --dir pb_data
-```
-
-Then open:
-- `http://127.0.0.1:8091/_/`
-
-### 6) Reverse Proxy + TLS (Recommended)
-
-Put Nginx/Caddy/Traefik in front and terminate TLS there.
-Proxy all traffic to `http://127.0.0.1:8091` and keep websocket upgrade headers enabled.
-
-If your public URL is `https://app.example.com`, set:
-- `VITE_POCKETBASE_URL=https://app.example.com`
-
-### 7) Process Management
-
-Run PocketBase as a long-running service:
-- Linux: `systemd`
-- Windows: NSSM / Task Scheduler / service wrapper
-
-At minimum, ensure the service restarts automatically on failure.
-
-### 8) Backups and Restore
-
-Use provided scripts:
+Backup data:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/pb-backup.ps1
 ```
 
+Restore from backup:
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/pb-restore.ps1 -BackupZip backups\pb_data-YYYYMMDD-HHMMSS.zip
 ```
 
-More details:
-- `docs/operations/pocketbase.md`
+Run weekly restore drill:
 
-### 9) Post-Deploy Verification
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/pb-restore-drill.ps1 -BackupZip backups\pb_data-YYYYMMDD-HHMMSS.zip
+```
 
-- Open app URL and log in.
-- Confirm dashboard loads by role (`administrator`, `manager`, `staff`).
-- In PocketBase dashboard, create a test `users` record with required fields including `role`.
-- Confirm `audit_logs` receives create/update/delete entries.
+Health check:
 
-### 10) Upgrade Procedure
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/pb-healthcheck.ps1
+```
 
-1. Backup `pb_data`.
-2. Pull latest code.
-3. Rebuild frontend (`npm ci && npm run build`).
-4. Restart PocketBase service.
-5. Re-test login, record create/update/delete, and audit logs.
+## Documentation Maintenance Workflow
+
+Use this lightweight routine to keep docs trackable:
+1. Update requirement status in both trackers:
+   - `docs/requirements/requirements.md`
+   - `docs/requirements/requirements-checklist.csv`
+2. If schema/permissions changed, update:
+   - `docs/requirements/pocketbase-alignment.md`
+3. If deployment/backup/monitoring changed, update:
+   - `docs/operations/pocketbase.md`
+   - `docs/operations/production-runbook.md`
+4. Log operational proof:
+   - Add weekly restore drill row to `docs/operations/restore-drill-log.md`
+5. Mark recurring tasks in:
+   - `docs/operations/maintenance-checklist.md`
+
+Definition of done for any infra/requirements change:
+- Tracker status and owner updated
+- Relevant runbook/reference docs updated
+- Evidence link or note added in the applicable log/checklist
+
+## PocketBase Data Sync Across Devices
+
+This repo intentionally tracks `pb_data/` for cross-device development:
+- `pb_data/data.db`
+- `pb_data/auxiliary.db`
+- `pb_data/storage/`
+
+Recommended workflow before committing DB changes:
+1. Stop PocketBase.
+2. Stage DB changes: `git add pb_data`
+3. Commit and push.
+
+Important:
+- Treat committed `pb_data/` as sensitive data.
+- Runtime temp files (`*.db-wal`, `*.db-shm`, `*.db-journal`, `.lock`) remain ignored.

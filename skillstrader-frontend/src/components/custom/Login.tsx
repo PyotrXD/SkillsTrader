@@ -59,7 +59,7 @@ export default function Login() {
         await pb.collection('users').authWithPassword(identity, password, {
           requestKey: `${requestKeyBase}-users`,
         });
-      } catch (err: any) {
+      } catch (err: unknown) {
         const status = (err as { status?: unknown } | null | undefined)?.status;
         const message = getErrorMessage(err).toLowerCase();
         const likelyBadIdentity = status === 400 && message.includes('authenticate');
@@ -72,10 +72,15 @@ export default function Login() {
 
       setSuccess('Signed in successfully!');
       setTimeout(() => navigate('/dashboard', { replace: true }), 1000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Handle backend rate limit error
-      const status = err?.status || err?.response?.status;
-      const message = (err?.response?.message || err?.message || '').toLowerCase();
+      const errorLike = err as {
+        status?: number;
+        response?: { status?: number; message?: string };
+        message?: string;
+      };
+      const status = errorLike.status || errorLike.response?.status;
+      const message = (errorLike.response?.message || errorLike.message || '').toLowerCase();
       if (status === 429 || message.includes('too many') || message.includes('rate limit')) {
         setError('Too many attempts. Please try again later.');
       } else {
@@ -228,7 +233,7 @@ export default function Login() {
                 setContactSuccess("Your request has been sent to the admin. Please wait for a response.");
                 setContactEmail("");
                 setContactNotes("");
-              } catch (err) {
+              } catch {
                 setContactError("Failed to send request. Please try again later.");
               } finally {
                 setContactLoading(false);

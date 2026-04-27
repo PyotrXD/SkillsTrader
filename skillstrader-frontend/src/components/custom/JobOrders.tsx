@@ -20,6 +20,11 @@ type JobOrder = {
   description?: string;
 };
 
+type EmployerOption = {
+  id?: number | string;
+  company_name?: string;
+};
+
 const initialForm: JobOrder = {
   title: "",
   openings: 1,
@@ -55,7 +60,7 @@ export default function JobOrders() {
     setJobOrders((jobOrdersData as JobOrder[]) || []);
   }, []);
 
-  const employers = (employersData as any[]) || [];
+  const employers = (employersData as EmployerOption[]) || [];
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -131,7 +136,7 @@ export default function JobOrders() {
       setJobOrders((prev) => [{ ...form, id: Date.now() }, ...prev]);
       showFeedback("success", "Job order created");
       setIsModalOpen(false);
-    } catch (err) {
+    } catch {
       setError("Failed to create job order");
       showFeedback("error", "Failed to create job order");
     } finally {
@@ -148,7 +153,7 @@ export default function JobOrders() {
       setJobOrders((prev) => prev.map((it) => (it.id === form.id ? { ...it, ...form } : it)));
       showFeedback("success", "Job order updated");
       setIsEditModalOpen(false);
-    } catch (err) {
+    } catch {
       setError("Failed to update");
       showFeedback("error", "Failed to update job order");
     } finally {
@@ -163,7 +168,7 @@ export default function JobOrders() {
       setJobOrders((prev) => prev.filter((it) => it.id !== deleteOrder.id));
       showFeedback("success", "Job order deleted");
       setIsDeleteModalOpen(false);
-    } catch (err) {
+    } catch {
       showFeedback("error", "Failed to delete job order");
     } finally {
       setIsSubmitting(false);

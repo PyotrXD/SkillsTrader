@@ -1,91 +1,51 @@
-# PocketBase vs Requirements Checklist
+# PocketBase Alignment to Requirements
 
-This document maps what currently exists in PocketBase (via `pb_migrations/`) to `docs/requirements/requirements.md`.
+This document maps the current PocketBase implementation to the requirements tracker.
 
-## Current collections (from migrations)
+Related docs:
+- `docs/requirements/requirements.md`
+- `docs/requirements/requirements-checklist.csv`
 
-- `employer` (base): company/contact metadata + `contracts` (file)
-- `candidates` (base): candidate profile + legacy document file fields + `status`
-- `job_orders` (base): role/title/skills/openings + `employer` relation + `status`
-- `placements` (base): currently a record with candidate/job/date/fee fields
-- `interviews` (base): candidate relation + date/result/notes
-- `documents` (base): typed document tracking (candidate/employer linked) + protected file
-- `audit_logs` (base): append-only audit trail (written by hooks; read-only via API)
-- `_pb_users_auth_` (auth): `role` select (`administrator|manager|staff`) (legacy: `recruiter`)
+## Current Collections (high level)
 
-## I. Data and Information Management
+- `employer`: company/contact metadata and contracts
+- `candidates`: candidate profile data and legacy document fields
+- `job_orders`: job definition, employer relation, status and salary details
+- `placements`: candidate/job relationship and placement lifecycle fields
+- `interviews`: interview records and assessment notes/scores
+- `documents`: canonical typed document records (candidate/employer linked)
+- `audit_logs`: append-only audit trail from hooks
+- `_pb_users_auth_`: auth users with role (`administrator`, `manager`, `staff`)
 
-- Candidate Records
-  - Implemented: name (`full_name`), email, phone, address, education, work history, skills (json), certifications, desired salary
-  - Implemented (photo): `photo` (file field)
-  - Implemented (documents, legacy fields): `resume` (pdf), `passport` (file), `visa` (file), `others` (multi-file)
-  - Note: candidate/employer file fields are now set to protected by default
-  - Missing/partial: explicit structured fields for licenses (currently freeform via `certifications`) and document types like NBI/police clearance (currently only via `others`)
-  - Added (privacy): consent metadata fields (`consent_given`, `consent_at`, etc.)
+## Alignment Matrix
 
-- Employer/Company Records
-  - Implemented: company name, contact person/email/phone, country, industry, employer contracts (multi-file)
-  - Implemented (billing): basic billing info fields (name/email/phone/address/terms/notes)
-  - Derived (no separate field): "job order history" is available via the `job_orders.employer` relation
+| Requirement ID | Status | PocketBase Alignment | Gaps / Next Actions |
+|---|---|---|---|
+| R-D1 | In Progress | Candidate profile fields exist, including files and consent metadata | Continue migration from legacy document fields to `documents` |
+| R-D2 | In Progress | Employer metadata and contract file support exists | Review and finalize billing data completeness |
+| R-D3 | In Progress | Job order core schema implemented (`status`, openings, salary fields, employer link) | Validate query/index strategy for larger datasets |
+| R-D4 | In Progress | Placement relation and fee/timeline fields are implemented | Add reporting views/queries for operational KPIs |
+| R-D5 | In Progress | `documents` collection implemented for typed document tracking | Complete backfill and retire legacy candidate document fields |
+| R-D6 | In Progress | Interview records exist with notes/results and optional scoring | Expand structured assessment/reporting model if needed |
+| R-F1 | In Progress | PocketBase filtering/querying supports baseline search | Improve UX filters and indexing |
+| R-F2 | Planned | No matching engine model in schema yet | Define ranking/scoring model and implementation path |
+| R-F3 | Planned | No full analytics/reporting layer yet | Define KPI outputs and materialized query strategy |
+| R-F4 | In Progress | Status fields exist across major collections | Standardize stage vocabulary and transitions |
+| R-F5 | Planned | No explicit bulk workflow schema/policies | Add app-layer bulk actions with audit safeguards |
+| R-F6 | In Progress | Role field standardized to `administrator|manager|staff` | Finalize and verify per-collection role rules |
+| R-C1 | Planned | Some consent fields present | Add full data privacy workflow (access/delete lifecycle) |
+| R-C2 | In Progress | Encryption key enforcement via startup script is present | Continue hardening transport/storage and auth policies |
+| R-C3 | In Progress | `audit_logs` + hook-based write behavior are implemented | Verify all critical collections/events are covered |
+| R-C4 | In Progress | Backup/restore/drill scripts are present | Enforce cadence and evidence logging discipline |
+| R-T1 | Planned | No dedicated scale benchmark/index plan documented | Define load targets and indexing roadmap |
+| R-T2 | In Progress | Healthcheck script exists | Define SLA and escalation ownership |
+| R-T3 | In Progress | UX improvements are actively implemented in frontend | Add usability acceptance criteria per role |
+| R-T4 | Planned | Integration schema/workflows not yet implemented | Prioritize integration targets (email/SMS/accounting) |
+| R-T5 | Planned | No formal migration execution scripts finalized | Create source mapping and data validation process |
 
-- Job Order Management
-  - Implemented: title, description, required skills (json), salary range, number of openings, employer relation, status (`open|closed|filled`)
-  - Implemented: `client_company_id` (optional external reference)
-  - Added: numeric salary bounds (`salary_min`, `salary_max`, `salary_currency`) for better filtering/reporting
+## Change Rule
 
-- Placement/Hiring Records
-  - Implemented (via `placements`): candidate relation, job order relation, departure date, arrival date, placement date, placement fee date + amount
-  - Implemented: placement `status`, `start_date`, `agency_fee_amount`, `commission_amount`
-
-- Document Tracking
-  - Implemented (current): candidate docs exist as fixed file fields + "others"; employer contracts exist as file field
-  - Implemented (target): `documents` collection is the canonical source of truth for typed docs, status, expiry, and verification metadata
-
-- Interview & Assessment
-  - Implemented (partial): interview date, result, notes (linked to candidate)
-  - Implemented: optional assessment score fields on `interviews`
-
-## II. Functional Requirements
-
-- Search and Filtering: partially supported by PocketBase querying + current schema; no explicit indexes defined in migrations yet
-- Matching Engine: missing (no rules/scoring model stored yet)
-- Reporting & Analytics: missing (no reporting endpoints/jobs/aggregations implemented yet)
-- Status Tracking: partially implemented (candidate `status` exists; placement status is missing)
-- Bulk Actions: missing (would be app-layer feature; PocketBase supports batch-like behavior via client logic)
-- User Roles & Access: partially implemented (`role` exists but values don't exactly match the checklist's naming)
-  - Decision: `staff` is the final name (legacy: `recruiter`)
-  - Implemented: collection access rules changed from "superuser-only" to "authenticated users"
-
-## III. Legal and Compliance
-
-- Data Privacy: missing (no explicit consent/deletion workflow implemented)
-- Security: partially covered by PocketBase auth; "encryption at rest" is not represented in migrations and depends on deployment/storage
-- Audit Trails: missing (no audit-log collection or hooks-based logging visible in migrations)
-- Backup and Recovery: missing (no scripted backup/restore process in repo yet)
-
-## IV. Technical and Operational
-
-- Scalability: not directly represented in schema; no indexes currently defined in migrations
-- Reliability/Uptime: operational concern (deployment + monitoring)
-- UI/UX: frontend concern
-- Integration: missing (no email/SMS/accounting integration code in migrations)
-- Data Migration: missing (no import tooling/scripts in repo yet)
-
-## Suggested next schema changes (to better match the checklist)
-
-- Candidate documents: migrate fixed "candidate document" fields (`resume`, `passport`, `visa`, `others`) into `documents` over time for a single source of truth
-  - Decision: `documents` is the canonical store; `candidates.{resume,passport,visa,others}` are legacy during migration.
-  - Plan:
-    1) Start writing all new uploads to `documents` (preferably dual-write during the transition if older screens still depend on the legacy fields).
-    2) Backfill existing candidate files into `documents` (one `documents` record per file; `others` becomes multiple `documents` records).
-    3) Update app reads to use `documents` exclusively, then remove legacy fields from `candidates`.
-  - Note: PocketBase files are stored per record/collection, so backfilling implies copying the file blobs (not referencing them).
-
-- User roles: finalize `staff` (not `recruiter`) and remove legacy values once all users are migrated
-  - Decision: final role name is `staff`.
-  - Implementation:
-    - Migrate any existing users with `role='recruiter'` to `staff`.
-    - Update the `_pb_users_auth_` role select values to `administrator|manager|staff`.
-    - PocketBase migration: `pb_migrations/1772779312_updated_users_roles_staff.js`.
-
-- Add reporting endpoints/jobs (placement rate, time-to-hire, revenue tracking) and a lightweight analytics schema if needed
+When migrations or role/access rules change:
+1. Update this file.
+2. Update `docs/requirements/requirements.md` and `requirements-checklist.csv`.
+3. Link evidence (migration file, PR, or script) in the tracker rows.

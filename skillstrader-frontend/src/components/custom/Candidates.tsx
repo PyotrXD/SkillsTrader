@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+﻿import { useState, useEffect, useMemo, useRef } from "react";
 import type { FormEvent } from "react";
 import { Icon } from "@iconify/react";
 import Modal from "../ui/Modal";
@@ -68,6 +68,75 @@ const initialForm: CandidateForm = {
   documents: {},
 };
 
+type CandidateRecord = {
+  id: string;
+  full_name?: string;
+  last_name?: string;
+  first_name?: string;
+  middle_name?: string;
+  prefix?: string;
+  suffix?: string;
+  marital_status?: string;
+  home_address?: string;
+  permanent_address?: string;
+  pagibig_number?: string;
+  highest_educ_attainment?: string;
+  school_elementary?: string;
+  school_junior_high?: string;
+  school_senior_high?: string;
+  school_college?: string;
+  school_other?: string;
+  school_other_name?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  education?: string;
+  work_history?: string;
+  skills?: string;
+  certifications?: string;
+  desired_salary?: string;
+  position_screened?: string;
+  notes?: string;
+  status?: string;
+  consent_given?: boolean;
+  consent_at?: string;
+  consent_source?: string;
+  consent_version?: string;
+  action_required?: unknown;
+  is_archived?: boolean;
+  archived_at?: string;
+  archived_by?: string;
+  photo?: string;
+};
+
+type DocumentRecord = {
+  id: string;
+  candidate?: string;
+  doc_type?: string;
+  file?: string;
+};
+
+type PositionRecord = {
+  id: string;
+  industry?: string;
+  title?: string;
+};
+
+const availableFlags = ["Not Interviewed", "Not Scheduled", "Docs Missing"];
+const quickFilters = [
+  { key: "not-interviewed", label: "Not Interviewed" },
+  { key: "not-scheduled", label: "Not Scheduled" },
+  { key: "missing-docs", label: "Missing Docs" },
+];
+const documentTypes: Array<[string, string]> = [
+  ["resume", "Resume"], ["passport", "Passport"], ["visa", "VISA"],
+  ["nbi_clearance", "NBI Clearance"], ["police_clearance", "Police Clearance"],
+  ["offer_letter", "Offer Letter"], ["dmw_approved_contract", "DMW Approved Contract"],
+  ["overseas_employment_certificate", "Overseas Employment Certificate"],
+  ["peos_certificate", "PEOS Certificate"], ["e_registration_file", "E-registration File"],
+  ["other", "Other"],
+];
+
 function getCandidateFlags(c: CandidateForm): string[] {
   const flags: string[] = [];
 
@@ -80,8 +149,29 @@ function getCandidateFlags(c: CandidateForm): string[] {
   return flags;
 }
 
+function escapeFilterValue(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
+function createEmptyDocumentsMap(): Record<string, string | null> {
+  const docs: Record<string, string | null> = {};
+  for (const [key] of documentTypes) docs[key] = null;
+  return docs;
+}
+
+function normalizeActionRequired(
+  actionRequired: unknown,
+  status: string,
+  consentGiven: boolean
+): string[] {
+  if (Array.isArray(actionRequired)) {
+    const values = actionRequired.filter((value): value is string => typeof value === "string");
+    if (values.length > 0) return values;
+  }
+  return getCandidateFlags({ ...initialForm, status, consent_given: consentGiven });
+}
+
 export default function Candidates() {
-  const [candidates, setCandidates] = useState<CandidateForm[]>([]);
   const [form, setForm] = useState<CandidateForm>(initialForm);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -103,136 +193,190 @@ export default function Candidates() {
   const [perPage, setPerPage] = useState(5);
   const [totalPages, setTotalPages] = useState(1);
   const [pagedCandidates, setPagedCandidates] = useState<CandidateForm[]>([]);
+  const [isListLoading, setIsListLoading] = useState(false);
+  const [refreshToken, setRefreshToken] = useState(0);
   const [positionsList, setPositionsList] = useState<Array<{ id: string; industry: string; title: string }>>([]);
   const [positionsLoading, setPositionsLoading] = useState(false);
+  const [archivedCandidates, setArchivedCandidates] = useState<ArchivedCandidate[]>([]);
+  const [isArchiveOpen, setIsArchiveOpen] = useState(false);
+  const [archivedPage, setArchivedPage] = useState(1);
+  const [archivedTotalPages, setArchivedTotalPages] = useState(1);
+  const [archivedLoading, setArchivedLoading] = useState(false);
+  const userRole = useMemo(() => getUserRole() ?? 'staff', []);
+  const canManageCandidates = userRole === 'administrator' || userRole === 'manager';
+  const canRestoreArchived = canManageCandidates;
 
-  // Fetch candidates
-  useEffect(() => {
-    async function fetchCandidates() {
-      try {
-        const [items, token] = await Promise.all([
-          pb.collection('candidates').getFullList<Record<string, any>>({
-            sort: '-created',
-            requestKey: null,
-          }),
-          pb.files.getToken(),
-        ]);
+  function buildCandidateFilter(archived: boolean): string {
+    const conditions: string[] = [`is_archived = ${archived ? "true" : "false"}`];
 
-        // Get all documents for all candidates
-        const allDocuments = await pb.collection('documents').getFullList<Record<string, any>>({
-          filter: `candidate != ""`, // Get all documents with a candidate relation
-        });
-
-        // Create a map of candidate ID -> documents array
-        const documentsByCandidate: Record<string, any[]> = {};
-        allDocuments.forEach((doc) => {
-          const candidateId = doc.candidate;
-          if (!documentsByCandidate[candidateId]) {
-            documentsByCandidate[candidateId] = [];
-          }
-          documentsByCandidate[candidateId].push(doc);
-        });
-
-        setCandidates(
-          items.map((item) => {
-            // Build documents object from documents records
-            const documents: Record<string, string | null> = {};
-            const candidateDocs = documentsByCandidate[item.id] || [];
-
-            // Initialize all document types as null
-            documentTypes.forEach(([key]) => {
-              documents[key] = null;
-            });
-
-            // Map documents to their types
-            candidateDocs.forEach((doc: any) => {
-              if (doc.file) {
-                documents[doc.doc_type] = pb.files.getURL(doc, doc.file, { token });
-              }
-            });
-
-            return {
-              id: item.id,
-              full_name: item.full_name ?? '',
-              last_name: item.last_name ?? '',
-              first_name: item.first_name ?? '',
-              middle_name: item.middle_name ?? '',
-              prefix: item.prefix ?? '',
-              suffix: item.suffix ?? '',
-              marital_status: item.marital_status ?? '',
-              home_address: item.home_address ?? '',
-              permanent_address: item.permanent_address ?? '',
-              pagibig_number: item.pagibig_number ?? '',
-              highest_educ_attainment: item.highest_educ_attainment ?? '',
-              school_elementary: item.school_elementary ?? '',
-              school_junior_high: item.school_junior_high ?? '',
-              school_senior_high: item.school_senior_high ?? '',
-              school_college: item.school_college ?? '',
-              school_other: item.school_other ?? '',
-              email: item.email ?? '',
-              phone: item.phone ?? '',
-              address: item.address ?? '',
-              education: item.education ?? '',
-              work_history: item.work_history ?? '',
-              skills: item.skills ?? '',
-              certifications: item.certifications ?? '',
-              desired_salary: item.desired_salary ?? '',
-              position_screened: item.position_screened ?? '',
-              notes: item.notes ?? '',
-              status: item.status ?? 'Applied',
-              consent_given: item.consent_given ?? false,
-              consent_at: item.consent_at ?? '',
-              consent_source: item.consent_source ?? '',
-              consent_version: item.consent_version ?? '',
-              action_required: Array.isArray(item.action_required) && item.action_required.length
-                ? item.action_required
-                : getCandidateFlags({ status: item.status ?? 'Applied', consent_given: item.consent_given ?? false } as CandidateForm),
-              profile_photo: item.photo ? pb.files.getURL(item, item.photo, { token }) : null,
-              documents,
-            };
-          })
-        );
-      } catch (err) {
-        console.error('Failed to fetch candidates:', err);
-        setCandidates([]);
-      }
+    const query = search.trim();
+    if (query) {
+      const value = escapeFilterValue(query);
+      conditions.push(
+        `(full_name ~ "${value}" || last_name ~ "${value}" || first_name ~ "${value}" || middle_name ~ "${value}" || email ~ "${value}" || position_screened ~ "${value}")`
+      );
     }
-    fetchCandidates();
-  }, []);
 
-  // Filtered candidates
-  const filtered = useMemo(
-    () =>
-      candidates.filter((c) => {
-        const query = search.toLowerCase();
-        const matchesSearch =
-          c.full_name?.toLowerCase().includes(query) ||
-          c.last_name?.toLowerCase().includes(query) ||
-          c.first_name?.toLowerCase().includes(query) ||
-          c.middle_name?.toLowerCase().includes(query) ||
-          c.email?.toLowerCase().includes(query) ||
-          c.position_screened?.toLowerCase().includes(query);
-        const matchesStatus = statusFilter ? c.status === statusFilter : true;
-        const matchesDateFrom = dateFrom ? c.consent_at >= dateFrom : true;
-        const matchesDateTo = dateTo ? c.consent_at <= dateTo : true;
-        const savedFlags = Array.isArray(c.action_required) && c.action_required.length
-          ? c.action_required
-          : getCandidateFlags(c);
-        const matchesQuick =
-          quickFilter === "not-interviewed" ? savedFlags.includes("Not Interviewed")
-            : quickFilter === "not-scheduled" ? savedFlags.includes("Not Scheduled")
-            : quickFilter === "missing-docs" ? savedFlags.includes("Docs Missing")
-            : true;
-                return matchesSearch && matchesStatus && matchesDateFrom && matchesDateTo && matchesQuick;
-              }),
-    [candidates, search, statusFilter, dateFrom, dateTo, quickFilter],
-  );
+    if (statusFilter) conditions.push(`status = "${escapeFilterValue(statusFilter)}"`);
+    if (dateFrom) conditions.push(`consent_at >= "${dateFrom}"`);
+    if (dateTo) conditions.push(`consent_at <= "${dateTo}"`);
+    if (quickFilter === "not-interviewed") {
+      conditions.push(`(status = "New Applicant" || status = "Lined-Up")`);
+    } else if (quickFilter === "not-scheduled") {
+      conditions.push(`status = "For final interview"`);
+    } else if (quickFilter === "missing-docs") {
+      conditions.push(`consent_given = false`);
+    }
 
-  // Pagination
+    return conditions.join(" && ");
+  }
+
+  async function fetchDocumentsByCandidate(candidateIds: string[]): Promise<Record<string, Record<string, string | null>>> {
+    if (candidateIds.length === 0) return {};
+
+    const candidateFilter = candidateIds
+      .map((id) => `candidate = "${escapeFilterValue(id)}"`)
+      .join(" || ");
+
+    const documents: DocumentRecord[] = [];
+    let currentPage = 1;
+    const perPageSize = 200;
+
+    while (true) {
+      const result = await pb.collection('documents').getList<DocumentRecord>(currentPage, perPageSize, {
+        filter: candidateFilter,
+        sort: '-created',
+        requestKey: null,
+      });
+
+      documents.push(...result.items);
+      if (currentPage >= result.totalPages) break;
+      currentPage += 1;
+    }
+
+    const token = await pb.files.getToken();
+    const documentsByCandidate: Record<string, Record<string, string | null>> = {};
+    for (const id of candidateIds) {
+      documentsByCandidate[id] = createEmptyDocumentsMap();
+    }
+
+    for (const doc of documents) {
+      if (!doc.candidate || !doc.file || !doc.doc_type) continue;
+      if (!documentsByCandidate[doc.candidate]) continue;
+      if (documentsByCandidate[doc.candidate][doc.doc_type]) continue;
+      documentsByCandidate[doc.candidate][doc.doc_type] = pb.files.getURL(doc, doc.file, { token });
+    }
+
+    return documentsByCandidate;
+  }
+
+  async function mapCandidateRecords(items: CandidateRecord[]): Promise<CandidateForm[]> {
+    const candidateIds = items.map((item) => item.id);
+    const [documentsByCandidate, photoToken] = await Promise.all([
+      fetchDocumentsByCandidate(candidateIds),
+      pb.files.getToken(),
+    ]);
+
+    return items.map((item) => {
+      const status = item.status ?? 'New Applicant';
+      const consentGiven = item.consent_given ?? false;
+      return {
+        id: item.id,
+        full_name: item.full_name ?? '',
+        last_name: item.last_name ?? '',
+        first_name: item.first_name ?? '',
+        middle_name: item.middle_name ?? '',
+        prefix: item.prefix ?? '',
+        suffix: item.suffix ?? '',
+        marital_status: item.marital_status ?? '',
+        home_address: item.home_address ?? '',
+        permanent_address: item.permanent_address ?? '',
+        pagibig_number: item.pagibig_number ?? '',
+        highest_educ_attainment: item.highest_educ_attainment ?? '',
+        school_elementary: item.school_elementary ?? '',
+        school_junior_high: item.school_junior_high ?? '',
+        school_senior_high: item.school_senior_high ?? '',
+        school_college: item.school_college ?? '',
+        school_other: item.school_other ?? '',
+        school_other_name: item.school_other_name ?? '',
+        email: item.email ?? '',
+        phone: item.phone ?? '',
+        address: item.address ?? '',
+        education: item.education ?? '',
+        work_history: item.work_history ?? '',
+        skills: item.skills ?? '',
+        certifications: item.certifications ?? '',
+        desired_salary: item.desired_salary ?? '',
+        position_screened: item.position_screened ?? '',
+        notes: item.notes ?? '',
+        status,
+        consent_given: consentGiven,
+        consent_at: item.consent_at ?? '',
+        consent_source: item.consent_source ?? '',
+        consent_version: item.consent_version ?? '',
+        action_required: normalizeActionRequired(item.action_required, status, consentGiven),
+        is_archived: item.is_archived ?? false,
+        archived_at: item.archived_at ?? '',
+        archived_by: item.archived_by ?? '',
+        profile_photo: item.photo ? pb.files.getURL(item, item.photo, { token: photoToken }) : null,
+        documents: documentsByCandidate[item.id] ?? createEmptyDocumentsMap(),
+      };
+    });
+  }
+
+  async function fetchCandidatePage(targetPage: number) {
+    setIsListLoading(true);
+    try {
+      const result = await pb.collection('candidates').getList<CandidateRecord>(targetPage, perPage, {
+        sort: '-updated',
+        filter: buildCandidateFilter(false),
+        requestKey: null,
+      });
+
+      const mapped = await mapCandidateRecords(result.items);
+      setPagedCandidates(mapped);
+      setTotalPages(Math.max(1, result.totalPages));
+      if (result.page !== page) setPage(result.page);
+    } catch (err) {
+      console.error('Failed to fetch candidates:', err);
+      setPagedCandidates([]);
+      setTotalPages(1);
+    } finally {
+      setIsListLoading(false);
+    }
+  }
+
+  async function fetchArchivedCandidates(targetPage: number) {
+    setArchivedLoading(true);
+    try {
+      const result = await pb.collection('candidates').getList<CandidateRecord>(targetPage, perPage, {
+        sort: '-archived_at',
+        filter: `is_archived = true`,
+        requestKey: null,
+      });
+      const mapped = await mapCandidateRecords(result.items);
+      setArchivedCandidates(mapped);
+      setArchivedTotalPages(Math.max(1, result.totalPages));
+      if (result.page !== archivedPage) setArchivedPage(result.page);
+    } catch (err) {
+      console.error('Failed to fetch archived candidates:', err);
+      setArchivedCandidates([]);
+      setArchivedTotalPages(1);
+    } finally {
+      setArchivedLoading(false);
+    }
+  }
+
   useEffect(() => {
-    setTotalPages(Math.ceil(filtered.length / perPage) || 1);
-    setPagedCandidates(filtered.slice((page - 1) * perPage, page * perPage));
-  }, [filtered, page, perPage]);
+    void fetchCandidatePage(page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, perPage, search, statusFilter, dateFrom, dateTo, quickFilter, refreshToken]);
+
+  useEffect(() => {
+    if (!isArchiveOpen) return;
+    void fetchArchivedCandidates(archivedPage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isArchiveOpen, archivedPage, perPage, refreshToken]);
 
   // Load positions
   useEffect(() => {
@@ -240,7 +384,7 @@ export default function Candidates() {
     async function fetchPositions() {
       setPositionsLoading(true);
       try {
-        const items = await pb.collection('positions').getFullList<Record<string, any>>({ sort: 'industry,title', requestKey: null });
+        const items = await pb.collection('positions').getFullList<PositionRecord>({ sort: 'industry,title', requestKey: null });
         if (!mounted) return;
         setPositionsList(items.map((it) => ({ id: it.id, industry: it.industry ?? '', title: it.title ?? '' })));
       } catch (err) {
@@ -300,7 +444,7 @@ export default function Candidates() {
       actor_role: getUserRole() ?? 'staff',
       action: 'view',
       entity: 'Candidate',
-      entity_name: candidate.full_name || String(candidate.id ?? '—'),
+      entity_name: candidate.full_name || String(candidate.id ?? 'â€”'),
     });
   }
   
@@ -312,11 +456,24 @@ export default function Candidates() {
     setError("");
     try {
       const computedFullName = [form.last_name, form.first_name, form.middle_name].filter(Boolean).join(' ') || form.full_name || 'Unknown';
-      const payload: Record<string, any> = {
+      const payload: Record<string, unknown> = {
         last_name: form.last_name,
         first_name: form.first_name,
         middle_name: form.middle_name,
+        prefix: form.prefix || null,
+        suffix: form.suffix || null,
         full_name: computedFullName,
+        marital_status: form.marital_status || null,
+        home_address: form.home_address || null,
+        permanent_address: form.permanent_address || null,
+        pagibig_number: form.pagibig_number || null,
+        highest_educ_attainment: form.highest_educ_attainment || null,
+        school_elementary: form.school_elementary || null,
+        school_junior_high: form.school_junior_high || null,
+        school_senior_high: form.school_senior_high || null,
+        school_college: form.school_college || null,
+        school_other: form.school_other || null,
+        school_other_name: form.school_other_name || null,
         email: form.email,
         phone: form.phone,
         address: form.address,
@@ -342,17 +499,6 @@ export default function Candidates() {
 
       // Create document records separately
       await createDocumentsForCandidate(record.id, form.documents || {});
-
-      const token = await pb.files.getToken();
-      const newCandidate: CandidateForm = {
-        ...form,
-        full_name: computedFullName,
-        id: record.id,
-        profile_photo: record.photo ? pb.files.getURL(record, record.photo, { token }) : null,
-        documents: {}, // Empty for now, will be loaded on next fetch
-      };
-
-      setCandidates((prev) => [newCandidate, ...prev]);
       addAuditLog({
         actor_email: pb.authStore.record?.email ?? 'unknown',
         actor_role: getUserRole() ?? 'staff',
@@ -363,8 +509,10 @@ export default function Candidates() {
       showFeedback("success", "Candidate added successfully.");
       setIsModalOpen(false);
       setForm(initialForm);
-    } catch (err: any) {
-      const detail = err?.data ? JSON.stringify(err.data) : (err?.message ?? '');
+      setRefreshToken((value) => value + 1);
+    } catch (err: unknown) {
+      const errorLike = err as { data?: unknown; message?: string };
+      const detail = errorLike.data ? JSON.stringify(errorLike.data) : (errorLike.message ?? '');
       setError(`Failed to add candidate. ${detail}`);
       showFeedback("error", `Failed to add candidate. ${detail}`);
     } finally {
@@ -397,11 +545,24 @@ export default function Candidates() {
 
     try {
       const computedFullNameEdit = [form.last_name, form.first_name, form.middle_name].filter(Boolean).join(' ') || form.full_name || 'Unknown';
-      const payload: Record<string, any> = {
+      const payload: Record<string, unknown> = {
         last_name: form.last_name,
         first_name: form.first_name,
         middle_name: form.middle_name,
+        prefix: form.prefix || null,
+        suffix: form.suffix || null,
         full_name: computedFullNameEdit,
+        marital_status: form.marital_status || null,
+        home_address: form.home_address || null,
+        permanent_address: form.permanent_address || null,
+        pagibig_number: form.pagibig_number || null,
+        highest_educ_attainment: form.highest_educ_attainment || null,
+        school_elementary: form.school_elementary || null,
+        school_junior_high: form.school_junior_high || null,
+        school_senior_high: form.school_senior_high || null,
+        school_college: form.school_college || null,
+        school_other: form.school_other || null,
+        school_other_name: form.school_other_name || null,
         email: form.email,
         phone: form.phone,
         address: form.address,
@@ -423,21 +584,10 @@ export default function Candidates() {
       if (form.profile_photo instanceof File) payload['photo'] = form.profile_photo;
 
       // Update candidate record (NO file fields)
-      const updatedRecord = await pb.collection('candidates').update(String(editCandidate?.id), payload);
+      await pb.collection('candidates').update(String(editCandidate?.id), payload);
 
       // Update documents separately
       await updateDocumentsForCandidate(String(editCandidate?.id), editCandidate?.documents || {}, form.documents || {});
-      
-      const token = await pb.files.getToken();
-      const updatedCandidate: CandidateForm = {
-        ...form,
-        full_name: computedFullNameEdit,
-        id: updatedRecord.id,
-        profile_photo: updatedRecord.photo ? pb.files.getURL(updatedRecord, updatedRecord.photo, { token }) : null,
-        documents: {}, // Empty for now, will be loaded on next fetch
-      };
-
-      setCandidates((prev) => prev.map((c) => c.id === editCandidate?.id ? updatedCandidate : c));
       addAuditLog({
         actor_email: pb.authStore.record?.email ?? 'unknown',
         actor_role: getUserRole() ?? 'staff',
@@ -447,8 +597,10 @@ export default function Candidates() {
       });
       showFeedback("success", "Candidate updated successfully.");
       setIsEditModalOpen(false);
-    } catch (err: any) {
-      const detail = err?.data ? JSON.stringify(err.data) : (err?.message ?? '');
+      setRefreshToken((value) => value + 1);
+    } catch (err: unknown) {
+      const errorLike = err as { data?: unknown; message?: string };
+      const detail = errorLike.data ? JSON.stringify(errorLike.data) : (errorLike.message ?? '');
       setError(`Failed to update candidate. ${detail}`);
       showFeedback("error", `Failed to update candidate. ${detail}`);
     } finally {
@@ -459,10 +611,29 @@ export default function Candidates() {
   async function onDeleteSubmit() {
     setIsSubmitting(true);
     try {
-      if (!deleteCandidate) { showFeedback("error", "No candidate selected."); setIsDeleteModalOpen(false); return; }
-      handleArchive(deleteCandidate);
+      if (!deleteCandidate) {
+        showFeedback("error", "No candidate selected.");
+        setIsDeleteModalOpen(false);
+        return;
+      }
+      await pb.collection('candidates').update(String(deleteCandidate.id), {
+        is_archived: true,
+        archived_at: new Date().toISOString(),
+        archived_by: pb.authStore.record?.id ?? null,
+      });
+      addAuditLog({
+        actor_email: pb.authStore.record?.email ?? 'unknown',
+        actor_role: getUserRole() ?? 'staff',
+        action: 'archive',
+        entity: 'Candidate',
+        entity_name: deleteCandidate.full_name || String(deleteCandidate.id ?? 'â€”'),
+      });
+      setRefreshToken((value) => value + 1);
+      showFeedback('success', 'Candidate archived.');
       setIsDeleteModalOpen(false);
-    } catch { showFeedback("error", "Failed to archive candidate."); }
+    } catch {
+      showFeedback("error", "Failed to archive candidate.");
+    }
     finally { setIsSubmitting(false); }
   }
 
@@ -486,30 +657,8 @@ export default function Candidates() {
     "Not Scheduled": "bg-sky-100 text-sky-800",
     "Docs Missing": "bg-red-100 text-red-800",
   };
-  const quickFilters = [
-    { key: "not-interviewed", label: "Not Interviewed" },
-    { key: "not-scheduled", label: "Not Scheduled" },
-    { key: "missing-docs", label: "Missing Docs" },
-  ];
-  const availableFlags = ["Not Interviewed", "Not Scheduled", "Docs Missing"];
-  const documentTypes: Array<[string, string]> = [
-    ["resume", "Resume"], ["passport", "Passport"], ["visa", "VISA"],
-    ["nbi_clearance", "NBI Clearance"], ["police_clearance", "Police Clearance"],
-    ["offer_letter", "Offer Letter"], ["dmw_approved_contract", "DMW Approved Contract"],
-    ["overseas_employment_certificate", "Overseas Employment Certificate"],
-    ["peos_certificate", "PEOS Certificate"], ["e_registration_file", "E-registration File"],
-    ["other", "Other"],
-  ];
-
   const [viewTab, setViewTab] = useState<'info' | 'details' | 'documents' | 'notes'>('info');
   const [activeTab, setActiveTab] = useState<'info' | 'details' | 'documents'>('info');
-  const [archivedCandidates, setArchivedCandidates] = useState<ArchivedCandidate[]>([]);
-  const [isArchiveOpen, setIsArchiveOpen] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [adminPasswordInput, setAdminPasswordInput] = useState('');
-  const [authError, setAuthError] = useState('');
-  const [staffViewOnly, setStaffViewOnly] = useState(false);
-  const userRole = useMemo(() => getUserRole() ?? 'staff', []);
   const printRef = useRef<HTMLDivElement | null>(null);
 
   const profileUrl = useMemo(() => {
@@ -517,13 +666,21 @@ export default function Candidates() {
     const pp = viewCandidate.profile_photo;
     if (pp) {
       if (typeof pp === 'string' && pp) return pp;
-      if (pp instanceof File) { try { return URL.createObjectURL(pp); } catch (e) { } }
+      if (pp instanceof File) {
+        try { return URL.createObjectURL(pp); } catch { return defaultProfile; }
+      }
     }
     return defaultProfile;
   }, [viewCandidate]);
 
   useEffect(() => {
-    return () => { try { if (profileUrl?.startsWith('blob:')) URL.revokeObjectURL(profileUrl); } catch (e) { } };
+    return () => {
+      try {
+        if (profileUrl?.startsWith('blob:')) URL.revokeObjectURL(profileUrl);
+      } catch {
+        // ignore
+      }
+    };
   }, [profileUrl]);
 
   const [formProfilePreviewUrl, setFormProfilePreviewUrl] = useState<string | null>(null);
@@ -541,11 +698,13 @@ export default function Candidates() {
 
   function handleDownloadPdf() {
     if (!viewCandidate) return;
-    const html = generateResumeHtml(viewCandidate as Record<string, any>, profileUrl);
+    const html = generateResumeHtml(viewCandidate, profileUrl);
     const w = window.open('', '_blank');
     if (!w) return;
     w.document.open(); w.document.write(html); w.document.close(); w.focus();
-    setTimeout(() => { try { w.print(); } catch (e) { } }, 500);
+    setTimeout(() => {
+      try { w.print(); } catch { /* ignore */ }
+    }, 500);
   }
 
   async function handleDocumentDownload(_key: string, doc: File | string) {
@@ -569,37 +728,37 @@ export default function Candidates() {
     }
   }
 
-  function handleArchive(candidate: CandidateForm) {
-    setCandidates((prev) => prev.filter((c) => c.id !== candidate.id));
-    setArchivedCandidates((prev) => [{ ...candidate, archived_at: new Date().toISOString(), archived_by: userRole }, ...prev]);
-    addAuditLog({ actor_email: pb.authStore.record?.email ?? 'unknown', actor_role: getUserRole() ?? 'staff', action: 'archive', entity: 'Candidate', entity_name: candidate.full_name || String(candidate.id ?? '—') });
-    showFeedback('success', 'Candidate archived.');
-  }
-
-  function handleRestore(candidate: ArchivedCandidate) {
-    setArchivedCandidates((prev) => prev.filter((c) => c.id !== candidate.id));
-    setCandidates((prev) => [{ ...candidate, archived_at: undefined, archived_by: undefined }, ...prev]);
-    addAuditLog({ actor_email: pb.authStore.record?.email ?? 'unknown', actor_role: getUserRole() ?? 'staff', action: 'restore', entity: 'Candidate', entity_name: candidate.full_name || String(candidate.id ?? '—') });
-    showFeedback('success', 'Candidate restored.');
+  async function handleRestore(candidate: ArchivedCandidate) {
+    try {
+      await pb.collection('candidates').update(String(candidate.id), {
+        is_archived: false,
+        archived_at: null,
+        archived_by: null,
+      });
+      addAuditLog({
+        actor_email: pb.authStore.record?.email ?? 'unknown',
+        actor_role: getUserRole() ?? 'staff',
+        action: 'restore',
+        entity: 'Candidate',
+        entity_name: candidate.full_name || String(candidate.id ?? '—'),
+      });
+      setRefreshToken((value) => value + 1);
+      showFeedback('success', 'Candidate restored.');
+    } catch {
+      showFeedback('error', 'Failed to restore candidate.');
+    }
   }
 
   function handleOpenArchive() {
-    if (userRole === 'staff') { setIsAuthModalOpen(true); return; }
-    setStaffViewOnly(false); setIsArchiveOpen(true);
+    setArchivedPage(1);
+    setIsArchiveOpen(true);
   }
-
-  function handleAdminAuthSubmit(e?: React.FormEvent) {
-    e?.preventDefault?.();
-    const ADMIN_PASS = import.meta.env.VITE_ADMIN_PASSWORD ?? 'admin123';
-    if (adminPasswordInput === ADMIN_PASS) {
-      setIsAuthModalOpen(false); setIsArchiveOpen(true); setStaffViewOnly(true);
-      setAdminPasswordInput(''); setAuthError('');
-    } else { setAuthError('Incorrect admin password'); }
-  }
-
   // Create document records for newly uploaded files
-  async function createDocumentsForCandidate(candidateId: string, documents: Record<string, any>) {
-    const documentPromises = [];
+  async function createDocumentsForCandidate(
+    candidateId: string,
+    documents: Record<string, string | File | null>
+  ) {
+    const documentPromises: Promise<unknown>[] = [];
     for (const [key, val] of Object.entries(documents)) {
       if (val instanceof File) {
         documentPromises.push(
@@ -618,18 +777,28 @@ export default function Candidates() {
   }
 
   // Delete old documents and create new ones
-  async function updateDocumentsForCandidate(candidateId: string, oldDocuments: Record<string, any>, newDocuments: Record<string, any>) {
+  async function updateDocumentsForCandidate(
+    candidateId: string,
+    oldDocuments: Record<string, string | File | null>,
+    newDocuments: Record<string, string | File | null>
+  ) {
     // Delete documents that were removed
     for (const [_key, oldVal] of Object.entries(oldDocuments)) {
       const newVal = newDocuments[_key];
       if (oldVal && !newVal) {
         // Find and delete the document record
         try {
-          const existingDocs = await pb.collection('documents').getFullList({
-            filter: `candidate = "${candidateId}" && doc_type = "${_key}"`,
-          });
-          for (const doc of existingDocs) {
-            await pb.collection('documents').delete(doc.id);
+          let currentPage = 1;
+          while (true) {
+            const existingDocs = await pb.collection('documents').getList<DocumentRecord>(currentPage, 200, {
+              filter: `candidate = "${escapeFilterValue(candidateId)}" && doc_type = "${escapeFilterValue(_key)}"`,
+              requestKey: null,
+            });
+            for (const doc of existingDocs.items) {
+              await pb.collection('documents').delete(doc.id);
+            }
+            if (currentPage >= existingDocs.totalPages) break;
+            currentPage += 1;
           }
         } catch (err) {
           console.error(`Failed to delete document type ${_key}:`, err);
@@ -717,12 +886,23 @@ export default function Candidates() {
             {/* Search & Status Filter */}
             <div className="flex flex-wrap gap-3 items-end">
               <div className="max-w-sm flex-1">
-                <Searchbar value={search} onChange={setSearch} placeholder="Search by name, email, or position" className="text-sm" />
+                <Searchbar
+                  value={search}
+                  onChange={(value) => {
+                    setSearch(value);
+                    setPage(1);
+                  }}
+                  placeholder="Search by name, email, or position"
+                  className="text-sm"
+                />
               </div>
               <div className="min-w-45">
                 <Filter
                   value={statusFilter}
-                  onChange={setStatusFilter}
+                  onChange={(value) => {
+                    setStatusFilter(value);
+                    setPage(1);
+                  }}
                   options={[{ value: "", label: "All Statuses" }, ...candidateStatuses.map((s) => ({ value: s, label: s }))]}
                   placeholder="Filter by status"
                   className="text-sm rounded-md"
@@ -763,7 +943,13 @@ export default function Candidates() {
                   </tr>
                 </thead>
                 <tbody>
-                  {pagedCandidates.length === 0 ? (
+                  {isListLoading ? (
+                    <tr>
+                      <td colSpan={6} className="py-10 text-center text-(--muted)">
+                        Loading candidates...
+                      </td>
+                    </tr>
+                  ) : pagedCandidates.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="py-14 text-center text-(--muted)">
                         <div className="flex flex-col items-center gap-2">
@@ -798,7 +984,7 @@ export default function Candidates() {
                               <button type="button" onClick={(e) => { e.stopPropagation(); handleView(c); }} className="px-3 py-1.5 flex items-center gap-1 rounded-md bg-(--surface2) text-(--text) font-semibold text-sm hover:bg-(--border) transition-colors">
                                 <Icon icon="tabler:eye" width="15" height="15" />View
                               </button>
-                              {(userRole === 'administrator' || userRole === 'manager') && (
+                              {canManageCandidates && (
                                 <>
                                   <button type="button" onClick={(e) => { e.stopPropagation(); handleEdit(c); }} className="px-3 py-1.5 flex items-center gap-1 rounded-md bg-blue-100 text-blue-700 font-semibold text-sm hover:bg-blue-200 transition-colors">
                                     <Icon icon="tabler:edit" width="15" height="15" />Edit
@@ -930,25 +1116,12 @@ export default function Candidates() {
               )}
             </Modal>
 
-            {/* Auth Modal */}
-            <Modal open={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} title="Admin Authentication">
-              <form onSubmit={handleAdminAuthSubmit} className="grid gap-3">
-                <p className="text-sm text-(--muted)">Enter admin password to view archived candidates (view-only).</p>
-                <label className="grid gap-1">
-                  <input type="password" value={adminPasswordInput} onChange={(e) => setAdminPasswordInput(e.target.value)} className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-3 py-2 text-sm" placeholder="Admin password" required />
-                </label>
-                {authError && <div className="text-sm text-[#9f2d20]">{authError}</div>}
-                <div className="flex justify-end gap-2">
-                  <button type="button" className="border border-(--border) bg-white text-(--text) rounded-xl px-4 py-2" onClick={() => setIsAuthModalOpen(false)}>Cancel</button>
-                  <button type="submit" className="border-none text-white bg-(--primary) rounded-xl px-4 py-2">Submit</button>
-                </div>
-              </form>
-            </Modal>
-
             {/* Archive Modal */}
             <Modal open={isArchiveOpen} onClose={() => setIsArchiveOpen(false)} title="Archived Candidates">
               <div className="grid gap-3 text-sm">
-                {archivedCandidates.length === 0 ? (
+                {archivedLoading ? (
+                  <div className="py-6 text-center text-(--muted)">Loading archived candidates...</div>
+                ) : archivedCandidates.length === 0 ? (
                   <div className="py-6 text-center text-(--muted) flex flex-col items-center gap-2">
                     <Icon icon="tabler:archive-off" width="44" height="44" />
                     No archived candidates
@@ -971,7 +1144,7 @@ export default function Candidates() {
                             <td className="px-4 py-2">{ac.email || '—'}</td>
                             <td className="px-4 py-2">{ac.archived_at ? new Date(ac.archived_at).toLocaleString() : '—'}</td>
                             <td className="px-4 py-2">
-                              {(userRole === 'administrator' || userRole === 'manager') && !staffViewOnly && (
+                              {canRestoreArchived && (
                                 <button type="button" onClick={() => handleRestore(ac)} className="cursor-pointer px-3 py-1.5 rounded-xl bg-green-100 text-green-700 text-xs font-semibold">Restore</button>
                               )}
                             </td>
@@ -981,6 +1154,18 @@ export default function Candidates() {
                     </table>
                   </div>
                 )}
+                <div className="flex justify-end">
+                  <Pagination
+                    page={archivedPage}
+                    totalPages={archivedTotalPages}
+                    onPageChange={setArchivedPage}
+                    perPage={perPage}
+                    onPerPageChange={(value) => {
+                      setPerPage(value);
+                      setArchivedPage(1);
+                    }}
+                  />
+                </div>
                 <div className="flex justify-end">
                   <button type="button" onClick={() => setIsArchiveOpen(false)} className="border border-(--border) bg-white text-(--text) text-sm rounded-md px-4 py-2 font-bold transition-all duration-150 hover:bg-(--surface2) hover:scale-105">Close</button>
                 </div>
@@ -1061,7 +1246,7 @@ export default function Candidates() {
                       <label className="grid gap-1.25"><span className="text-sm text-(--muted) font-bold">Certifications</span><input className="w-full border border-(--border) bg-white text-(--text) rounded-md px-2.75 py-2.5 text-sm outline-none" value={form.certifications} onChange={(e) => setForm((f) => ({ ...f, certifications: e.target.value }))} placeholder="e.g., NC II, First Aid" required /></label>
                       <label className="grid gap-1.25"><span className="text-sm text-(--muted) font-bold">Desired Salary</span><input className="w-full border border-(--border) bg-white text-(--text) rounded-md px-2.75 py-2.5 text-sm outline-none" value={form.desired_salary} onChange={(e) => setForm((f) => ({ ...f, desired_salary: e.target.value }))} placeholder="" required /></label>
 
-                      {/* Position — now using IndustryPositionPicker */}
+                      {/* Position â€” now using IndustryPositionPicker */}
                       <div className="grid gap-1.25">
                         <span className="text-sm text-(--muted) font-bold">Position</span>
                         <IndustryPositionPicker
@@ -1181,3 +1366,6 @@ export default function Candidates() {
     </div>
   );
 }
+
+
+

@@ -141,7 +141,7 @@ export default function Employers() {
       setEmployers((prev) => [{ ...form, id: Date.now() }, ...prev]);
       showFeedback("success", "Employer created");
       setIsModalOpen(false);
-    } catch (err) {
+    } catch {
       setError("Failed to create employer");
       showFeedback("error", "Failed to create employer");
     } finally {
@@ -158,7 +158,7 @@ export default function Employers() {
       setEmployers((prev) => prev.map((it) => (it.id === editEmployer.id ? { ...it, ...form } : it)));
       showFeedback("success", "Employer updated");
       setIsEditModalOpen(false);
-    } catch (err) {
+    } catch {
       setError("Failed to update");
       showFeedback("error", "Failed to update");
     } finally {
@@ -173,7 +173,7 @@ export default function Employers() {
       setEmployers((prev) => prev.filter((it) => it.id !== deleteEmployer.id));
       showFeedback("success", "Employer deleted");
       setIsDeleteModalOpen(false);
-    } catch (err) {
+    } catch {
       showFeedback("error", "Failed to delete employer");
     } finally {
       setIsSubmitting(false);

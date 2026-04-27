@@ -33,11 +33,11 @@ export type CandidateForm = {
   consent_source: string;
   consent_version: string;
   action_required?: string[];
+  is_archived?: boolean;
+  archived_at?: string;
+  archived_by?: string;
   profile_photo?: File | string | null;
   documents?: Record<string, string | File | null>;
 };
 
-export type ArchivedCandidate = CandidateForm & {
-  archived_at?: string;
-  archived_by?: string;
-};
+export type ArchivedCandidate = CandidateForm;

@@ -40,16 +40,6 @@ export default function IndustryPositionPicker({
     (p) => p.industry === hoveredIndustry
   );
 
-  // Auto-hover the first industry when opening
-  useEffect(() => {
-    if (open && industries.length > 0 && !hoveredIndustry) {
-      setHoveredIndustry(industries[0]);
-    }
-    if (!open) {
-      setHoveredIndustry(null);
-    }
-  }, [open]);
-
   // Close on outside click
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -61,15 +51,38 @@ export default function IndustryPositionPicker({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open]);
 
+  function toggleOpen() {
+    setOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        setHoveredIndustry((current) => current ?? industries[0] ?? null);
+      } else {
+        setHoveredIndustry(null);
+      }
+      return next;
+    });
+  }
+
   function handleSelect(title: string) {
     onChange(title);
     setOpen(false);
+    setHoveredIndustry(null);
   }
 
   function handleClear(e: React.MouseEvent) {
     e.stopPropagation();
     onChange("");
     setOpen(false);
+    setHoveredIndustry(null);
+  }
+
+  function handleClearKeyDown(event: React.KeyboardEvent<HTMLSpanElement>) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    event.stopPropagation();
+    onChange("");
+    setOpen(false);
+    setHoveredIndustry(null);
   }
 
   return (
@@ -77,7 +90,7 @@ export default function IndustryPositionPicker({
       {/* Trigger button */}
       <button
         type="button"
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={toggleOpen}
         className={`w-full flex items-center justify-between gap-2 border rounded-md px-3 py-2.5 text-sm bg-white text-(--text) outline-none transition-all
           ${open ? "border-(--primary) ring-2 ring-(--primary)/20" : "border-(--border)"}
           ${required && !value ? "" : ""}
@@ -92,7 +105,7 @@ export default function IndustryPositionPicker({
               role="button"
               tabIndex={0}
               onClick={handleClear}
-              onKeyDown={(e) => e.key === "Enter" && handleClear(e as any)}
+              onKeyDown={handleClearKeyDown}
               className="text-(--muted) hover:text-red-500 transition-colors cursor-pointer"
               title="Clear selection"
             >

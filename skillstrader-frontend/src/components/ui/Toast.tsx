@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Icon } from '@iconify/react';
 
 type ToastProps = {
@@ -9,15 +9,10 @@ type ToastProps = {
 };
 
 export default function Toast({ type = 'info', message, duration = 4000, onClose }: ToastProps) {
-  const [visible, setVisible] = useState(false);
-
   useEffect(() => {
-    setVisible(true);
-
     if (!message) return;
     const auto = setTimeout(() => {
-      setVisible(false);
-      setTimeout(() => onClose && onClose(), 220);
+      onClose?.();
     }, duration);
 
     return () => clearTimeout(auto);
@@ -34,7 +29,7 @@ export default function Toast({ type = 'info', message, duration = 4000, onClose
     <div className="fixed top-6 right-6 z-50 w-80 max-w-sm pointer-events-auto">
       <div
         role={type === 'error' ? 'alert' : 'status'}
-        className={`w-full flex items-start gap-3 bg-white ${borderClass} rounded-lg p-4 shadow-xl ring-1 ring-black/5 transform transition-all duration-200 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'}`}
+        className={`w-full flex items-start gap-3 bg-white ${borderClass} rounded-lg p-4 shadow-xl ring-1 ring-black/5`}
       >
         <div className={`shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-full ${iconWrapperClass} ring-1`}> 
           <Icon icon={icon} width="20" />
@@ -43,7 +38,7 @@ export default function Toast({ type = 'info', message, duration = 4000, onClose
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-3"> 
             <div className={`text-sm font-semibold ${titleClass} truncate`}>{title}</div>
-            <button onClick={() => { setVisible(false); setTimeout(() => onClose && onClose(), 180); }} className="text-gray-400 hover:text-gray-600" aria-label="Close notification">
+            <button onClick={() => onClose?.()} className="text-gray-400 hover:text-gray-600" aria-label="Close notification">
               <Icon icon="mdi:close" width="16" />
             </button>
           </div>

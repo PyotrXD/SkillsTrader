@@ -25,6 +25,13 @@ type CreateUserForm = {
   role: UserRole;
 };
 
+type UserListItem = {
+  id?: number | string;
+  email: string;
+  name: string;
+  role: UserRole;
+};
+
 const initialForm: CreateUserForm = {
   email: "",
   password: "",
@@ -40,7 +47,6 @@ function UserModal({
   onSubmit,
   isSubmitting,
   error,
-  success,
   form,
   setForm,
   showPassword,
@@ -55,7 +61,6 @@ function UserModal({
   onSubmit: (e: FormEvent<HTMLFormElement>) => void;
   isSubmitting: boolean;
   error: string;
-  success: string;
   form: CreateUserForm;
   setForm: React.Dispatch<React.SetStateAction<CreateUserForm>>;
   showPassword: boolean;
@@ -233,21 +238,23 @@ export function UsersPanel() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editUser, setEditUser] = useState<any>(null);
+  const [editUserId, setEditUserId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<CreateUserForm>(initialForm);
   const [showEditPassword, setShowEditPassword] = useState(false);
   const [showEditConfirmPassword, setShowEditConfirmPassword] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [deleteUser, setDeleteUser] = useState<any>(null);
+  const [deleteUser, setDeleteUser] = useState<UserListItem | null>(null);
 
   // Pagination state (demo)
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(5);
   const [totalPages, setTotalPages] = useState(1);
-  const [pagedUsers, setPagedUsers] = useState(usersData.slice(0, perPage));
+  const [pagedUsers, setPagedUsers] = useState<UserListItem[]>(
+    (usersData as UserListItem[]).slice(0, perPage)
+  );
 
   // Derived filtered users
-  const filteredUsers = usersData.filter((user) => {
+  const filteredUsers = (usersData as UserListItem[]).filter((user) => {
     const matchesSearch =
       user.name.toLowerCase().includes(search.toLowerCase()) ||
       user.email.toLowerCase().includes(search.toLowerCase());
@@ -267,7 +274,7 @@ export function UsersPanel() {
     //   setPagedUsers(result.items);
     //   setTotalPages(result.totalPages);
     // });
-  }, [page, perPage, search, roleFilter]);
+  }, [filteredUsers, page, perPage]);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -294,8 +301,8 @@ export function UsersPanel() {
     }
   }
 
-  function handleEdit(user: any) {
-    setEditUser(user);
+  function handleEdit(user: UserListItem) {
+    setEditUserId(String(user.id ?? ""));
     setEditForm({
       email: user.email,
       password: "",
@@ -310,7 +317,7 @@ export function UsersPanel() {
 
   function handleCloseEditModal() {
     setIsEditModalOpen(false);
-    setEditUser(null);
+    setEditUserId(null);
     setEditForm(initialForm);
   }
 
@@ -320,8 +327,12 @@ export function UsersPanel() {
     setError("");
     setSuccess("");
     try {
+      if (!editUserId) {
+        setError("No user selected for update.");
+        return;
+      }
       // Simulate update (replace with real API call)
-      // await pb.collection('users').update(editUser.id, { ...editForm });
+      // await pb.collection('users').update(editUserId, { ...editForm });
       setSuccess(`User ${editForm.email.trim()} updated.`);
       setIsEditModalOpen(false);
       setShowToast(true);
@@ -333,7 +344,7 @@ export function UsersPanel() {
     }
   }
 
-  function handleDelete(user: any) {
+  function handleDelete(user: UserListItem) {
     setDeleteUser(user);
     setIsDeleteModalOpen(true);
   }
@@ -349,12 +360,16 @@ export function UsersPanel() {
     setError("");
     setSuccess("");
     try {
+      if (!deleteUser) {
+        setError("No user selected for deletion.");
+        return;
+      }
       // Simulate delete (replace with real API call)
       // await pb.collection('users').delete(deleteUser.id);
       setSuccess(`User ${deleteUser.email} deleted.`);
       setIsDeleteModalOpen(false);
       setShowToast(true);
-    } catch (err) {
+    } catch {
       setError("Failed to delete user.");
     } finally {
       setIsSubmitting(false);
@@ -543,7 +558,6 @@ export function UsersPanel() {
               onSubmit={onEditSubmit}
               isSubmitting={isSubmitting}
               error={error}
-              success={success}
               form={editForm}
               setForm={setEditForm}
               showPassword={showEditPassword}
@@ -560,7 +574,6 @@ export function UsersPanel() {
               onSubmit={onSubmit}
               isSubmitting={isSubmitting}
               error={error}
-              success={success}
               form={form}
               setForm={setForm}
               showPassword={showPassword}

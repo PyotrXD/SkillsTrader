@@ -24,6 +24,16 @@ type Placement = {
   agency_fee_amount?: number;
 };
 
+type CandidateOption = {
+  id?: number | string;
+  full_name?: string;
+};
+
+type JobOrderOption = {
+  id?: number | string;
+  title?: string;
+};
+
 const initialForm: Placement = {
   candidate_id: undefined,
   job_order_id: undefined,
@@ -63,8 +73,8 @@ export default function Placements() {
     setPlacements((placementsData as Placement[]) || []);
   }, []);
 
-  const candidates = (candidatesData as any[]) || [];
-  const jobOrders = (jobOrdersData as any[]) || [];
+  const candidates = (candidatesData as CandidateOption[]) || [];
+  const jobOrders = (jobOrdersData as JobOrderOption[]) || [];
 
   const placementStatuses = ['Pending', 'Confirmed', 'Started', 'Completed', 'Cancelled'];
 
@@ -145,7 +155,7 @@ export default function Placements() {
       setPlacements((prev) => [{ ...form, id: Date.now() }, ...prev]);
       showFeedback('success', 'Placement created');
       setIsModalOpen(false);
-    } catch (err) {
+    } catch {
       setError('Failed to create placement');
       showFeedback('error', 'Failed to create placement');
     } finally {
@@ -162,7 +172,7 @@ export default function Placements() {
       setPlacements((prev) => prev.map((it) => (it.id === editPlacement.id ? { ...it, ...form } : it)));
       showFeedback('success', 'Placement updated');
       setIsEditModalOpen(false);
-    } catch (err) {
+    } catch {
       setError('Failed to update');
       showFeedback('error', 'Failed to update placement');
     } finally {
@@ -177,7 +187,7 @@ export default function Placements() {
       setPlacements((prev) => prev.filter((it) => it.id !== deletePlacement.id));
       showFeedback('success', 'Placement deleted');
       setIsDeleteModalOpen(false);
-    } catch (err) {
+    } catch {
       setError('Failed to delete');
       showFeedback('error', 'Failed to delete placement');
     } finally {

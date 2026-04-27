@@ -1,4 +1,6 @@
-export function generateResumeHtml(candidate: Record<string, any>, imgSrc: string): string {
+type ResumeCandidate = Record<string, unknown>;
+
+export function generateResumeHtml(candidate: ResumeCandidate, imgSrc: string): string {
   function escapeHtml(value: unknown): string {
     if (value === null || value === undefined) return '';
     return String(value)

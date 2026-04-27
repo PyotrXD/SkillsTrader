@@ -2,7 +2,6 @@ import type { ReactElement } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { RECORD_ENTITY_ITEMS } from '../../pages/RecordsWorkspace';
 import type { UserRole } from '../../lib/pocketbase/pb';
-import { Icon } from '@iconify/react/dist/offline.cjs';
 
 type Props = {
   activeKey: string;

@@ -1,58 +1,22 @@
-I. Data and Information Management (What Data Needs to be Stored?),,,
-Requirement,Details,Remarks/Comments,Remarks/Comments
-Candidate Records,"Personal info (Name, email, phone, address)
-Photo
-Educational background
-Work history/Experience
-Skills, Certifications/Licenses
-Desired Salary.",,
-employer/Company Records,"Company name
-Contact person
-Contact info
-Country
-Industry
-Job order history
-Billing information.",,
-Job Order Management,"Job order
-Description
-Required skills
-Salary range
-Number of openings
-Client Company ID
-Status (Open, Closed, Filled).",,
-Placement/Hiring Records,"Candidate ID
-Job Order ID
-Departure Date
-Arrival Date
-Placement fee Date and amount
-Date of placement
-Placement status (Pending, Confirmed, Start date
-Agency fees/Commission",,
-Document Tracking,"Ability to upload and link candidate documents (CVs, passports, visas, NBI/Police clearances) and employer contracts.
-Offer Letter, DMW-approved contract, overseas employment contract",,
-Interview & Assessment,"Tracking interview dates, results, and assessment scores.",,
-,,,
-II. Functional Requirements (What Does the System Need to Do?),,,
-Search and Filtering,"Fast and accurate search capabilities by keywords, skills, salary, job title, candidate status, Name, departure date, arrival date, employer.",,
-Matching Engine,System should suggest the best candidates for a specific job order based on skills and criteria.,,Medyo later update papo ito.
-Reporting & Analytics,"Generate reports on: Placement rates, Time-to-Hire, Active Candidates, Client performance, Revenue/Commission tracking.
-Employer attrition rate",,Medyo later update papo ito.
-Status Tracking,"Track the progression of candidates through the hiring pipeline (e.g., Applied -> Screened -> Interviewed -> Placed).",,
-Bulk Actions,Ability to update the status of multiple candidates or send bulk communications (if integrated with email).,,
-User Roles & Access,"Define different user levels (e.g., Administrator, Recruiter, Management) with specific permissions.
-Administrator - Access to everything and source code
-Management - Access to everything, no code access
-Recruiter - Access to create, edit, delete, upload records",,
-,,,
-III. Legal and Compliance Requirements,,,
-Data Privacy,"Ensure mechanisms for consent, data access, and data deletion are in place. Crucial for sensitive data.",,
-Security,Data must be encrypted (at rest and in transit) and protected by strong authentication.,,
-Audit Trails,Log all changes and actions performed by users (who did what and when) for accountability.,,
-Backup and Recovery,"Implement a regular, reliable process for backing up all data, with a clear recovery plan.",,
-,,,
-IV. Technical and Operational Requirements,,,
-Scalability,"The database must be able to handle future growth in the number of candidates and clients (e.g., scaling from 5,000 to 50,000 records).",,
-System Reliability/Uptime,The system needs to be consistently available during business hours (7AM-6PM),,
-Ease of Use (User Interface/UX),"The interface should be intuitive and easy for users to use daily, minimizing training time.",,
-Integration,"Potential integration with existing tools (e.g., Email clients, SMS gateways, Accounting software).","Pati si OFWs pwede din iemail via group (dipende sa kung sino employer nila, or kung ano job nila) based on sets or kung sino kasama nila",Medyo later update papo ito.
-Data Migration,"A plan for migrating any existing data (spreadsheets, old databases) into the new system.",,
+ID,Area,Requirement,Details,Status,Priority,Owner,TargetDate,LastReviewed,Evidence,Notes
+R-D1,Data,Candidate records,"Personal info, photo, education, work history, skills/certifications, desired salary",In Progress,High,Unassigned,,2026-04-27,"pb_migrations/1774000000_candidates_documents_production_hardening.js","Core profile fields present; continue document normalization"
+R-D2,Data,Employer/company records,"Company, contact details, country, industry, job order history, billing info",In Progress,High,Unassigned,,2026-04-27,"pb_migrations/1774000000_candidates_documents_production_hardening.js","Review optional finance fields"
+R-D3,Data,Job order management,"Description, required skills, salary range, openings, client company ID, status",In Progress,High,Unassigned,,2026-04-27,"docs/requirements/pocketbase-alignment.md","Schema mostly covered; validate UI workflows"
+R-D4,Data,Placement/hiring records,"Candidate and job order links, departure/arrival, fee date/amount, status",In Progress,High,Unassigned,,2026-04-27,"docs/requirements/pocketbase-alignment.md","Needs reporting readiness checks"
+R-D5,Data,Document tracking,"Upload/link candidate docs and employer contracts",In Progress,High,Unassigned,,2026-04-27,"pb_migrations/1774000000_candidates_documents_production_hardening.js","Migrate from legacy fixed file fields to documents collection"
+R-D6,Data,Interview and assessment,"Track interview dates, results, and assessment scores",In Progress,Medium,Unassigned,,2026-04-27,"docs/requirements/pocketbase-alignment.md","Expand scoring/reporting depth"
+R-F1,Functional,Search and filtering,"Search by keywords, skills, salary, title, status, name, dates, employer",In Progress,High,Unassigned,,2026-04-27,"docs/requirements/pocketbase-alignment.md","Optimize indexes and filter UX"
+R-F2,Functional,Matching engine,"Suggest best candidates for job orders based on criteria",Planned,Medium,Unassigned,,2026-04-27,,"Define ranking model and guardrails"
+R-F3,Functional,Reporting and analytics,"Placement rate, time-to-hire, active candidates, client performance, revenue",Planned,High,Unassigned,,2026-04-27,,"Define KPI dashboard and aggregation strategy"
+R-F4,Functional,Status tracking pipeline,"Track candidate progression from applied to placed",In Progress,High,Unassigned,,2026-04-27,"docs/requirements/pocketbase-alignment.md","Align stage names across modules"
+R-F5,Functional,Bulk actions,"Bulk status updates and bulk communication workflows",Planned,Medium,Unassigned,,2026-04-27,,"Implement with audit and rollback safeguards"
+R-F6,Functional,User roles and access,"Administrator, manager, staff permissions by role",In Progress,High,Unassigned,,2026-04-27,"pb_migrations/1772779312_updated_users_roles_staff.js","Finalize per-collection role rules"
+R-C1,Compliance,Data privacy controls,"Consent capture, data access handling, deletion workflow",Planned,High,Unassigned,,2026-04-27,,"Map controls to local policy requirements"
+R-C2,Compliance,Security controls,"Encryption at rest/in transit and strong authentication",In Progress,High,Unassigned,,2026-04-27,"scripts/serve-production.ps1","Continue hardening transport and storage settings"
+R-C3,Compliance,Audit trails,"Log who changed what and when",In Progress,High,Unassigned,,2026-04-27,"pb_hooks/main.pb.js","Validate full event coverage"
+R-C4,Compliance,Backup and recovery,"Regular backups and tested restore process",In Progress,High,Unassigned,,2026-04-27,"scripts/pb-backup.ps1; scripts/pb-restore.ps1","Log drills weekly in restore-drill-log.md"
+R-T1,Technical,Scalability,"Scale from ~5,000 to ~50,000 records",Planned,Medium,Unassigned,,2026-04-27,,"Create indexing and load test plan"
+R-T2,Technical,Reliability and uptime,"Consistent availability during business hours",In Progress,High,Unassigned,,2026-04-27,"scripts/pb-healthcheck.ps1","Define SLA and alert thresholds"
+R-T3,Technical,Ease of use (UI/UX),"Intuitive workflows with low training overhead",In Progress,Medium,Unassigned,,2026-04-27,"skillstrader-frontend/src/components/custom/Login.tsx","Continue flow simplification per role"
+R-T4,Technical,Integrations,"Email, SMS, accounting integrations",Planned,Low,Unassigned,,2026-04-27,,"Discovery and prioritization pending"
+R-T5,Technical,Data migration plan,"Import strategy from spreadsheets or legacy databases",Planned,Medium,Unassigned,,2026-04-27,,"Define mapping and validation rules"

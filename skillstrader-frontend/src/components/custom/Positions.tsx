@@ -13,6 +13,13 @@ interface Position {
   description: string;
 }
 
+type PositionRecord = {
+  id: string;
+  industry?: string;
+  title?: string;
+  description?: string;
+};
+
 const initialForm: Omit<Position, "id"> = {
   industry: "",
   title: "",
@@ -39,7 +46,7 @@ export default function Positions() {
 
   async function fetchPositions() {
     try {
-      const items = await pb.collection('positions').getFullList<Record<string, any>>({
+      const items = await pb.collection('positions').getFullList<PositionRecord>({
         sort: 'industry,title',
         requestKey: null,
       });

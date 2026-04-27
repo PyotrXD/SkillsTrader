@@ -57,9 +57,6 @@ export default function AuditLog() {
     return subscribeAuditLog(() => setLogs(getAuditLogs()));
   }, []);
 
-  // Reset page when filters change
-  useEffect(() => { setPage(1); }, [search, actionFilter, entityFilter, dateFrom, dateTo, perPage]);
-
   const entities = Array.from(new Set(logs.map((l) => l.entity))).sort();
 
   const filtered = logs.filter((l) => {
@@ -117,14 +114,20 @@ export default function AuditLog() {
               <div className="max-w-sm flex-1">
                 <Searchbar
                   value={search}
-                  onChange={setSearch}
+                  onChange={(value) => {
+                    setSearch(value);
+                    setPage(1);
+                  }}
                   placeholder="Search by actor, record name…"
                 />
               </div>
               <div className="min-w-48">
                 <Filter
                   value={actionFilter}
-                  onChange={setActionFilter}
+                  onChange={(value) => {
+                    setActionFilter(value);
+                    setPage(1);
+                  }}
                   options={[
                     { value: '', label: 'All Actions' },
                     ...Object.entries(ACTION_LABELS).map(([v, l]) => ({ value: v, label: l })),
@@ -135,7 +138,10 @@ export default function AuditLog() {
               <div className="min-w-48">
                 <Filter
                   value={entityFilter}
-                  onChange={setEntityFilter}
+                  onChange={(value) => {
+                    setEntityFilter(value);
+                    setPage(1);
+                  }}
                   options={[
                     { value: '', label: 'All Entities' },
                     ...entities.map((e) => ({ value: e, label: e })),
@@ -147,14 +153,20 @@ export default function AuditLog() {
                 <input
                   type="date"
                   value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
+                  onChange={(e) => {
+                    setDateFrom(e.target.value);
+                    setPage(1);
+                  }}
                   className="border border-(--border) rounded-xl px-3 py-2 text-sm text-(--text) bg-white outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
                 />
                 <span className="text-(--muted) text-sm">—</span>
                 <input
                   type="date"
                   value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
+                  onChange={(e) => {
+                    setDateTo(e.target.value);
+                    setPage(1);
+                  }}
                   className="border border-(--border) rounded-xl px-3 py-2 text-sm text-(--text) bg-white outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
                 />
               </div>
@@ -167,6 +179,7 @@ export default function AuditLog() {
                     setEntityFilter('');
                     setDateFrom('');
                     setDateTo('');
+                    setPage(1);
                   }}
                   className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-red-100 text-red-700 font-semibold text-xs hover:bg-red-200 transition-colors"
                 >

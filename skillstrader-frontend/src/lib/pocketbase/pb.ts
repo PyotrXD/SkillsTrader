@@ -22,6 +22,15 @@ export const pocketBaseUrl = resolvePocketBaseUrl();
 export const pb = new PocketBase(pocketBaseUrl);
 const FORCE_LOGOUT_AT_KEY = 'skillstrader:forceLogoutAt';
 
+// If PocketBase returns 401 (server-side token invalidated), clear the local auth
+// store so App.tsx detects the change and redirects the user to /login.
+pb.afterSend = function (response, data) {
+  if (response.status === 401) {
+    pb.authStore.clear();
+  }
+  return data;
+};
+
 export type UserRole = 'administrator' | 'manager' | 'staff';
 
 type AuthRecordLike = {

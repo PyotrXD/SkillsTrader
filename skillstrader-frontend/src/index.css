@@ -62,7 +62,8 @@ button,
 input,
 select,
 textarea {
-  font: inherit;
+  font-size: 14px;
+  font-weight: normal;
 }
 
 :focus-visible {

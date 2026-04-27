@@ -64,8 +64,9 @@ migrate((app) => {
           "police_clearance",
           "offer_letter",
           "dmw_approved_contract",
-          "overseas_employment_contract",
-          "employer_contract",
+          "overseas_employment_certificate",
+          "peos_certificate",
+          "e_registration_file",
           "other"
         ]
       },

@@ -73,7 +73,13 @@ migrate((app) => {
 
   // Revert status values.
   const statusField = collection.fields.getById("select2063623452");
-  statusField.values = ["Applied", "Screening", "For Interview", "Rejected", "For Placement"];
+  statusField.values = [
+    "Applied", 
+    "Screening", 
+    "For Interview", 
+    "Rejected", 
+    "For Placement"
+  ];
 
   // Remove consent fields.
   collection.fields.removeByName("consent_given");

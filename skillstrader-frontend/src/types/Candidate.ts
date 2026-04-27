@@ -1,0 +1,43 @@
+export type CandidateForm = {
+  id?: number | string;
+  last_name: string;
+  first_name: string;
+  middle_name: string;
+  prefix: string;
+  suffix: string;
+  full_name?: string;
+  marital_status: string;
+  home_address: string;
+  permanent_address: string;
+  pagibig_number: string;
+  highest_educ_attainment: string;
+  school_elementary: string;
+  school_junior_high: string;
+  school_senior_high: string;
+  school_college: string;
+  school_other: string;
+  school_other_name?: string;
+  email: string;
+  phone: string;
+  address: string;
+  education: string;
+  work_history: string;
+  skills: string;
+  certifications: string;
+  desired_salary: string;
+  notes: string;
+  position_screened: string;
+  status: string;
+  consent_given: boolean;
+  consent_at: string;
+  consent_source: string;
+  consent_version: string;
+  action_required?: string[];
+  profile_photo?: File | string | null;
+  documents?: Record<string, string | File | null>;
+};
+
+export type ArchivedCandidate = CandidateForm & {
+  archived_at?: string;
+  archived_by?: string;
+};

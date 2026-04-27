@@ -35,6 +35,27 @@ npm run dev
   - `VITE_DEV_HOST=127.0.0.1`
 - Run `npm run setup` again after pulling changes that update `package.json` or `package-lock.json`.
 
+## PocketBase Data Sync Across Devices
+
+This repo is configured to commit the PocketBase data snapshot in `pb_data/`:
+- `pb_data/data.db`
+- `pb_data/auxiliary.db`
+- uploaded files in `pb_data/storage/`
+
+Recommended workflow before committing DB changes:
+1. Stop PocketBase (`Ctrl+C` if running via `npm run dev`).
+2. Stage DB changes: `git add pb_data`
+3. Commit and push.
+
+On another device:
+1. Pull latest changes.
+2. Run `npm ci`.
+3. Start with `npm run dev`.
+
+Important:
+- Treat committed `pb_data/` as sensitive data (it can contain real records and auth-related data).
+- Runtime temp files (`*.db-wal`, `*.db-shm`, `*.db-journal`, `.lock`) remain ignored.
+
 ## Deployment (Production)
 
 ### Portable Release Bundles (Windows + Linux)

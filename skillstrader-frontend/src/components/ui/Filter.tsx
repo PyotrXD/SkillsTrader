@@ -22,7 +22,7 @@ export default function Filter({ value, onChange, options, placeholder = "Filter
         onChange={onChange}
         options={options}
         placeholder={placeholder}
-        className="w-full"
+        className="w-full rounded-md"
       />
     </div>
   );

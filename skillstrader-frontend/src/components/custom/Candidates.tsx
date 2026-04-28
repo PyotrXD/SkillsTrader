@@ -155,7 +155,7 @@ function escapeFilterValue(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 
-const updateMissingDocsFlag = (docs: Record<string, any>, currentFlags: string[]): string[] => {
+const updateMissingDocsFlag = (docs: Record<string, string | File | null>, currentFlags: string[]): string[] => {
   const hasAnyDoc = Object.values(docs).some(val => val !== null && val !== undefined && val !== "");
   
   if (hasAnyDoc) {

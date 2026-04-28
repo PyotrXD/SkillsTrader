@@ -63,7 +63,7 @@ const initialForm: CandidateForm = {
   consent_at: "",
   consent_source: "",
   consent_version: "",
-  action_required: [],
+  action_required: ["Not Interviewed", "Not Scheduled", "Missing Docs"],
   profile_photo: null,
   documents: {},
 };
@@ -122,7 +122,7 @@ type PositionRecord = {
   title?: string;
 };
 
-const availableFlags = ["Not Interviewed", "Not Scheduled", "Docs Missing"];
+const availableFlags = ["Not Interviewed", "Not Scheduled", "Missing Docs"];
 const quickFilters = [
   { key: "not-interviewed", label: "Not Interviewed" },
   { key: "not-scheduled", label: "Not Scheduled" },
@@ -145,13 +145,28 @@ function getCandidateFlags(c: CandidateForm): string[] {
     
   if (c.status === "For final interview") flags.push("Not Scheduled");
   
-  if (!c.consent_given) flags.push("Docs Missing");
+  const hasAnyDocument = Object.values(c.documents ?? {}).some(Boolean);
+  if (!hasAnyDocument) flags.push("Missing Docs");
+  
   return flags;
 }
 
 function escapeFilterValue(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
+
+const updateMissingDocsFlag = (docs: Record<string, any>, currentFlags: string[]): string[] => {
+  const hasAnyDoc = Object.values(docs).some(val => val !== null && val !== undefined && val !== "");
+  
+  if (hasAnyDoc) {
+    return currentFlags.filter(f => f !== "Missing Docs");
+  } else {
+    if (!currentFlags.includes("Missing Docs")) {
+      return [...currentFlags, "Missing Docs"];
+    }
+  }
+  return currentFlags;
+};
 
 function createEmptyDocumentsMap(): Record<string, string | null> {
   const docs: Record<string, string | null> = {};
@@ -254,7 +269,7 @@ export default function Candidates() {
       currentPage += 1;
     }
 
-    const token = await pb.files.getToken();
+    const token = await pb.files.getToken({ requestKey: null });
     const documentsByCandidate: Record<string, Record<string, string | null>> = {};
     for (const id of candidateIds) {
       documentsByCandidate[id] = createEmptyDocumentsMap();
@@ -272,10 +287,11 @@ export default function Candidates() {
 
   async function mapCandidateRecords(items: CandidateRecord[]): Promise<CandidateForm[]> {
     const candidateIds = items.map((item) => item.id);
-    const [documentsByCandidate, photoToken] = await Promise.all([
-      fetchDocumentsByCandidate(candidateIds),
-      pb.files.getToken(),
-    ]);
+
+    if (!pb.authStore.isValid) return [];
+
+    const photoToken = await pb.files.getToken({ requestKey: null });
+    const documentsByCandidate = await fetchDocumentsByCandidate(candidateIds);
 
     return items.map((item) => {
       const status = item.status ?? 'New Applicant';
@@ -325,6 +341,7 @@ export default function Candidates() {
   }
 
   async function fetchCandidatePage(targetPage: number) {
+    if (!pb.authStore.isValid) return;
     setIsListLoading(true);
     try {
       const result = await pb.collection('candidates').getList<CandidateRecord>(targetPage, perPage, {
@@ -368,6 +385,8 @@ export default function Candidates() {
   }
 
   useEffect(() => {
+    if (!pb.authStore.isValid) return;
+
     void fetchCandidatePage(page);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, perPage, search, statusFilter, dateFrom, dateTo, quickFilter, refreshToken]);
@@ -415,13 +434,18 @@ export default function Candidates() {
 
   function handleEdit(candidate: CandidateForm) {
     setEditCandidate(candidate);
+
+    const currentFlags = candidate.action_required?.length 
+      ? candidate.action_required 
+      : getCandidateFlags(candidate);
+    
+    const syncedFlags = updateMissingDocsFlag(candidate.documents || {}, currentFlags);
+
     setForm({
       ...candidate,
       position_screened: candidate.position_screened ?? '',
       notes: candidate.notes ?? '',
-      action_required: candidate.action_required?.length
-        ? candidate.action_required
-        : getCandidateFlags(candidate),
+      action_required: syncedFlags,
     });
     setIsEditModalOpen(true);
     setError("");
@@ -655,7 +679,7 @@ export default function Candidates() {
   const flagBadge: Record<string, string> = {
     "Not Interviewed": "bg-orange-100 text-orange-800",
     "Not Scheduled": "bg-sky-100 text-sky-800",
-    "Docs Missing": "bg-red-100 text-red-800",
+    "Missing Docs": "bg-red-100 text-red-800",
   };
   const [viewTab, setViewTab] = useState<'info' | 'details' | 'documents' | 'notes'>('info');
   const [activeTab, setActiveTab] = useState<'info' | 'details' | 'documents'>('info');
@@ -850,10 +874,14 @@ export default function Candidates() {
       return;
     }
 
-    setForm((prev) => ({
-      ...prev,
-      documents: { ...(prev.documents ?? {}), [key]: file },
-    }));
+    setForm((prev) => {
+      const newDocs = { ...(prev.documents ?? {}), [key]: file };
+      return {
+        ...prev,
+        documents: newDocs,
+        action_required: updateMissingDocsFlag(newDocs, prev.action_required || [])
+      };
+    });
   };
 
   return (
@@ -975,7 +1003,7 @@ export default function Candidates() {
                           <td className="px-4 py-3">
                             <div className="flex flex-wrap gap-1">
                               {Array.isArray(flags) && flags.length > 0 && flags.map((flag) => (
-                                <span key={flag} className={`inline-block px-3 py-0.5 rounded-xl text-sm font-medium ${flagBadge[flag]}`}>{flag}</span>
+                                <span key={flag} className={`inline-block px-4 py-1 rounded-xl text-sm font-medium ${flagBadge[flag]}`}>{flag}</span>
                               ))}
                             </div>
                           </td>
@@ -1122,7 +1150,7 @@ export default function Candidates() {
                 {archivedLoading ? (
                   <div className="py-6 text-center text-(--muted)">Loading archived candidates...</div>
                 ) : archivedCandidates.length === 0 ? (
-                  <div className="py-6 text-center text-(--muted) flex flex-col items-center gap-2">
+                  <div className="py-10 text-center text-(--muted) flex flex-col items-center gap-2">
                     <Icon icon="tabler:archive-off" width="44" height="44" />
                     No archived candidates
                   </div>
@@ -1167,7 +1195,7 @@ export default function Candidates() {
                   />
                 </div>
                 <div className="flex justify-end">
-                  <button type="button" onClick={() => setIsArchiveOpen(false)} className="border border-(--border) bg-white text-(--text) text-sm rounded-md px-4 py-2 font-bold transition-all duration-150 hover:bg-(--surface2) hover:scale-105">Close</button>
+                  <button type="button" onClick={() => setIsArchiveOpen(false)} className="border border-(--border) bg-white text-(--text) mt-3 text-sm rounded-md px-4 py-2 font-bold transition-all duration-150 hover:bg-(--surface2) hover:scale-105">Close</button>
                 </div>
               </div>
             </Modal>
@@ -1347,7 +1375,7 @@ export default function Candidates() {
                     <Icon icon="tabler:archive" width="38" height="38" className="text-red-500" />
                   </div>
                   <p className="text-base font-semibold text-(--text) mb-1">Are you sure you want to <span className="text-red-600 font-bold">archive</span> this candidate?</p>
-                  <p className="text-sm text-(--muted)"><span className="font-bold">{deleteCandidate?.full_name}</span> ({deleteCandidate?.email})</p>
+                  <p className="text-sm text-(--muted)"><span className="font-bold">{deleteCandidate?.full_name}</span></p>
                 </div>
                 <div className="flex justify-end gap-2 mt-2">
                   <button type="button" className="border border-(--border) bg-white text-(--text) rounded-md px-4 py-2 font-bold hover:bg-(--surface2)" onClick={handleCloseDeleteModal} disabled={isSubmitting}>Cancel</button>
@@ -1366,6 +1394,3 @@ export default function Candidates() {
     </div>
   );
 }
-
-
-

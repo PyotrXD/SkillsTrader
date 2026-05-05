@@ -280,7 +280,7 @@ export default function Positions() {
                       >
                         <div className="flex items-center gap-3">
                           <p className="text-sm uppercase font-bold text-(--text)">{industry}</p>
-                          <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-md bg-(--surface2) text-(--muted) text-xs font-semibold border border-(--border)">
+                          <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-md bg-blue-200 text-gray-800 text-xs font-semibold border border-(--border)">
                             {industryPositions.length} {industryPositions.length === 1 ? 'position' : 'positions'}
                           </span>
                         </div>

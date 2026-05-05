@@ -112,26 +112,22 @@ export default function Sidebar({
 
   return (
     <aside
-      className={`bg-white border-r border-[var(--border)] py-5 flex flex-col gap-5 transition-[width] duration-300 sticky top-0 h-screen overflow-y-auto shrink-0 ${
-        isCollapsed ? 'w-[72px] px-2.5' : 'w-[240px] px-4'
+      className={`bg-white border-r border-(--border) py-5 flex flex-col gap-5 transition-[width] duration-300 sticky top-0 h-screen overflow-y-auto shrink-0 ${
+        isCollapsed ? 'w-18 px-2.5' : 'w-60 px-4'
       }`}
     >
       {/* Brand + collapse toggle */}
       <div className={`flex items-center ${isCollapsed ? 'flex-col gap-3 justify-center' : 'justify-between'}`}>
         <Link className="flex items-center gap-2.5 min-w-0 text-inherit no-underline" to="/dashboard">
-          <div
-            className="w-[32px] h-[32px] rounded-xl bg-gradient-to-br from-[var(--primary)] to-[var(--accent)] shadow-[0_8px_18px_rgba(26,23,20,0.13)] shrink-0"
-            aria-hidden="true"
-          />
           {!isCollapsed && (
-            <span className="font-[var(--font-display)] text-[17px] font-bold tracking-[0.2px] truncate">
-              SkillsTrader
-            </span>
+            <h1 className='text-black truncate tracking-widest pl-3 text-base'>
+              <span className='font-bold text-base'>Skills</span>Trader
+            </h1>
           )}
         </Link>
         <button
           type="button"
-          className="w-7 h-7 flex items-center justify-center border border-[var(--border)] rounded-full text-[var(--muted)] hover:bg-[var(--surface2)] transition-colors cursor-pointer bg-transparent shrink-0"
+          className="w-7 h-7 flex items-center justify-center border border-(--border) rounded-full text-(--muted) hover:bg-(--surface2) transition-colors cursor-pointer bg-transparent shrink-0"
           aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           aria-expanded={!isCollapsed}
           onClick={onToggleCollapsed}

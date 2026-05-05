@@ -5,6 +5,7 @@ import Employers from "../components/custom/Employers";
 import JobOrders from "../components/custom/JobOrders";
 import Placements from "../components/custom/Placements";
 import Positions from "../components/custom/Positions";
+import Interviews from "../components/custom/Interviews";
 
 type Option = {
   id: string;
@@ -331,6 +332,9 @@ export const RECORD_ENTITY_ITEMS = (() => {
   return items;
 })();
 
+// Keys that have dedicated custom components which handle their own data fetching.
+const SKIP_INTERNAL_FETCH_KEYS = new Set(['candidates', 'employer', 'job_orders', 'placements', 'interviews']);
+
 function toArrayString(value: unknown): string {
   if (!Array.isArray(value)) return '';
   return value
@@ -421,9 +425,6 @@ export default function RecordsWorkspace({ role, activeKey }: Props) {
   });
 
   const activeConfig = useMemo(() => ENTITIES.find((entity) => entity.key === activeKey) ?? ENTITIES[0], [activeKey]);
-
-  // Keys that have dedicated custom components which handle their own data fetching.
-  const SKIP_INTERNAL_FETCH_KEYS = new Set(['candidates', 'employer', 'job_orders', 'placements']);
 
   useEffect(() => {
     // Don't load relation options when a custom component is active — those components
@@ -686,6 +687,8 @@ export default function RecordsWorkspace({ role, activeKey }: Props) {
         <JobOrders />
       ) : activeKey === 'positions' ? (
         <Positions />
+      ) : activeKey === 'interviews' ? (
+        <Interviews />
       ) : (
         <section className="bg-(--surface) border border-(--border) rounded-[18px] shadow-[0_14px_44px_rgba(26,23,20,0.08),var(--inset)] p-4.5" aria-label="Core records workspace">
           <div className="grid gap-3.5">

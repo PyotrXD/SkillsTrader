@@ -8,6 +8,8 @@ pb_data/.lock
 pb_data/types.d.ts
 backups/
 
+pb_data/*.db
+
 # Node / Frontend build artifacts
 node_modules/
 **/node_modules/

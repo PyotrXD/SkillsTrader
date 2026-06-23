@@ -121,19 +121,19 @@ export default function DashboardMetrics() {
 
   return (
     <section className="grid grid-cols-1 md:grid-cols-3 gap-3" aria-label="Candidate dashboard metrics">
-      <article className="bg-gradient-to-br from-[#fff] to-[#f6f2ed] border border-[var(--border)] rounded-2xl shadow-[0_10px_26px_rgba(26,23,20,0.08)] p-4 grid gap-2">
+      <article className="bg-white border border-[var(--border)] rounded-2xl shadow-[0_10px_26px_rgba(13,27,110,0.06)] p-4 grid gap-2">
         <p className="m-0 text-[var(--muted)] text-[12px] font-bold tracking-[0.04em] uppercase">Candidates not interviewed</p>
-        <p className="m-0 text-[clamp(28px,4vw,34px)] font-extrabold leading-none text-[var(--text)]">{loading ? '...' : metrics.notInterviewed}</p>
+        <p className="m-0 text-[clamp(28px,4vw,34px)] font-extrabold leading-none text-[var(--navy)]">{loading ? '...' : metrics.notInterviewed}</p>
       </article>
 
-      <article className="bg-gradient-to-br from-[#fff] to-[#f6f2ed] border border-[var(--border)] rounded-2xl shadow-[0_10px_26px_rgba(26,23,20,0.08)] p-4 grid gap-2">
+      <article className="bg-white border border-[var(--border)] rounded-2xl shadow-[0_10px_26px_rgba(13,27,110,0.06)] p-4 grid gap-2">
         <p className="m-0 text-[var(--muted)] text-[12px] font-bold tracking-[0.04em] uppercase">Candidates not scheduled</p>
-        <p className="m-0 text-[clamp(28px,4vw,34px)] font-extrabold leading-none text-[var(--text)]">{loading ? '...' : metrics.notScheduled}</p>
+        <p className="m-0 text-[clamp(28px,4vw,34px)] font-extrabold leading-none text-[var(--navy)]">{loading ? '...' : metrics.notScheduled}</p>
       </article>
 
-      <article className="bg-gradient-to-br from-[#fff] to-[#f6f2ed] border border-[var(--border)] rounded-2xl shadow-[0_10px_26px_rgba(26,23,20,0.08)] p-4 grid gap-2">
+      <article className="bg-white border border-[var(--border)] rounded-2xl shadow-[0_10px_26px_rgba(13,27,110,0.06)] p-4 grid gap-2">
         <p className="m-0 text-[var(--muted)] text-[12px] font-bold tracking-[0.04em] uppercase">Candidates with missing documents</p>
-        <p className="m-0 text-[clamp(28px,4vw,34px)] font-extrabold leading-none text-[var(--text)]">{loading ? '...' : metrics.missingDocuments}</p>
+        <p className="m-0 text-[clamp(28px,4vw,34px)] font-extrabold leading-none text-[var(--navy)]">{loading ? '...' : metrics.missingDocuments}</p>
       </article>
 
       {error ? <p className="m-0 text-[#9f2d20] text-[13px]">{error}</p> : null}

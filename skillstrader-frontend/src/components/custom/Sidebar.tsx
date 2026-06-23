@@ -50,6 +50,15 @@ const ENTITY_ICONS: Record<string, ReactElement> = {
   ),
 };
 
+const DASHBOARD_ICON = (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="3" y="3" width="7" height="9" rx="1" />
+    <rect x="14" y="3" width="7" height="5" rx="1" />
+    <rect x="14" y="12" width="7" height="9" rx="1" />
+    <rect x="3" y="16" width="7" height="5" rx="1" />
+  </svg>
+);
+
 const USERS_ICON = (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -83,11 +92,11 @@ const AUDIT_LOG_ICON = (
 );
 
 const NAV_BASE =
-  'flex items-center gap-2.5 rounded-xl text-[13px] font-semibold cursor-pointer transition-colors border';
+  'flex items-center gap-2.5 rounded-lg text-[13px] font-semibold cursor-pointer transition-colors border';
 const NAV_ACTIVE =
-  'bg-gradient-to-br from-[var(--primary)] to-[var(--primary2)] border-transparent text-white shadow-[0_4px_12px_rgba(200,75,49,0.2)]';
+  'bg-gradient-to-r from-[var(--primary)] to-[var(--primary2)] border-transparent text-white shadow-[0_4px_12px_rgba(238,114,3,0.25)]';
 const NAV_IDLE =
-  'border-transparent bg-transparent text-[var(--text)] hover:bg-[var(--surface2)]';
+  'border-transparent bg-transparent text-[var(--navy2)] hover:bg-[var(--surface2)]';
 
 export default function Sidebar({
   activeKey,
@@ -120,7 +129,7 @@ export default function Sidebar({
       <div className={`flex items-center ${isCollapsed ? 'flex-col gap-3 justify-center' : 'justify-between'}`}>
         <Link className="flex items-center gap-2.5 min-w-0 text-inherit no-underline" to="/dashboard">
           {!isCollapsed && (
-            <h1 className='text-black truncate tracking-widest pl-3 text-base'>
+            <h1 className='text-[var(--navy)] truncate tracking-widest pl-3 text-base'>
               <span className='font-bold text-base'>Skills</span>Trader
             </h1>
           )}
@@ -138,6 +147,17 @@ export default function Sidebar({
 
       {/* Flat nav list */}
       <nav className="grid gap-1" aria-label="Main navigation">
+        {/* Dashboard — always first */}
+        <button
+          type="button"
+          title={isCollapsed ? 'Dashboard' : undefined}
+          className={`${NAV_BASE} ${sizeClass} ${activeKey === 'dashboard' && !onUsersPage ? NAV_ACTIVE : NAV_IDLE}`}
+          onClick={() => onSelect('dashboard')}
+        >
+          <span className="shrink-0">{DASHBOARD_ICON}</span>
+          {!isCollapsed && <span>Dashboard</span>}
+        </button>
+
         {/* Users — Admin & Manager only, listed first */}
         {showUsers && (
           <button

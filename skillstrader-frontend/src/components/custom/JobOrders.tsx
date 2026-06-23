@@ -240,20 +240,29 @@ export default function JobOrders() {
                         <td className="px-4 py-3 font-semibold text-(--text)">{j.title || ''}</td>
                         <td className="px-4 py-3 font-semibold text-(--text)">{j.openings ?? 0}</td>
                         <td className="px-4 py-3 text-(--text) font-semibold">{employer?.company_name ?? '—'}</td>
-                        <td className="px-4 py-3 font-semibold text-(--text)">{j.status}</td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold ${
+                              j.status === 'Open'
+                                ? 'bg-[#e3f6e9] text-[#1d9a4a]'
+                                : j.status === 'Filled'
+                                ? 'bg-[#fff4e6] text-[var(--primary)]'
+                                : 'bg-[var(--surface2)] text-[var(--muted)]'
+                            }`}
+                          >
+                            {j.status}
+                          </span>
+                        </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1.5">
-                            <button type="button" title="View" onClick={() => handleView(j)} className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-(--surface2) text-(--text) font-semibold text-xs hover:bg-(--border) transition-colors">
+                            <button type="button" title="View" aria-label="View" onClick={() => handleView(j)} className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--navy)] text-white hover:brightness-110 transition-all">
                               <Icon icon="tabler:eye" width="15" height="15" />
-                              View
                             </button>
-                            <button type="button" title="Edit" onClick={() => handleEdit(j)} className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-blue-100 text-blue-700 font-semibold text-xs hover:bg-blue-200 transition-colors">
+                            <button type="button" title="Edit" aria-label="Edit" onClick={() => handleEdit(j)} className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--navy2)] text-white hover:brightness-110 transition-all">
                               <Icon icon="tabler:edit" width="15" height="15" />
-                              Edit
                             </button>
-                            <button type="button" title="Delete" onClick={() => handleDelete(j)} className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-red-100 text-red-700 font-semibold text-xs hover:bg-red-200 transition-colors">
+                            <button type="button" title="Delete" aria-label="Delete" onClick={() => handleDelete(j)} className="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 text-red-700 hover:bg-red-200 transition-colors">
                               <Icon icon="tabler:trash" width="15" height="15" />
-                              Delete
                             </button>
                           </div>
                         </td>

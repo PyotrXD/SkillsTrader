@@ -61,7 +61,11 @@ export default function Navbar({ role, email }: NavbarProps) {
 
   return (
     <>
-      <header className="sticky top-0 z-10 flex items-center justify-between gap-4 px-6 py-4 border-b border-[var(--border)] bg-white backdrop-blur-md">
+      <div className="sticky top-0 z-20 flex items-center justify-center px-6 py-2.5 bg-gradient-to-r from-[var(--navy)] to-[var(--navy2)]">
+        <span className="text-white font-bold tracking-wide text-[15px]">SkillsTrader</span>
+      </div>
+
+      <header className="sticky top-[42px] z-10 flex items-center justify-between gap-4 px-6 py-3 border-b border-[var(--border)] bg-white backdrop-blur-md">
         <div />
 
         <div className="relative flex items-center gap-2.5 shrink-0" ref={menuRef}>

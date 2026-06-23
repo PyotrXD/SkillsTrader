@@ -4,21 +4,23 @@
 
 
 :root {
-  --bg: #ffffff;
-  --surface: #faf9f7;
-  --surface2: #f2efe9;
-  --text: #1a1714;
-  --muted: #7a7570;
-  --border: rgba(26, 23, 20, 0.1);
-  --primary: #c84b31;
-  --primary2: #e05a3a;
-  --primary3: #fff0ed;
-  --accent: #2c6e49;
-  --shadow: 0 32px 80px rgba(26, 23, 20, 0.13);
+  --bg: #f3f4f6;
+  --surface: #ffffff;
+  --surface2: #eef1f8;
+  --text: #1c2331;
+  --muted: #6b7280;
+  --border: rgba(20, 30, 60, 0.1);
+  --primary: #ee7203;
+  --primary2: #f7941d;
+  --primary3: #fff4e6;
+  --navy: #0d1b6e;
+  --navy2: #15247a;
+  --accent: #1d9a4a;
+  --shadow: 0 24px 60px rgba(13, 27, 110, 0.1);
   --inset: inset 0 1px 0 rgba(255, 255, 255, 0.65);
-  --font-display: 'Playfair Display', Georgia, serif;
+  --font-display: 'Montserrat', system-ui, sans-serif;
   --font-body: 'DM Sans', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-  --radius: 20px;
+  --radius: 14px;
   --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   --font-montserrat: 'Montserrat', sans-serif;
 
@@ -67,7 +69,7 @@ textarea {
 }
 
 :focus-visible {
-  outline: 3px solid rgba(200, 75, 49, 0.35);
+  outline: 3px solid rgba(238, 114, 3, 0.35);
   outline-offset: 2px;
 }
 

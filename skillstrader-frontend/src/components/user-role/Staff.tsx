@@ -9,7 +9,7 @@ export default function Staff() {
   const email = pb.authStore.record?.email ?? 'your account';
   const location = useLocation();
   const [activeKey, setActiveKey] = useState<string>(
-    (location.state as { activeKey?: string } | null)?.activeKey ?? 'candidates'
+    (location.state as { activeKey?: string } | null)?.activeKey ?? 'dashboard'
   );
   const [isMenuCollapsed, setIsMenuCollapsed] = useState(false);
 
@@ -28,7 +28,7 @@ export default function Staff() {
 
         <div className="w-full mx-auto px-5 py-6 md:p-6 sm:p-3">
           <main className="grid gap-5">
-            <RecordsWorkspace role="staff" activeKey={activeKey} />
+            <RecordsWorkspace role="staff" activeKey={activeKey} onNavigate={setActiveKey} />
           </main>
         </div>
       </div>

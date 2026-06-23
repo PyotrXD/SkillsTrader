@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getPocketBaseUiError, pb, type UserRole } from '../lib/pocketbase/pb';
+import DashboardHome from './DashboardHome';
 import Candidates from "../components/custom/Candidates";
 import Employers from "../components/custom/Employers";
 import JobOrders from "../components/custom/JobOrders";
@@ -70,6 +71,7 @@ type PbRecord = {
 type Props = {
   role: UserRole;
   activeKey: string;
+  onNavigate?: (key: string) => void;
 };
 
 const candidateStatuses = [
@@ -398,7 +400,7 @@ async function loadRelationOptions(): Promise<RelationOptions> {
   };
 }
 
-export default function RecordsWorkspace({ role, activeKey }: Props) {
+export default function RecordsWorkspace({ role, activeKey, onNavigate }: Props) {
   const canDelete = role !== 'staff';
   const [records, setRecords] = useState<PbRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -677,7 +679,9 @@ export default function RecordsWorkspace({ role, activeKey }: Props) {
 
   return (
     <>
-      {activeKey === 'candidates' ? (
+      {activeKey === 'dashboard' ? (
+        <DashboardHome email={pb.authStore.record?.email ?? 'your account'} onNavigate={onNavigate} />
+      ) : activeKey === 'candidates' ? (
         <Candidates />
       ) : activeKey === 'employer' ? (
         <Employers />

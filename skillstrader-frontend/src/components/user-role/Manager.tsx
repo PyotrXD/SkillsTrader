@@ -10,7 +10,7 @@ export default function Manager() {
   const email = pb.authStore.record?.email ?? 'your account';
   const location = useLocation();
   const [activeKey, setActiveKey] = useState<string>(
-    (location.state as { activeKey?: string } | null)?.activeKey ?? 'candidates'
+    (location.state as { activeKey?: string } | null)?.activeKey ?? 'dashboard'
   );
   const [isMenuCollapsed, setIsMenuCollapsed] = useState(false);
 
@@ -32,7 +32,7 @@ export default function Manager() {
             {activeKey === 'users' ? (
               <UsersPanel />
             ) : (
-              <RecordsWorkspace role="manager" activeKey={activeKey} />
+              <RecordsWorkspace role="manager" activeKey={activeKey} onNavigate={setActiveKey} />
             )}
           </main>
         </div>

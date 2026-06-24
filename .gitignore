@@ -16,6 +16,9 @@ dist/
 .env.*.local
 !.env.example
 
+# Deployment instructions (public repo – keep secrets out)
+docs/operations/deployment-cloudpanel.md
+
 # General
 .DS_Store
 Thumbs.db

@@ -50,30 +50,7 @@ export default function DashboardHome({ email, onNavigate }: Props) {
 
   return (
     <div className="grid gap-5">
-      {/* Refresh reminder banner */}
-      {!bannerDismissed && (
-        <div className="relative bg-gradient-to-r from-[var(--navy)] to-[var(--navy2)] rounded-2xl px-6 py-5 text-center text-white">
-          <button
-            type="button"
-            aria-label="Dismiss"
-            onClick={() => setBannerDismissed(true)}
-            className="absolute top-3 right-3 text-white/70 hover:text-white bg-transparent border-none cursor-pointer"
-          >
-            <Icon icon="tabler:x" width="18" height="18" />
-          </button>
-          <p className="m-0 text-[14px] font-medium">
-            Don't let your job posts get buried! Bump to the top or extend duration with a quick refresh.
-          </p>
-          <button
-            type="button"
-            onClick={() => onNavigate?.('job_orders')}
-            className="mt-3 inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[var(--primary)] to-[var(--primary2)] text-white font-bold text-[13px] px-5 py-2.5 cursor-pointer border-none hover:brightness-105 transition-all"
-          >
-            Refresh Now
-          </button>
-        </div>
-      )}
-
+      
       {/* Welcome header */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="m-0 text-[20px] font-bold text-[var(--navy)]">
@@ -141,7 +118,7 @@ export default function DashboardHome({ email, onNavigate }: Props) {
             className="flex items-center gap-2.5 border border-[var(--border)] bg-white rounded-xl px-4 py-3 text-[13px] font-semibold text-[var(--navy2)] cursor-pointer hover:bg-[var(--surface2)] transition-colors"
           >
             <Icon icon="tabler:building" width="18" height="18" className="text-[var(--primary)]" />
-            View Employer Inquiries
+            View Employers
           </button>
           <button
             type="button"

@@ -17,11 +17,6 @@ type Placement = {
   status: 'Pending' | 'Confirmed' | 'Started' | 'Completed' | 'Cancelled';
   departure_date?: string;
   arrival_date?: string;
-  placement_date?: string;
-  placement_fee_date?: string;
-  placement_fee_amount?: number;
-  agency?: string;
-  agency_fee_amount?: number;
 };
 
 type CandidateOption = {
@@ -40,11 +35,6 @@ const initialForm: Placement = {
   status: 'Pending',
   departure_date: '',
   arrival_date: '',
-  placement_date: '',
-  placement_fee_date: '',
-  placement_fee_amount: 0,
-  agency: '',
-  agency_fee_amount: 0,
 };
 
 export default function Placements() {
@@ -87,8 +77,7 @@ export default function Placements() {
       const job = jobOrders.find((j) => String(j.id) === String(p.job_order_id));
       return (
         String(candidate?.full_name ?? '').toLowerCase().includes(q) ||
-        String(job?.title ?? '').toLowerCase().includes(q) ||
-        String(p.agency ?? '').toLowerCase().includes(q)
+        String(job?.title ?? '').toLowerCase().includes(q)
       );
     });
   }, [placements, search, statusFilter, candidates, jobOrders]);
@@ -238,18 +227,13 @@ export default function Placements() {
                   <th className="px-4 py-3 font-bold text-(--muted)">Job Order</th>
                   <th className="px-4 py-3 font-bold text-(--muted)">Departure</th>
                   <th className="px-4 py-3 font-bold text-(--muted)">Arrival</th>
-                  <th className="px-4 py-3 font-bold text-(--muted)">Placement Date</th>
-                  <th className="px-4 py-3 font-bold text-(--muted)">Placement Fee Date</th>
-                  <th className="px-4 py-3 font-bold text-(--muted)">Placement Fee Amount</th>
-                  <th className="px-4 py-3 font-bold text-(--muted)">Agency</th>
-                  <th className="px-4 py-3 font-bold text-(--muted)">Agency Fee Amount</th>
                   <th className="px-4 py-3 font-bold text-(--muted) rounded-tr-xl">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {paged.length === 0 ? (
                   <tr>
-                    <td colSpan={12} className="py-14 text-center text-(--muted)">
+                    <td colSpan={7} className="py-14 text-center text-(--muted)">
                       <div className="flex flex-col items-center gap-2">
                         <Icon icon="tabler:list" width="44" height="44" className="text-(--muted) mb-1" />
                         <span className="text-base font-semibold">No placements found</span>
@@ -269,11 +253,6 @@ export default function Placements() {
                         <td className="px-4 py-3 font-semibold text-(--text)">{job?.title ?? '-'}</td>
                         <td className="px-4 py-3 font-semibold text-(--text)">{p.departure_date || '-'}</td>
                         <td className="px-4 py-3 font-semibold text-(--text)">{p.arrival_date || '-'}</td>
-                        <td className="px-4 py-3 font-semibold text-(--text)">{p.placement_date || '-'}</td>
-                        <td className="px-4 py-3 font-semibold text-(--text)">{p.placement_fee_date || '-'}</td>
-                        <td className="px-4 py-3 font-semibold text-(--text)">{p.placement_fee_amount ?? '-'}</td>
-                        <td className="px-4 py-3 font-semibold text-(--text)">{p.agency || '-'}</td>
-                        <td className="px-4 py-3 font-semibold text-(--text)">{p.agency_fee_amount ?? '-'}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1.5">
                             <button type="button" title="View" onClick={() => handleView(p)} className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-(--surface2) text-(--text) font-semibold text-xs hover:bg-(--border) transition-colors">
@@ -361,47 +340,6 @@ export default function Placements() {
             </label>
           </div>
 
-          <label className="grid gap-1">
-            <span className="text-[12px] text-(--muted) font-bold">Placement date</span>
-            <input 
-              required 
-              type="date" 
-              value={form.placement_date ?? ''} 
-              onChange={(e) => setForm((prev) => ({ ...prev, placement_date: e.target.value }))} 
-              className="w-full border border-(--border) rounded-xl px-2.5 py-2.5 focus-visible:ring-2 focus-visible:ring-(--primary) " />
-          </label>
-
-          <div className="grid grid-cols-2 gap-2">
-            <label className="grid gap-1">
-              <span className="text-[12px] text-(--muted) font-bold">Placement fee date</span>
-              <input 
-                required 
-                type="date" 
-                value={form.placement_fee_date ?? ''} 
-                onChange={(e) => setForm((prev) => ({ ...prev, placement_fee_date: e.target.value }))} 
-                className="w-full border border-(--border) rounded-xl px-2.5 py-2.5 focus-visible:ring-2 focus-visible:ring-(--primary) " />
-            </label>
-            <label className="grid gap-1">
-              <span className="text-[12px] text-(--muted) font-bold">Placement fee amount</span>
-              <input 
-                required 
-                type="number" 
-                value={String(form.placement_fee_amount ?? 0)} 
-                onChange={(e) => setForm((prev) => ({ ...prev, placement_fee_amount: Number(e.target.value) }))} 
-                className="w-full border border-(--border) rounded-xl px-2.5 py-2.5 focus-visible:ring-2 focus-visible:ring-(--primary) " />
-            </label>
-          </div>
-
-          <label className="grid gap-1">
-            <span className="text-[12px] text-(--muted) font-bold">Agency</span>
-            <input required value={form.agency ?? ''} onChange={(e) => setForm((prev) => ({ ...prev, agency: e.target.value }))} className="w-full border border-(--border) rounded-xl px-2.5 py-2.5 focus-visible:ring-2 focus-visible:ring-(--primary) " />
-          </label>
-
-          <label className="grid gap-1">
-            <span className="text-[12px] text-(--muted) font-bold">Agency fee amount</span>
-            <input required type="number" value={String(form.agency_fee_amount ?? 0)} onChange={(e) => setForm((prev) => ({ ...prev, agency_fee_amount: Number(e.target.value) }))} className="w-full border border-(--border) rounded-xl px-2.5 py-2.5 focus-visible:ring-2 focus-visible:ring-(--primary) " />
-          </label>
-
           <div className="flex items-center justify-end gap-2 mt-2">
             <button type="button" onClick={isModalOpen ? handleCloseModal : handleCloseEdit} className="border border-(--border) bg-(--surface) text-(--text) rounded-full px-3.5 py-2.5 text-[13px] font-bold cursor-pointer transition-all duration-150 hover:brightness-105 hover:scale-105 active:translate-y-px active:filter-none inline-flex items-center justify-center no-underline">Cancel</button>
             <button type="submit" disabled={isSubmitting} className="border-none text-white bg-linear-to-br from-(--primary) to-(--primary2) shadow-[0_8px_26px_rgba(200,75,49,0.18)] rounded-full px-3.5 py-2.5 text-[13px] font-bold cursor-pointer transition-all duration-150 hover:brightness-105 hover:scale-105 active:translate-y-px active:filter-none inline-flex items-center justify-center no-underline disabled:opacity-70">{isSubmitting ? (isModalOpen ? 'Adding...' : 'Saving...') : (isModalOpen ? 'Add Placement' : 'Save changes')}</button>
@@ -433,26 +371,6 @@ export default function Placements() {
             <div>
               <dt className="text-xs text-(--muted) font-bold">Arrival date</dt>
               <dd className="mt-1 text-sm font-medium">{viewPlacement.arrival_date || '-'}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-(--muted) font-bold">Placement date</dt>
-              <dd className="mt-1 text-sm font-medium">{viewPlacement.placement_date || '-'}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-(--muted) font-bold">Placement fee date</dt>
-              <dd className="mt-1 text-sm font-medium">{viewPlacement.placement_fee_date || '-'}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-(--muted) font-bold">Placement fee amount</dt>
-              <dd className="mt-1 text-sm font-medium">{viewPlacement.placement_fee_amount ?? '-'}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-(--muted) font-bold">Agency</dt>
-              <dd className="mt-1 text-sm font-medium">{viewPlacement.agency || '-'}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-(--muted) font-bold">Agency fee amount</dt>
-              <dd className="mt-1 text-sm font-medium">{viewPlacement.agency_fee_amount ?? '-'}</dd>
             </div>
           </dl>
         ) : null}

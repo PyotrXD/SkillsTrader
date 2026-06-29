@@ -98,6 +98,7 @@ export default function Placements() {
     setIsModalOpen(true);
     setError('');
   }
+
   function handleCloseModal() {
     setIsModalOpen(false);
     setError('');
@@ -109,6 +110,7 @@ export default function Placements() {
     setIsEditModalOpen(true);
     setError('');
   }
+
   function handleCloseEdit() {
     setIsEditModalOpen(false);
     setEditPlacement(null);
@@ -119,6 +121,7 @@ export default function Placements() {
   function handleView(p: Placement) {
     setViewPlacement(p);
   }
+
   function handleCloseView() {
     setViewPlacement(null);
   }
@@ -127,6 +130,7 @@ export default function Placements() {
     setDeletePlacement(p);
     setIsDeleteModalOpen(true);
   }
+
   function handleCloseDelete() {
     setDeletePlacement(null);
     setIsDeleteModalOpen(false);
@@ -193,22 +197,51 @@ export default function Placements() {
               <h1 className="text-2xl text-(--text) font-bold">Placements</h1>
               <p className="text-(--muted) text-xs font-medium">Manage placed candidates and related details.</p>
             </div>
-            <button type="button" className="ml-auto border-none text-white bg-linear-to-br from-(--primary) to-(--primary2) rounded-full px-4 py-2 font-bold transition-all duration-150 hover:brightness-110 hover:scale-105" onClick={handleOpenModal}>+ New Placement</button>
+            <button
+              type="button"
+              className="ml-auto border-none text-white bg-linear-to-br from-(--primary) to-(--primary2) rounded-full px-4 py-2 font-bold transition-all duration-150 hover:brightness-110 hover:scale-105"
+              onClick={handleOpenModal}
+            >
+              + New Placement
+            </button>
           </div>
 
           <div className="flex gap-2.5 items-center flex-wrap md:flex-nowrap" aria-label="Search and filters">
             <div className="flex items-center gap-1 w-full md:w-auto">
               <div className="w-full md:w-80">
-                <Searchbar value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search candidates or job orders" />
+                <Searchbar
+                  value={search}
+                  onChange={(v) => {
+                    setSearch(v);
+                    setPage(1);
+                  }}
+                  placeholder="Search candidates or job orders"
+                />
               </div>
 
               <div className="w-44 ml-2 flex-shrink-0">
-                <Filter value={statusFilter} onChange={(v) => { setStatusFilter(v); setPage(1); }} options={[{ value: "", label: "Any status" }, ...placementStatuses.map((s) => ({ value: s, label: s }))]} placeholder="Filter by status" />
+                <Filter
+                  value={statusFilter}
+                  onChange={(v) => {
+                    setStatusFilter(v);
+                    setPage(1);
+                  }}
+                  options={[{ value: "", label: "Any status" }, ...placementStatuses.map((s) => ({ value: s, label: s }))]}
+                  placeholder="Filter by status"
+                />
               </div>
 
               {(search || statusFilter) && (
                 <div className="ml-2 flex-shrink-0">
-                  <button type="button" onClick={() => { setSearch(''); setStatusFilter(''); setPage(1); }} className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-[var(--accent)]/20 text-[var(--accent)] font-semibold text-xs hover:bg-[var(--accent)]/30 transition-colors">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch('');
+                      setStatusFilter('');
+                      setPage(1);
+                    }}
+                    className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-[var(--accent)]/20 text-[var(--accent)] font-semibold text-xs hover:bg-[var(--accent)]/30 transition-colors"
+                  >
                     <Icon icon="tabler:x" width="18" height="18" />
                     Clear Filter
                   </button>
@@ -255,15 +288,30 @@ export default function Placements() {
                         <td className="px-4 py-3 font-semibold text-(--text)">{p.arrival_date || '-'}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1.5">
-                            <button type="button" title="View" onClick={() => handleView(p)} className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-(--surface2) text-(--text) font-semibold text-xs hover:bg-(--border) transition-colors">
+                            <button
+                              type="button"
+                              title="View"
+                              onClick={() => handleView(p)}
+                              className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-(--surface2) text-(--text) font-semibold text-xs hover:bg-(--border) transition-colors"
+                            >
                               <Icon icon="tabler:eye" width="15" height="15" />
                               View
                             </button>
-                            <button type="button" title="Edit" onClick={() => handleEdit(p)} className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-blue-100 text-blue-700 font-semibold text-xs hover:bg-blue-200 transition-colors">
+                            <button
+                              type="button"
+                              title="Edit"
+                              onClick={() => handleEdit(p)}
+                              className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-blue-100 text-blue-700 font-semibold text-xs hover:bg-blue-200 transition-colors"
+                            >
                               <Icon icon="tabler:edit" width="15" height="15" />
                               Edit
                             </button>
-                            <button type="button" title="Delete" onClick={() => handleDelete(p)} className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-[var(--accent)]/20 text-[var(--accent)] font-semibold text-xs hover:bg-[var(--accent)]/30 transition-colors">
+                            <button
+                              type="button"
+                              title="Delete"
+                              onClick={() => handleDelete(p)}
+                              className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-[var(--accent)]/20 text-[var(--accent)] font-semibold text-xs hover:bg-[var(--accent)]/30 transition-colors"
+                            >
                               <Icon icon="tabler:trash" width="15" height="15" />
                               Delete
                             </button>
@@ -280,11 +328,24 @@ export default function Placements() {
       </section>
 
       <div className="mt-2 w-full">
-        <Pagination page={page} totalPages={totalPages} onPageChange={(p) => setPage(p)} perPage={perPage} onPerPageChange={(n) => { setPerPage(n); setPage(1); }} />
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          onPageChange={(p) => setPage(p)}
+          perPage={perPage}
+          onPerPageChange={(n) => {
+            setPerPage(n);
+            setPage(1);
+          }}
+        />
       </div>
 
       {/* Add / Edit modal */}
-      <Modal open={isModalOpen || isEditModalOpen} onClose={isModalOpen ? handleCloseModal : handleCloseEdit} title={isModalOpen ? "New Placement" : "Edit Placement"}>
+      <Modal
+        open={isModalOpen || isEditModalOpen}
+        onClose={isModalOpen ? handleCloseModal : handleCloseEdit}
+        title={isModalOpen ? "New Placement" : "Edit Placement"}
+      >
         <form onSubmit={isModalOpen ? onSubmit : onEditSubmit} className="grid gap-3">
           <label className="grid gap-1">
             <span className="text-[12px] text-(--muted) font-bold">Candidate</span>
@@ -292,7 +353,10 @@ export default function Placements() {
               required
               value={String(form.candidate_id ?? "")}
               onChange={(v) => setForm((prev) => ({ ...prev, candidate_id: v }))}
-              options={[{ value: "", label: "Select candidate..." }, ...candidates.map((c) => ({ value: String(c.id), label: c.full_name }))]}
+              options={[
+                { value: "", label: "Select candidate..." },
+                ...candidates.map((c) => ({ value: String(c.id), label: c.full_name })),
+              ]}
               placeholder="Select candidate..."
             />
           </label>
@@ -303,7 +367,10 @@ export default function Placements() {
               required
               value={String(form.job_order_id ?? "")}
               onChange={(v) => setForm((prev) => ({ ...prev, job_order_id: v }))}
-              options={[{ value: "", label: "Select job order..." }, ...jobOrders.map((j) => ({ value: String(j.id), label: j.title }))]}
+              options={[
+                { value: "", label: "Select job order..." },
+                ...jobOrders.map((j) => ({ value: String(j.id), label: j.title })),
+              ]}
               placeholder="Select job order..."
             />
           </label>
@@ -322,27 +389,41 @@ export default function Placements() {
           <div className="grid grid-cols-2 gap-2">
             <label className="grid gap-1">
               <span className="text-[12px] text-(--muted) font-bold">Departure date</span>
-              <input 
-                required 
-                type="date" 
-                value={form.departure_date ?? ''} 
-                onChange={(e) => setForm((prev) => ({ ...prev, departure_date: e.target.value }))} 
-                className="w-full border border-(--border) rounded-xl px-2.5 py-2.5 focus-visible:ring-2 focus-visible:ring-(--primary) " />
+              <input
+                required
+                type="date"
+                value={form.departure_date ?? ''}
+                onChange={(e) => setForm((prev) => ({ ...prev, departure_date: e.target.value }))}
+                className="w-full border border-(--border) rounded-xl px-2.5 py-2.5 focus-visible:ring-2 focus-visible:ring-(--primary)"
+              />
             </label>
             <label className="grid gap-1">
               <span className="text-[12px] text-(--muted) font-bold">Arrival date</span>
-              <input 
-                required 
-                type="date" 
-                value={form.arrival_date ?? ''} 
-                onChange={(e) => setForm((prev) => ({ ...prev, arrival_date: e.target.value }))} 
-                className="w-full border border-(--border) rounded-xl px-2.5 py-2.5 focus-visible:ring-2 focus-visible:ring-(--primary) " />
+              <input
+                required
+                type="date"
+                value={form.arrival_date ?? ''}
+                onChange={(e) => setForm((prev) => ({ ...prev, arrival_date: e.target.value }))}
+                className="w-full border border-(--border) rounded-xl px-2.5 py-2.5 focus-visible:ring-2 focus-visible:ring-(--primary)"
+              />
             </label>
           </div>
 
           <div className="flex items-center justify-end gap-2 mt-2">
-            <button type="button" onClick={isModalOpen ? handleCloseModal : handleCloseEdit} className="border border-(--border) bg-(--surface) text-(--text) rounded-full px-3.5 py-2.5 text-[13px] font-bold cursor-pointer transition-all duration-150 hover:brightness-105 hover:scale-105 active:translate-y-px active:filter-none inline-flex items-center justify-center no-underline">Cancel</button>
-            <button type="submit" disabled={isSubmitting} className="border-none text-white bg-linear-to-br from-(--primary) to-(--primary2) shadow-[0_8px_26px_rgba(200,75,49,0.18)] rounded-full px-3.5 py-2.5 text-[13px] font-bold cursor-pointer transition-all duration-150 hover:brightness-105 hover:scale-105 active:translate-y-px active:filter-none inline-flex items-center justify-center no-underline disabled:opacity-70">{isSubmitting ? (isModalOpen ? 'Adding...' : 'Saving...') : (isModalOpen ? 'Add Placement' : 'Save changes')}</button>
+            <button
+              type="button"
+              onClick={isModalOpen ? handleCloseModal : handleCloseEdit}
+              className="border border-(--border) bg-(--surface) text-(--text) rounded-full px-3.5 py-2.5 text-[13px] font-bold cursor-pointer transition-all duration-150 hover:brightness-105 hover:scale-105 active:translate-y-px active:filter-none inline-flex items-center justify-center no-underline"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="border-none text-white bg-linear-to-br from-(--primary) to-(--primary2) shadow-[0_8px_26px_rgba(200,75,49,0.18)] rounded-full px-3.5 py-2.5 text-[13px] font-bold cursor-pointer transition-all duration-150 hover:brightness-105 hover:scale-105 active:translate-y-px active:filter-none inline-flex items-center justify-center no-underline disabled:opacity-70"
+            >
+              {isSubmitting ? (isModalOpen ? 'Adding...' : 'Saving...') : (isModalOpen ? 'Add Placement' : 'Save changes')}
+            </button>
           </div>
           {error ? <div className="text-[var(--accent)]">{error}</div> : null}
         </form>
@@ -354,15 +435,19 @@ export default function Placements() {
           <dl className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <dt className="text-xs text-(--muted) font-bold">Candidate</dt>
-              <dd className="mt-1 text-sm font-medium ">{(candidates.find((c) => String(c.id) === String(viewPlacement.candidate_id))?.full_name) ?? '-'}</dd>
+              <dd className="mt-1 text-sm font-medium">
+                {(candidates.find((c) => String(c.id) === String(viewPlacement.candidate_id))?.full_name) ?? '-'}
+              </dd>
             </div>
             <div>
               <dt className="text-xs text-(--muted) font-bold">Status</dt>
-              <dd className="mt-1 text-sm font-medium ">{viewPlacement.status}</dd>
+              <dd className="mt-1 text-sm font-medium">{viewPlacement.status}</dd>
             </div>
             <div>
               <dt className="text-xs text-(--muted) font-bold">Job order</dt>
-              <dd className="mt-1 text-sm font-medium">{(jobOrders.find((j) => String(j.id) === String(viewPlacement.job_order_id))?.title) ?? '-'}</dd>
+              <dd className="mt-1 text-sm font-medium">
+                {(jobOrders.find((j) => String(j.id) === String(viewPlacement.job_order_id))?.title) ?? '-'}
+              </dd>
             </div>
             <div>
               <dt className="text-xs text-(--muted) font-bold">Departure date</dt>
@@ -381,8 +466,22 @@ export default function Placements() {
         <div className="grid gap-3">
           <p>Are you sure you want to delete this placement?</p>
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={handleCloseDelete} className="border border-(--border) bg-white text-(--text) rounded-full px-4 py-2 font-bold transition-all duration-150 hover:bg-(--surface2) hover:scale-105" disabled={isSubmitting}>Cancel</button>
-            <button type="button" onClick={onDeleteSubmit} className="border-none text-white bg-linear-to-br from-red-500 to-red-700 rounded-full px-4 py-2 font-bold transition-all duration-150 hover:brightness-110 hover:scale-105 shadow-md shadow-red-200" disabled={isSubmitting}>{isSubmitting ? 'Deleting...' : 'Delete'}</button>
+            <button
+              type="button"
+              onClick={handleCloseDelete}
+              className="border border-(--border) bg-white text-(--text) rounded-full px-4 py-2 font-bold transition-all duration-150 hover:bg-(--surface2) hover:scale-105"
+              disabled={isSubmitting}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onDeleteSubmit}
+              className="border-none text-white bg-linear-to-br from-[var(--accent)] to-[var(--accent)] rounded-full px-4 py-2 font-bold transition-all duration-150 hover:brightness-110 hover:scale-105 shadow-[0_4px_16px_rgba(220,53,69,0.25)]"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Deleting...' : 'Delete'}
+            </button>
           </div>
         </div>
       </Modal>

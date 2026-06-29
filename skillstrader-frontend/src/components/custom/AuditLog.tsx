@@ -22,10 +22,10 @@ const ACTION_LABELS: Record<AuditAction, string> = {
 
 const ACTION_BADGE: Record<AuditAction, string> = {
   view: 'bg-gray-100 text-gray-600',
-  create: 'bg-green-100 text-green-700',
+  create: 'bg-yellow-100 text-yellow-700',
   update: 'bg-blue-100 text-blue-700',
   archive: 'bg-red-100 text-red-700',
-  restore: 'bg-purple-100 text-purple-700',
+  restore: 'bg-yellow-100 text-yellow-700',
 };
 
 function formatDate(iso: string): string {
@@ -102,7 +102,7 @@ export default function AuditLog() {
               <button
                 type="button"
                 onClick={handleClear}
-                className="ml-auto flex items-center gap-1.5 border border-red-200 bg-red-50 text-red-700 rounded-xl px-4 py-2 font-bold text-sm transition hover:bg-red-100"
+                className="ml-auto flex items-center gap-1.5 border border-[var(--accent)]/30 bg-[var(--accent)]/10 text-[var(--accent)] rounded-xl px-4 py-2 font-bold text-sm transition hover:bg-[var(--accent)]/20"
               >
                 <Icon icon="tabler:trash" width="15" height="15" />
                 Clear Logs
@@ -157,7 +157,7 @@ export default function AuditLog() {
                     setDateFrom(e.target.value);
                     setPage(1);
                   }}
-                  className="border border-(--border) rounded-xl px-3 py-2 text-sm text-(--text) bg-white outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
+                  className="border border-(--border) rounded-xl px-3 py-2 text-sm text-(--text) bg-white outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
                 />
                 <span className="text-(--muted) text-sm">—</span>
                 <input
@@ -167,7 +167,7 @@ export default function AuditLog() {
                     setDateTo(e.target.value);
                     setPage(1);
                   }}
-                  className="border border-(--border) rounded-xl px-3 py-2 text-sm text-(--text) bg-white outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
+                  className="border border-(--border) rounded-xl px-3 py-2 text-sm text-(--text) bg-white outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
                 />
               </div>
               {(search || actionFilter || entityFilter || dateFrom || dateTo) && (
@@ -181,7 +181,7 @@ export default function AuditLog() {
                     setDateTo('');
                     setPage(1);
                   }}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-red-100 text-red-700 font-semibold text-xs hover:bg-red-200 transition-colors"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[var(--accent)]/20 text-[var(--accent)] font-semibold text-xs hover:bg-[var(--accent)]/30 transition-colors"
                 >
                   <Icon icon="tabler:x" width="14" height="14" />
                   Clear Filter
@@ -273,11 +273,11 @@ export default function AuditLog() {
       <Modal open={isClearModalOpen} onClose={() => setIsClearModalOpen(false)} title="Clear Audit Logs">
         <div className="flex flex-col gap-6">
           <div className="flex flex-col items-center text-center">
-            <div className="w-16 h-16 flex items-center justify-center rounded-full bg-red-100 mb-3">
-              <Icon icon="tabler:trash" width="38" height="38" className="text-red-500" />
+            <div className="w-16 h-16 flex items-center justify-center rounded-full bg-[var(--accent)]/20 mb-3">
+              <Icon icon="tabler:trash" width="38" height="38" className="text-[var(--accent)]" />
             </div>
             <p className="text-base font-semibold text-(--text) mb-1">
-              Are you sure you want to <span className="text-red-600 font-bold">clear all</span> audit logs?
+              Are you sure you want to <span className="text-[var(--accent)] font-bold">clear all</span> audit logs?
             </p>
             <p className="text-sm text-(--muted)">This action cannot be undone.</p>
           </div>
@@ -291,7 +291,7 @@ export default function AuditLog() {
             </button>
             <button
               type="button"
-              className="border-none text-white bg-linear-to-br from-red-500 to-red-700 rounded-xl px-4 py-2 font-bold transition-all duration-150 hover:brightness-110 hover:scale-105 shadow-md shadow-red-200"
+              className="border-none text-white bg-linear-to-br from-[var(--accent)] to-red-700 rounded-xl px-4 py-2 font-bold transition-all duration-150 hover:brightness-110 hover:scale-105 shadow-md shadow-[var(--accent)]/30"
               onClick={confirmClear}
             >
               Clear All

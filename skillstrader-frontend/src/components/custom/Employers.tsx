@@ -211,7 +211,7 @@ export default function Employers() {
                     setSearch("");
                     setPage(1);
                   }}
-                  className="px-4 py-1.5 flex items-center gap-1 rounded-full bg-red-100 text-red-700 font-semibold text-sm hover:bg-red-200 transition-colors"
+                  className="px-4 py-1.5 flex items-center gap-1 rounded-full bg-[var(--accent)]/20 text-[var(--accent)] font-semibold text-sm hover:bg-[var(--accent)]/30 transition-colors"
                 >
                   <Icon icon="tabler:x" width="18" height="18" />
                   Clear Filter
@@ -270,7 +270,7 @@ export default function Employers() {
                             <Icon icon="tabler:edit" width="15" height="15" />
                             Edit
                           </button>
-                          <button type="button" title="Delete" onClick={() => handleDelete(emp)} className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-red-100 text-red-700 font-semibold text-xs hover:bg-red-200 transition-colors">
+                          <button type="button" title="Delete" onClick={() => handleDelete(emp)} className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-[var(--accent)]/20 text-[var(--accent)] font-semibold text-xs hover:bg-[var(--accent)]/30 transition-colors">
                             <Icon icon="tabler:trash" width="15" height="15" />
                             Delete
                           </button>
@@ -282,8 +282,6 @@ export default function Employers() {
               </tbody>
             </table>
           </div>
-
-          {/* pagination moved below section */}
 
           {/* Add / Edit modal */}
           <Modal open={isModalOpen || isEditModalOpen} onClose={isModalOpen ? handleCloseModal : handleCloseEditModal} title={isModalOpen ? "Add Employer" : "Edit Employer"}>
@@ -366,7 +364,7 @@ export default function Employers() {
               <p>Are you sure you want to delete <strong>{deleteEmployer?.company_name}</strong>?</p>
               <div className="flex justify-end gap-2">
                 <button type="button" onClick={handleCloseDeleteModal} className="border border-(--border) bg-white text-(--text) rounded-full px-4 py-2 font-bold transition-all duration-150 hover:bg-(--surface2) hover:scale-105" disabled={isSubmitting}>Cancel</button>
-                <button type="button" onClick={onDeleteSubmit} className="border-none text-white bg-linear-to-br from-red-500 to-red-700 rounded-full px-4 py-2 font-bold transition-all duration-150 hover:brightness-110 hover:scale-105 shadow-md shadow-red-200" disabled={isSubmitting}>{isSubmitting ? 'Deleting...' : 'Delete'}</button>
+                <button type="button" onClick={onDeleteSubmit} className="border-none text-white bg-linear-to-br from-[var(--accent)] to-[var(--accent)] rounded-full px-4 py-2 font-bold transition-all duration-150 hover:brightness-110 hover:scale-105 shadow-[0_4px_16px_rgba(220,53,69,0.25)]" disabled={isSubmitting}>{isSubmitting ? 'Deleting...' : 'Delete'}</button>
               </div>
             </div>
           </Modal>

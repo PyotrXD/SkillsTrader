@@ -74,12 +74,12 @@ const initialForm: CandidateForm = {
   documents: {},
 };
 
-// Flag display badges
+// Flag display badges — updated for yellow-blue-red theme
 const flagBadge: Record<string, string> = {
-  "Not Interviewed": "bg-orange-100 text-orange-800",
-  "Not Scheduled": "bg-sky-100 text-sky-800",
-  "Missing Docs": "bg-red-100 text-red-800",
-  Completed: "bg-green-100 text-green-800",
+  "Not Interviewed": "bg-yellow-100 text-yellow-800",
+  "Not Scheduled": "bg-yellow-100 text-yellow-800",
+  "Missing Docs": "bg-[var(--accent)]/20 text-[var(--accent)]",
+  Completed: "bg-blue-100 text-blue-700",
 };
 
 const quickFilters = [
@@ -285,7 +285,6 @@ export default function Candidates() {
 
   function handleStatusChange(newStatus: string) {
     if (!editCandidate) {
-      // Add modal — walang existing data, set lang directly
       setForm((f) => ({ ...f, status: newStatus }));
       return;
     }
@@ -337,8 +336,6 @@ export default function Candidates() {
     if (dateFrom) conditions.push(`consent_at >= "${dateFrom}"`);
     if (dateTo) conditions.push(`consent_at <= "${dateTo}"`);
 
-    // Quick filters: not-interviewed and not-scheduled exclude terminal statuses
-    // missing-docs is handled client-side after documents are fetched
     if (quickFilter === "not-interviewed") {
       conditions.push(
         `(status != "Deployed" && status != "Rejected" && status != "Unfit to work")`,
@@ -403,10 +400,6 @@ export default function Candidates() {
     return documentsByCandidate;
   }
 
-  /**
-   * Fetch the latest interview record for each candidate in a single batch query.
-   * Returns a map of candidateId → InterviewSummary (or null if none exists).
-   */
   async function fetchInterviewsByCandidates(
     candidateIds: string[],
   ): Promise<Record<string, InterviewSummary | null>> {
@@ -420,7 +413,6 @@ export default function Candidates() {
         .map((id) => `candidate = "${escapeFilterValue(id)}"`)
         .join(" || ");
 
-      // Fetch all interviews for these candidates in one query, sorted newest first
       const result = await pb.collection("interviews").getList<{
         id: string;
         candidate?: string;
@@ -432,10 +424,9 @@ export default function Candidates() {
         requestKey: null,
       });
 
-      // Keep only the first (latest) interview per candidate
       for (const item of result.items) {
         if (!item.candidate) continue;
-        if (interviewMap[item.candidate] !== null) continue; // already have one
+        if (interviewMap[item.candidate] !== null) continue;
         interviewMap[item.candidate] = {
           interview_date: item.interview_date ?? null,
           result: item.result ?? null,
@@ -456,7 +447,6 @@ export default function Candidates() {
     const candidateIds = items.map((item) => item.id);
     const photoToken = await pb.files.getToken({ requestKey: null });
 
-    // Fetch documents and interviews in parallel
     const [documentsByCandidate, interviewsByCandidate] = await Promise.all([
       fetchDocumentsByCandidate(candidateIds),
       fetchInterviewsByCandidates(candidateIds),
@@ -468,7 +458,6 @@ export default function Candidates() {
         documentsByCandidate[item.id] ?? createEmptyDocumentsMap();
       const interview = interviewsByCandidate[item.id] ?? null;
 
-      // Compute flags fresh — never rely on stored action_required
       const computedFlags = computeCandidateFlags(
         { status, documents },
         interview,
@@ -508,7 +497,6 @@ export default function Candidates() {
         consent_at: item.consent_at ?? "",
         consent_source: item.consent_source ?? "",
         consent_version: item.consent_version ?? "",
-        // Store computed flags on the form object for rendering
         computed_flags: computedFlags,
         is_archived: item.is_archived ?? false,
         archived_at: item.archived_at ?? "",
@@ -535,8 +523,6 @@ export default function Candidates() {
 
       let mapped = await mapCandidateRecords(result.items);
 
-      // Client-side quick filter for missing-docs and fine-grained flag filters
-      // (PocketBase can't query computed flags in related collections)
       if (quickFilter === "missing-docs") {
         mapped = mapped.filter((c) =>
           (c.computed_flags ?? []).includes("Missing Docs"),
@@ -640,15 +626,11 @@ export default function Candidates() {
     };
   }, []);
 
-  // ─── Feedback ─────────────────────────────────────────────────────────────
-
   function showFeedback(type: "success" | "error" | "info", message: string) {
     setToastType(type);
     setSuccess(message);
     setShowToast(true);
   }
-
-  // ─── Modal handlers ───────────────────────────────────────────────────────
 
   function handleOpenModal() {
     setForm(initialForm);
@@ -679,10 +661,12 @@ export default function Candidates() {
     setEditCandidate(null);
     setError("");
   }
+
   function handleDelete(candidate: CandidateForm) {
     setDeleteCandidate(candidate);
     setIsDeleteModalOpen(true);
   }
+
   function handleCloseDeleteModal() {
     setIsDeleteModalOpen(false);
     setDeleteCandidate(null);
@@ -704,8 +688,6 @@ export default function Candidates() {
     setViewCandidate(null);
   }
 
-  // ─── Submit handlers ──────────────────────────────────────────────────────
-
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setIsSubmitting(true);
@@ -718,7 +700,6 @@ export default function Candidates() {
         form.full_name ||
         "Unknown";
 
-      // action_required is NOT sent — it's always computed from data
       const payload: Record<string, unknown> = {
         last_name: form.last_name,
         first_name: form.first_name,
@@ -789,7 +770,6 @@ export default function Candidates() {
     setIsSubmitting(true);
     setError("");
 
-    // action_required removed from change detection — it's computed, not stored
     const changed = hasChanges(editCandidate!, form, [
       "last_name",
       "first_name",
@@ -835,7 +815,6 @@ export default function Candidates() {
         form.full_name ||
         "Unknown";
 
-      // action_required is NOT sent — computed from data
       const payload: Record<string, unknown> = {
         last_name: form.last_name,
         first_name: form.first_name,
@@ -937,8 +916,6 @@ export default function Candidates() {
     }
   }
 
-  // ─── Document helpers ─────────────────────────────────────────────────────
-
   async function createDocumentsForCandidate(
     candidateId: string,
     documents: Record<string, string | File | null>,
@@ -990,8 +967,6 @@ export default function Candidates() {
     await createDocumentsForCandidate(candidateId, newDocuments);
   }
 
-  // ─── File input handlers ──────────────────────────────────────────────────
-
   const handleProfilePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1035,8 +1010,6 @@ export default function Candidates() {
       documents: { ...(prev.documents ?? {}), [key]: file },
     }));
   };
-
-  // ─── Download helpers ─────────────────────────────────────────────────────
 
   const profileUrl = useMemo(() => {
     if (!viewCandidate) return defaultProfile;
@@ -1150,24 +1123,21 @@ export default function Candidates() {
     setIsArchiveOpen(true);
   }
 
-  // ─── Badge maps ───────────────────────────────────────────────────────────
-
+  // Status badges — updated for new theme
   const statusBadge: Record<string, string> = {
     "New Applicant": "bg-gray-100 text-gray-700",
     "Lined-Up": "bg-blue-100 text-blue-700",
-    "For final interview": "bg-indigo-100 text-indigo-700",
+    "For final interview": "bg-yellow-100 text-yellow-700",
     "For medical": "bg-purple-100 text-purple-700",
     "Fit to work": "bg-green-100 text-green-700",
-    "Unfit to work": "bg-red-100 text-red-700",
+    "Unfit to work": "bg-[var(--accent)]/20 text-[var(--accent)]",
     "Pending medical": "bg-orange-100 text-orange-700",
     "For deployment": "bg-sky-100 text-sky-700",
     "Visa Arrived": "bg-emerald-100 text-emerald-700",
     "Awaiting Visa": "bg-amber-100 text-amber-700",
     Deployed: "bg-teal-100 text-teal-700",
-    Rejected: "bg-rose-100 text-rose-700",
+    Rejected: "bg-[var(--accent)]/20 text-[var(--accent)]",
   };
-
-  // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
     <div className="flex-1 flex flex-col min-w-0">
@@ -1182,7 +1152,6 @@ export default function Candidates() {
               />
             )}
 
-            {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <div>
                 <h1 className="text-2xl text-(--text) font-bold">Candidates</h1>
@@ -1209,7 +1178,6 @@ export default function Candidates() {
               </div>
             </div>
 
-            {/* Search & Status Filter */}
             <div className="flex flex-wrap gap-3 items-end">
               <div className="max-w-sm flex-1">
                 <Searchbar
@@ -1239,7 +1207,6 @@ export default function Candidates() {
               </div>
             </div>
 
-            {/* Quick filter pills */}
             <div className="flex flex-wrap gap-2">
               {quickFilters.map((qf) => (
                 <button
@@ -1273,7 +1240,7 @@ export default function Candidates() {
                     setSearch("");
                     setPage(1);
                   }}
-                  className="px-4 py-1.5 flex items-center gap-1 rounded-md bg-red-100 text-red-700 font-semibold text-xs hover:bg-red-200 transition-colors"
+                  className="px-4 py-1.5 flex items-center gap-1 rounded-md bg-[var(--accent)]/20 text-[var(--accent)] font-semibold text-xs hover:bg-[var(--accent)]/30 transition-colors"
                 >
                   <Icon icon="tabler:x" width="15" height="15" />
                   Clear Filter
@@ -1281,7 +1248,6 @@ export default function Candidates() {
               )}
             </div>
 
-            {/* Table */}
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm text-left">
                 <thead>
@@ -1417,7 +1383,7 @@ export default function Candidates() {
                                       e.stopPropagation();
                                       handleDelete(c);
                                     }}
-                                    className="px-3 py-1.5 flex items-center gap-1 rounded-md bg-red-100 text-red-700 font-semibold text-sm hover:bg-red-200 transition-colors"
+                                    className="px-3 py-1.5 flex items-center gap-1 rounded-md bg-[var(--accent)]/20 text-[var(--accent)] font-semibold text-sm hover:bg-[var(--accent)]/30 transition-colors"
                                   >
                                     <Icon
                                       icon="tabler:archive"
@@ -1438,1123 +1404,21 @@ export default function Candidates() {
               </table>
             </div>
 
-            {/* View Modal */}
-            <Modal
-              open={!!viewCandidate}
-              onClose={handleCloseViewModal}
-              title="Candidate Details"
-            >
-              {viewCandidate && (
-                <div>
-                  <div className="flex items-center justify-between gap-3 mb-6">
-                    <div className="inline-flex items-center gap-1 p-1 bg-(--surface2) rounded-md">
-                      {(["info", "details", "documents", "notes"] as const).map(
-                        (tab) => (
-                          <button
-                            key={tab}
-                            type="button"
-                            onClick={() => setViewTab(tab)}
-                            className={`px-3 py-1 rounded-md text-sm font-semibold transition ${viewTab === tab ? "bg-white text-(--primary) border border-(--border) shadow-sm" : "text-(--muted) hover:bg-(--surface3)"}`}
-                          >
-                            {tab === "info"
-                              ? "Informations"
-                              : tab === "details"
-                                ? "Work Details"
-                                : tab === "documents"
-                                  ? "Documents"
-                                  : "Notes"}
-                          </button>
-                        ),
-                      )}
-                    </div>
-                    {viewTab === "info" && (
-                      <button
-                        type="button"
-                        onClick={handleDownloadPdf}
-                        className="px-4 py-1.5 rounded-md bg-(--primary) flex items-center gap-1.5 text-white text-base font-semibold hover:brightness-95"
-                      >
-                        <Icon
-                          icon="mynaui:download-solid"
-                          width="20"
-                          height="20"
-                        />
-                        Download PDF
-                      </button>
-                    )}
-                  </div>
-
-                  {viewTab === "info" ? (
-                    <div
-                      ref={printRef}
-                      className="grid grid-cols-1 md:grid-cols-3 gap-3"
-                    >
-                      <div className="col-span-1 md:col-span-3 flex flex-col items-center gap-2 mb-2">
-                        <img
-                          src={profileUrl}
-                          alt="profile"
-                          className="w-24 h-24 rounded-full object-cover border border-(--border)"
-                        />
-                      </div>
-                      {(
-                        [
-                          ["Last Name", viewCandidate.last_name],
-                          ["First Name", viewCandidate.first_name],
-                          ["Middle Name", viewCandidate.middle_name],
-                          ["Email", viewCandidate.email],
-                          ["Home Address", viewCandidate.home_address],
-                          [
-                            "Permanent Address",
-                            viewCandidate.permanent_address,
-                          ],
-                          ["Suffix", viewCandidate.suffix],
-                          ["Prefix", viewCandidate.prefix],
-                          ["Phone Number", viewCandidate.phone],
-                        ] as [string, string][]
-                      ).map(([label, val]) => (
-                        <div key={label} className="grid gap-1">
-                          <span className="text-sm font-bold text-(--muted)">
-                            {label}
-                          </span>
-                          <p className="text-sm text-(--text) border border-(--border) rounded-md px-2.75 py-2.5 bg-(--surface2)">
-                            {val || (
-                              <span className="text-(--muted) italic">
-                                No data available
-                              </span>
-                            )}
-                          </p>
-                        </div>
-                      ))}
-                      <div className="col-span-1 md:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {(
-                          [
-                            ["Marital Status", viewCandidate.marital_status],
-                            ["Status", viewCandidate.status],
-                          ] as [string, string][]
-                        ).map(([label, val]) => (
-                          <div key={label} className="grid gap-1">
-                            <span className="text-sm font-bold text-(--muted)">
-                              {label}
-                            </span>
-                            <p className="text-sm text-(--text) border border-(--border) rounded-md px-2.75 py-2.5 bg-(--surface2)">
-                              {val || (
-                                <span className="text-(--muted) italic">
-                                  No data available
-                                </span>
-                              )}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Action Required — display-only, system generated */}
-                      <div className="col-span-1 md:col-span-3 grid gap-1.5">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold text-(--muted)">
-                            Action Required
-                          </span>
-                          <span className="text-xs text-(--muted) italic font-normal">
-                            System generated
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap gap-2 pt-0.5">
-                          {(viewCandidate.computed_flags ?? []).length > 0 ? (
-                            (viewCandidate.computed_flags ?? []).map((flag) => (
-                              <span
-                                key={flag}
-                                className={`inline-flex items-center px-3.5 py-1.5 rounded-md text-sm font-medium border ${flagBadge[flag] ? flagBadge[flag] + " border-transparent" : "bg-white text-(--text) border-(--border)"}`}
-                              >
-                                {flag}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-sm text-(--muted) italic">
-                              No flags
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ) : viewTab === "details" ? (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      {(
-                        [
-                          ["Work History", viewCandidate.work_history],
-                          ["Certifications", viewCandidate.certifications],
-                          ["Desired Salary", viewCandidate.desired_salary],
-                          ["Position", viewCandidate.position_screened],
-                        ] as [string, string][]
-                      ).map(([label, val]) => (
-                        <div key={label} className="grid gap-1">
-                          <span className="text-sm font-bold text-(--muted)">
-                            {label}
-                          </span>
-                          <p className="text-sm text-(--text) border border-(--border) rounded-md px-2.75 py-2.5 bg-(--surface2)">
-                            {val || (
-                              <span className="text-(--muted) italic">
-                                No data available
-                              </span>
-                            )}
-                          </p>
-                        </div>
-                      ))}
-                      <div className="col-span-1 md:col-span-2 grid gap-1">
-                        <span className="text-sm font-bold text-(--muted)">
-                          Skills
-                        </span>
-                        <p className="text-sm text-(--text) border border-(--border) rounded-md px-2.75 py-2.5 bg-(--surface2)">
-                          {viewCandidate.skills || (
-                            <span className="text-(--muted) italic">
-                              No data available
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                      <div className="grid gap-1">
-                        <span className="text-sm font-bold text-(--muted)">
-                          Pag-Ibig Number
-                        </span>
-                        <p className="text-sm text-(--text) border border-(--border) rounded-md px-2.75 py-2.5 bg-(--surface2)">
-                          {viewCandidate.pagibig_number || (
-                            <span className="text-(--muted) italic">
-                              No data available
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                      <div className="col-span-1 md:col-span-2 grid gap-1">
-                        <span className="text-sm font-bold text-(--muted)">
-                          Highest Educational Attainment
-                        </span>
-                        <p className="text-sm text-(--text) border border-(--border) rounded-md px-2.75 py-2.5 bg-(--surface2)">
-                          {viewCandidate.highest_educ_attainment || (
-                            <span className="text-(--muted) italic">
-                              No data available
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                      {(
-                        [
-                          [
-                            "Elementary School",
-                            viewCandidate.school_elementary,
-                          ],
-                          [
-                            "Junior High School",
-                            viewCandidate.school_junior_high,
-                          ],
-                          [
-                            "Senior High School",
-                            viewCandidate.school_senior_high,
-                          ],
-                          ["College", viewCandidate.school_college],
-                        ] as [string, string][]
-                      ).map(([label, val]) => (
-                        <div key={label} className="grid gap-1">
-                          <span className="text-sm font-bold text-(--muted)">
-                            {label}
-                          </span>
-                          <p className="text-sm text-(--text) border border-(--border) rounded-md px-2.75 py-2.5 bg-(--surface2)">
-                            {val || (
-                              <span className="text-(--muted) italic">
-                                No data available
-                              </span>
-                            )}
-                          </p>
-                        </div>
-                      ))}
-                      <div className="col-span-1 md:col-span-2 grid gap-1">
-                        <span className="text-sm font-bold text-(--muted)">
-                          Other School / Training Center
-                        </span>
-                        <p className="text-sm text-(--text) border border-(--border) rounded-md px-2.75 py-2.5 bg-(--surface2)">
-                          {viewCandidate.school_other_name ||
-                            viewCandidate.school_other || (
-                              <span className="text-(--muted) italic">
-                                No data available
-                              </span>
-                            )}
-                        </p>
-                      </div>
-                    </div>
-                  ) : viewTab === "documents" ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                      {documentTypes.map(([key, label]) => (
-                        <div
-                          key={key}
-                          className="p-3 border border-(--border) rounded-md bg-white"
-                        >
-                          <div className="text-sm font-bold text-(--muted) mb-2">
-                            {label}
-                          </div>
-                          {viewCandidate.documents?.[key] ? (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleDocumentDownload(
-                                  key,
-                                  viewCandidate.documents![key] as
-                                    | File
-                                    | string,
-                                )
-                              }
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-(--border) rounded-xl bg-white text-xs font-semibold text-(--primary) cursor-pointer hover:bg-(--surface2) transition-colors"
-                            >
-                              <Icon
-                                icon="tabler:download"
-                                width="14"
-                                height="14"
-                              />
-                              {typeof viewCandidate.documents[key] === "string"
-                                ? "Download File"
-                                : (viewCandidate.documents[key] as File).name}
-                            </button>
-                          ) : (
-                            <span className="text-sm text-(--muted) flex items-center gap-1.5">
-                              <Icon
-                                icon="teenyicons:file-no-access-outline"
-                                width="20"
-                                height="20"
-                              />
-                              No file uploaded
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="grid gap-3 text-sm">
-                      <label className="grid gap-2">
-                        <span className="text-sm font-bold text-(--muted)">
-                          Notes
-                        </span>
-                        <textarea
-                          className="w-full min-h-44 border border-(--border) bg-white text-(--text) rounded-md px-3 py-2.5 text-sm outline-none"
-                          value={viewCandidate.notes ?? ""}
-                          placeholder="No notes added."
-                          readOnly
-                        />
-                      </label>
-                    </div>
-                  )}
-                </div>
-              )}
-            </Modal>
-
-            {/* Archive Modal */}
-            <Modal
-              open={isArchiveOpen}
-              onClose={() => setIsArchiveOpen(false)}
-              title="Archived Candidates"
-            >
-              <div className="grid gap-3 text-sm">
-                {archivedLoading ? (
-                  <div className="py-6 text-center text-(--muted)">
-                    Loading archived candidates...
-                  </div>
-                ) : archivedCandidates.length === 0 ? (
-                  <div className="py-10 text-center text-(--muted) flex flex-col items-center gap-2">
-                    <Icon icon="tabler:archive-off" width="44" height="44" />
-                    No archived candidates
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full text-sm text-left">
-                      <thead>
-                        <tr className="bg-(--surface2)">
-                          <th className="px-4 py-2 font-bold text-(--muted)">
-                            Full name
-                          </th>
-                          <th className="px-4 py-2 font-bold text-(--muted)">
-                            Email
-                          </th>
-                          <th className="px-4 py-2 font-bold text-(--muted)">
-                            Archived At
-                          </th>
-                          <th className="px-4 py-2 font-bold text-(--muted)">
-                            Actions
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {archivedCandidates.map((ac) => (
-                          <tr
-                            key={ac.id}
-                            className="border-b border-(--border)"
-                          >
-                            <td className="px-4 py-2 font-semibold">
-                              {ac.full_name || "—"}
-                            </td>
-                            <td className="px-4 py-2">{ac.email || "—"}</td>
-                            <td className="px-4 py-2">
-                              {ac.archived_at
-                                ? new Date(ac.archived_at).toLocaleString()
-                                : "—"}
-                            </td>
-                            <td className="px-4 py-2">
-                              {canRestoreArchived && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleRestore(ac)}
-                                  className="cursor-pointer px-3 py-1.5 rounded-xl bg-green-100 text-green-700 text-xs font-semibold"
-                                >
-                                  Restore
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-                {archivedCandidates.length > 0 && !archivedLoading && (
-                  <div className="flex justify-end">
-                    <Pagination
-                      page={archivedPage}
-                      totalPages={archivedTotalPages}
-                      onPageChange={setArchivedPage}
-                      perPage={perPage}
-                      onPerPageChange={(value) => {
-                        setPerPage(value);
-                        setArchivedPage(1);
-                      }}
-                    />
-                  </div>
-                )}
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setIsArchiveOpen(false)}
-                    className="border border-(--border) bg-white text-(--text) mt-3 text-sm rounded-md px-4 py-2 font-bold transition-all duration-150 hover:bg-(--surface2) hover:scale-105"
-                  >
-                    Close
-                  </button>
-                </div>
+            {pagedCandidates.length > 0 && !isListLoading && (
+              <div className="mt-2 w-full">
+                <Pagination
+                  page={page}
+                  totalPages={totalPages}
+                  onPageChange={setPage}
+                  perPage={perPage}
+                  onPerPageChange={(v) => {
+                    setPerPage(v);
+                    setPage(1);
+                  }}
+                />
               </div>
-            </Modal>
-
-            {/* Add / Edit Modal */}
-            <Modal
-              open={isModalOpen || isEditModalOpen}
-              onClose={isModalOpen ? handleCloseModal : handleCloseEditModal}
-              title={isModalOpen ? "Add Candidate" : "Edit Candidate"}
-            >
-              <form
-                className="grid grid-cols-1 md:grid-cols-2 gap-2.5"
-                onSubmit={isModalOpen ? onSubmit : onEditSubmit}
-              >
-                <div className="col-span-2 mb-4">
-                  <div className="inline-flex items-center gap-1 p-1 bg-(--surface2) rounded-md">
-                    {(["info", "details", "documents"] as const).map((tab) => (
-                      <button
-                        key={tab}
-                        type="button"
-                        onClick={() => setActiveTab(tab)}
-                        className={`px-3 py-1 rounded-md text-sm font-semibold transition ${activeTab === tab ? "bg-white text-(--primary) border border-(--border) shadow-sm" : "text-(--muted) hover:bg-(--surface3)"}`}
-                      >
-                        {tab === "info"
-                          ? "Informations"
-                          : tab === "details"
-                            ? "Work Details"
-                            : "Documents"}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {activeTab === "info" ? (
-                  <>
-                    <div className="col-span-2 flex flex-col items-center gap-3 mb-2">
-                      <img
-                        src={formProfilePreviewUrl ?? defaultProfile}
-                        alt="Profile preview"
-                        className="w-24 h-24 rounded-full object-cover border border-(--border)"
-                      />
-                      <label className="inline-flex items-center gap-2 px-3 py-2 border border-(--border) rounded-md bg-white text-sm text-(--text) cursor-pointer hover:bg-(--surface2) transition-colors">
-                        <Icon icon="tabler:camera" width="16" height="16" />
-                        <span className="font-medium">
-                          Upload Profile Photo
-                        </span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={handleProfilePhotoChange}
-                        />
-                      </label>
-                    </div>
-                    <div className="col-span-2 grid grid-cols-1 md:grid-cols-3 gap-2 w-full">
-                      <label className="grid gap-1.25">
-                        <span className="text-sm text-(--muted) font-bold">
-                          Last Name
-                        </span>
-                        <input
-                          className="border border-(--border) rounded-md px-2.75 py-2.5 text-sm"
-                          placeholder="e.g., Dela Cruz"
-                          value={form.last_name}
-                          onChange={(e) =>
-                            setForm((f) => ({
-                              ...f,
-                              last_name: e.target.value,
-                            }))
-                          }
-                          required
-                        />
-                      </label>
-                      <label className="grid gap-1.25">
-                        <span className="text-sm text-(--muted) font-bold">
-                          First Name
-                        </span>
-                        <input
-                          className="border border-(--border) rounded-md px-2.75 py-2.5 text-sm"
-                          placeholder="e.g., Juan"
-                          value={form.first_name}
-                          onChange={(e) =>
-                            setForm((f) => ({
-                              ...f,
-                              first_name: e.target.value,
-                            }))
-                          }
-                          required
-                        />
-                      </label>
-                      <label className="grid gap-1.25">
-                        <span className="text-sm text-(--muted) font-bold">
-                          Middle Name
-                        </span>
-                        <input
-                          className="border border-(--border) rounded-md px-2.75 py-2.5 text-sm"
-                          placeholder="e.g., Santos"
-                          value={form.middle_name}
-                          onChange={(e) =>
-                            setForm((f) => ({
-                              ...f,
-                              middle_name: e.target.value,
-                            }))
-                          }
-                        />
-                      </label>
-                      <label className="grid gap-1.25">
-                        <span className="text-sm text-(--muted) font-bold">
-                          Email
-                        </span>
-                        <input
-                          className="w-full border border-(--border) bg-white text-(--text) rounded-md px-2.75 py-2.5 text-sm outline-none"
-                          type="email"
-                          value={form.email}
-                          onChange={(e) =>
-                            setForm((f) => ({ ...f, email: e.target.value }))
-                          }
-                          placeholder="e.g., juan@example.com"
-                        />
-                      </label>
-                      <label className="grid gap-1.25">
-                        <span className="text-sm text-(--muted) font-bold">
-                          Home Address
-                        </span>
-                        <input
-                          className="w-full border border-(--border) bg-white text-(--text) rounded-md px-2.75 py-2.5 text-sm outline-none"
-                          placeholder="123 Brgy. Example"
-                          value={form.home_address}
-                          onChange={(e) =>
-                            setForm((f) => ({
-                              ...f,
-                              home_address: e.target.value,
-                            }))
-                          }
-                        />
-                      </label>
-                      <label className="grid gap-1.25">
-                        <span className="text-sm text-(--muted) font-bold">
-                          Permanent Address
-                        </span>
-                        <input
-                          className="w-full border border-(--border) bg-white text-(--text) rounded-md px-2.75 py-2.5 text-sm outline-none"
-                          placeholder="123 Brgy. Example"
-                          value={form.permanent_address}
-                          onChange={(e) =>
-                            setForm((f) => ({
-                              ...f,
-                              permanent_address: e.target.value,
-                            }))
-                          }
-                        />
-                      </label>
-                      <label className="grid gap-1.25">
-                        <span className="text-sm text-(--muted) font-bold">
-                          Suffix
-                        </span>
-                        <input
-                          className="border border-(--border) rounded-md px-2.75 py-2.5 text-sm"
-                          placeholder="e.g., Jr., Sr."
-                          value={form.suffix}
-                          onChange={(e) =>
-                            setForm((f) => ({ ...f, suffix: e.target.value }))
-                          }
-                        />
-                      </label>
-                      <label className="grid gap-1.25">
-                        <span className="text-sm text-(--muted) font-bold">
-                          Prefix
-                        </span>
-                        <input
-                          className="border border-(--border) rounded-md px-2.75 py-2.5 text-sm"
-                          placeholder="e.g., Mr., Ms."
-                          value={form.prefix}
-                          onChange={(e) =>
-                            setForm((f) => ({ ...f, prefix: e.target.value }))
-                          }
-                        />
-                      </label>
-                      <label className="grid gap-1.25">
-                        <span className="text-sm text-(--muted) font-bold">
-                          Phone Number
-                        </span>
-                        <input
-                          className="w-full border border-(--border) bg-white text-(--text) rounded-md px-2.75 py-2.5 text-sm outline-none"
-                          value={form.phone}
-                          onChange={(e) =>
-                            setForm((f) => ({
-                              ...f,
-                              phone: e.target.value.replace(/\D/g, ""),
-                            }))
-                          }
-                          inputMode="numeric"
-                          placeholder="e.g., 09171234567"
-                        />
-                      </label>
-                      <div className="col-span-1 md:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <label className="grid gap-1.25">
-                          <span className="text-sm text-(--muted) font-bold">
-                            Marital Status
-                          </span>
-                          <Selection
-                            value={form.marital_status}
-                            onChange={(val) =>
-                              setForm((f) => ({ ...f, marital_status: val }))
-                            }
-                            options={[
-                              { value: "", label: "Select..." },
-                              { value: "Single", label: "Single" },
-                              { value: "Married", label: "Married" },
-                              { value: "Widowed", label: "Widowed" },
-                            ]}
-                            placeholder="Select..."
-                          />
-                        </label>
-                        <label className="grid gap-1.25">
-                          <span className="text-sm text-(--muted) font-bold">
-                            Status
-                          </span>
-                          <Selection
-                            value={form.status}
-                            onChange={handleStatusChange}
-                            options={getStatusOptions(
-                              isEditModalOpen ? editCandidate : null,
-                            )}
-                            placeholder="Select status"
-                          />
-                        </label>
-                      </div>
-
-                      {/* Action Required — display-only in modal, system generated */}
-                      <div className="col-span-1 md:col-span-3 grid gap-1.5">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-(--muted) font-bold">
-                            Action Required
-                          </span>
-                          <span className="text-xs text-(--muted) italic font-normal">
-                            System generated
-                          </span>
-                        </div>
-                        {isEditModalOpen && editCandidate ? (
-                          <div className="flex flex-wrap gap-2 pt-0.5">
-                            {(editCandidate.computed_flags ?? []).length > 0 ? (
-                              (editCandidate.computed_flags ?? []).map(
-                                (flag) => (
-                                  <span
-                                    key={flag}
-                                    className={`inline-flex items-center px-3.5 py-1.5 rounded-md text-sm font-medium border ${
-                                      flagBadge[flag]
-                                        ? flagBadge[flag] +
-                                          " border-transparent"
-                                        : "bg-white text-(--text) border-(--border)"
-                                    }`}
-                                  >
-                                    {flag}
-                                  </span>
-                                ),
-                              )
-                            ) : (
-                              <span className="text-sm text-(--muted) italic">
-                                No flags
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <p className="text-xs text-(--muted) bg-(--surface2) border border-(--border) rounded-md px-3 py-2">
-                            Flags will be computed after saving. Upload required
-                            documents (Resume, NBI Clearance, Police Clearance)
-                            and schedule an interview to clear all flags.
-                          </p>
-                        )}
-                      </div>
-
-                      <label className="col-span-1 md:col-span-3 grid gap-1.25">
-                        <span className="text-sm text-(--muted) font-bold">
-                          Notes
-                        </span>
-                        <textarea
-                          className="w-full min-h-18 border border-(--border) bg-white text-(--text) rounded-md px-2.75 py-2.5 text-sm outline-none"
-                          value={form.notes}
-                          onChange={(e) =>
-                            setForm((f) => ({ ...f, notes: e.target.value }))
-                          }
-                          placeholder="e.g., Available immediately; willing to relocate."
-                        />
-                      </label>
-                    </div>
-                  </>
-                ) : activeTab === "details" ? (
-                  <div className="col-span-2 grid grid-cols-1 md:grid-cols-3 gap-2 w-full">
-                    <label className="grid gap-1.25">
-                      <span className="text-sm text-(--muted) font-bold">
-                        Work History
-                      </span>
-                      <input
-                        className="w-full border border-(--border) bg-white text-(--text) rounded-md px-2.75 py-2.5 text-sm outline-none"
-                        value={form.work_history}
-                        onChange={(e) =>
-                          setForm((f) => ({
-                            ...f,
-                            work_history: e.target.value,
-                          }))
-                        }
-                        placeholder="e.g., Company - Role (2018-2020)"
-                      />
-                    </label>
-                    <label className="grid gap-1.25">
-                      <span className="text-sm text-(--muted) font-bold">
-                        Certifications
-                      </span>
-                      <input
-                        className="w-full border border-(--border) bg-white text-(--text) rounded-md px-2.75 py-2.5 text-sm outline-none"
-                        value={form.certifications}
-                        onChange={(e) =>
-                          setForm((f) => ({
-                            ...f,
-                            certifications: e.target.value,
-                          }))
-                        }
-                        placeholder="e.g., NC II, First Aid"
-                      />
-                    </label>
-                    <label className="grid gap-1.25">
-                      <span className="text-sm text-(--muted) font-bold">
-                        Desired Salary
-                      </span>
-                      <input
-                        className="w-full border border-(--border) bg-white text-(--text) rounded-md px-2.75 py-2.5 text-sm outline-none"
-                        value={form.desired_salary}
-                        onChange={(e) =>
-                          setForm((f) => ({
-                            ...f,
-                            desired_salary: e.target.value,
-                          }))
-                        }
-                      />
-                    </label>
-                    <div className="grid gap-1.25">
-                      <span className="text-sm text-(--muted) font-bold">
-                        Position
-                      </span>
-                      <IndustryPositionPicker
-                        positions={positionsList}
-                        value={form.position_screened}
-                        onChange={(title) =>
-                          setForm((f) => ({ ...f, position_screened: title }))
-                        }
-                        loading={positionsLoading}
-                        placeholder="Select a position..."
-                      />
-                    </div>
-                    <label className="col-span-1 md:col-span-2 grid gap-1.25">
-                      <span className="text-sm text-(--muted) font-bold">
-                        Skills
-                      </span>
-                      <input
-                        className="w-full border border-(--border) bg-white text-(--text) rounded-md px-2.75 py-2.5 text-sm outline-none"
-                        value={form.skills}
-                        onChange={(e) =>
-                          setForm((f) => ({ ...f, skills: e.target.value }))
-                        }
-                      />
-                    </label>
-                    <label className="grid gap-1.25">
-                      <span className="text-sm text-(--muted) font-bold">
-                        Pag-Ibig Number
-                      </span>
-                      <input
-                        className="border border-(--border) rounded-md px-2.75 py-2.5 text-sm"
-                        placeholder="XXXXXXXXXXXX"
-                        value={form.pagibig_number}
-                        onChange={(e) =>
-                          setForm((f) => ({
-                            ...f,
-                            pagibig_number: e.target.value,
-                          }))
-                        }
-                      />
-                    </label>
-                    <div className="col-span-1 md:col-span-2">
-                      <Selection
-                        value={form.highest_educ_attainment}
-                        onChange={(val) =>
-                          setForm((f) => ({
-                            ...f,
-                            highest_educ_attainment: val,
-                          }))
-                        }
-                        options={[
-                          { value: "", label: "Select..." },
-                          { value: "Elementary", label: "Elementary" },
-                          { value: "Highschool", label: "Highschool" },
-                          { value: "College", label: "College" },
-                          { value: "Postgraduate", label: "Postgraduate" },
-                        ]}
-                        label="Highest Educational Attainment"
-                        placeholder="Select..."
-                      />
-                    </div>
-                    <label className="grid gap-1.25">
-                      <span className="text-sm text-(--muted) font-bold">
-                        Elementary School
-                      </span>
-                      <input
-                        className="border border-(--border) rounded-md px-2.75 py-2.5 text-sm"
-                        value={form.school_elementary}
-                        onChange={(e) =>
-                          setForm((f) => ({
-                            ...f,
-                            school_elementary: e.target.value,
-                          }))
-                        }
-                      />
-                    </label>
-                    <label className="grid gap-1.25">
-                      <span className="text-sm text-(--muted) font-bold">
-                        Junior High School
-                      </span>
-                      <input
-                        className="border border-(--border) rounded-md px-2.75 py-2.5 text-sm"
-                        value={form.school_junior_high}
-                        onChange={(e) =>
-                          setForm((f) => ({
-                            ...f,
-                            school_junior_high: e.target.value,
-                          }))
-                        }
-                      />
-                    </label>
-                    <label className="grid gap-1.25">
-                      <span className="text-sm text-(--muted) font-bold">
-                        Senior High School
-                      </span>
-                      <input
-                        className="border border-(--border) rounded-md px-2.75 py-2.5 text-sm"
-                        value={form.school_senior_high}
-                        onChange={(e) =>
-                          setForm((f) => ({
-                            ...f,
-                            school_senior_high: e.target.value,
-                          }))
-                        }
-                      />
-                    </label>
-                    <label className="grid gap-1.25">
-                      <span className="text-sm text-(--muted) font-bold">
-                        College
-                      </span>
-                      <input
-                        className="border border-(--border) rounded-md px-2.75 py-2.5 text-sm"
-                        value={form.school_college}
-                        onChange={(e) =>
-                          setForm((f) => ({
-                            ...f,
-                            school_college: e.target.value,
-                          }))
-                        }
-                      />
-                    </label>
-                    <div className="col-span-1 md:col-span-2 grid gap-1.25">
-                      <label className="grid gap-1.25">
-                        <span className="text-sm text-(--muted) font-bold">
-                          Other School / Training Center
-                        </span>
-                        <input
-                          className="w-full border border-(--border) rounded-md px-3 py-2.5 text-sm"
-                          value={form.school_other_name || ""}
-                          onChange={(e) =>
-                            setForm((f) => ({
-                              ...f,
-                              school_other_name: e.target.value,
-                            }))
-                          }
-                        />
-                      </label>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    {documentTypes.map(([key, label]) => (
-                      <div
-                        key={key}
-                        className="col-span-1 p-3 border border-(--border) rounded-md bg-white"
-                      >
-                        <div className="text-sm font-bold text-(--muted) mb-2">
-                          {label}
-                        </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <label
-                            htmlFor={`file-${key}`}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-(--border) rounded-md bg-white text-sm text-(--text) cursor-pointer hover:bg-(--surface2) transition-colors"
-                          >
-                            <Icon icon="tabler:upload" width="14" height="14" />
-                            Upload
-                          </label>
-                          <input
-                            id={`file-${key}`}
-                            type="file"
-                            accept=".pdf,application/pdf"
-                            onChange={(e) => handleDocumentFileChange(e, key)}
-                            className="hidden"
-                          />
-                          {form.documents?.[key] ? (
-                            typeof form.documents[key] === "string" ? (
-                              <span className="inline-flex items-center gap-1 text-xs text-(--primary) font-medium truncate max-w-40">
-                                <Icon
-                                  icon="tabler:file"
-                                  width="13"
-                                  height="13"
-                                />
-                                Uploaded file
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setForm((prev) => ({
-                                      ...prev,
-                                      documents: {
-                                        ...(prev.documents ?? {}),
-                                        [key]: null,
-                                      },
-                                    }))
-                                  }
-                                  className="ml-1 text-(--muted) hover:text-red-500 transition-colors"
-                                  title="Remove file"
-                                >
-                                  <Icon
-                                    icon="tabler:x"
-                                    width="13"
-                                    height="13"
-                                  />
-                                </button>
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 text-xs text-(--text) font-medium truncate max-w-100">
-                                <Icon
-                                  icon="tabler:file"
-                                  width="18"
-                                  height="18"
-                                />
-                                {(form.documents[key] as File).name}
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setForm((prev) => ({
-                                      ...prev,
-                                      documents: {
-                                        ...(prev.documents ?? {}),
-                                        [key]: null,
-                                      },
-                                    }))
-                                  }
-                                  className="ml-1 text-gray-500 hover:text-red-500 transition-colors"
-                                  title="Remove file"
-                                >
-                                  <Icon
-                                    icon="tabler:x"
-                                    width="18"
-                                    height="18"
-                                  />
-                                </button>
-                              </span>
-                            )
-                          ) : (
-                            <span className="text-sm text-(--muted)">
-                              No file selected
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </>
-                )}
-
-                <div className="col-span-2 flex justify-end gap-2 mt-4">
-                  <button
-                    type="button"
-                    className="border border-(--border) bg-white text-(--text) rounded-md px-4 py-2 font-bold transition-all duration-150 hover:bg-(--surface2) hover:scale-105"
-                    onClick={
-                      isModalOpen ? handleCloseModal : handleCloseEditModal
-                    }
-                    disabled={isSubmitting}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="border-none text-white text-sm bg-linear-to-br from-(--primary) to-(--primary2) rounded-md px-4 py-2 font-bold transition-all duration-150 hover:brightness-110 hover:scale-105"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting
-                      ? isModalOpen
-                        ? "Creating..."
-                        : "Saving..."
-                      : isModalOpen
-                        ? "Add Candidate"
-                        : "Save Changes"}
-                  </button>
-                </div>
-                {error && (
-                  <p className="col-span-2 mt-3 text-[#9f2d20] text-sm">
-                    {error}
-                  </p>
-                )}
-              </form>
-            </Modal>
-
-            {/* Archive confirmation Modal */}
-            <Modal
-              open={isDeleteModalOpen}
-              onClose={handleCloseDeleteModal}
-              title="Archive Candidate"
-            >
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  onDeleteSubmit();
-                }}
-                className="flex flex-col gap-6"
-              >
-                <div className="flex flex-col items-center text-center">
-                  <div className="w-16 h-16 flex items-center justify-center rounded-full bg-red-100 mb-2">
-                    <Icon
-                      icon="tabler:archive"
-                      width="38"
-                      height="38"
-                      className="text-red-500"
-                    />
-                  </div>
-                  <p className="text-base font-semibold text-(--text) mb-1">
-                    Are you sure you want to{" "}
-                    <span className="text-red-600 font-bold">archive</span> this
-                    candidate?
-                  </p>
-                  <p className="text-sm text-(--muted)">
-                    <span className="font-bold">
-                      {deleteCandidate?.full_name}
-                    </span>
-                  </p>
-                </div>
-                <div className="flex justify-end gap-2 mt-2">
-                  <button
-                    type="button"
-                    className="border border-(--border) bg-white text-(--text) rounded-md px-4 py-2 font-bold hover:bg-(--surface2)"
-                    onClick={handleCloseDeleteModal}
-                    disabled={isSubmitting}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="border-none text-white bg-linear-to-br from-red-500 to-red-700 rounded-md px-4 py-2 font-bold hover:brightness-110 shadow-md shadow-red-200"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? "Archiving..." : "Archive"}
-                  </button>
-                </div>
-                {error && (
-                  <p className="mt-3 text-[#9f2d20] text-sm text-center">
-                    {error}
-                  </p>
-                )}
-              </form>
-            </Modal>
-
-            {/* Status Warning Confirmation Modal */}
-            <Modal
-              open={showStatusWarningModal}
-              onClose={cancelStatusChange}
-              title="Confirm Status Change"
-            >
-              <div className="flex flex-col gap-6">
-                <div className="flex flex-col items-center text-center gap-3">
-                  <div className="w-16 h-16 flex items-center justify-center rounded-full bg-amber-100">
-                    <Icon
-                      icon="tabler:alert-triangle"
-                      width="38"
-                      height="38"
-                      className="text-amber-500"
-                    />
-                  </div>
-                  <div>
-                    <p className="text-base font-semibold text-(--text) mb-1">
-                      I-set as{" "}
-                      <span className="text-amber-600 font-bold">
-                        "{pendingStatus}"
-                      </span>
-                      ?
-                    </p>
-                    <p className="text-sm text-(--muted) mt-2 leading-relaxed">
-                      {statusWarning}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={cancelStatusChange}
-                    className="border border-(--border) bg-white text-(--text) rounded-md px-4 py-2 font-bold hover:bg-(--surface2)"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={confirmStatusChange}
-                    className="border-none text-white bg-linear-to-br from-amber-500 to-amber-600 rounded-md px-4 py-2 font-bold hover:brightness-110"
-                  >
-                    Proceed Anyway
-                  </button>
-                </div>
-              </div>
-            </Modal>
+            )}
           </section>
-
-          {pagedCandidates.length > 0 && !isListLoading && (
-            <div className="mt-2 w-full">
-              <Pagination
-                page={page}
-                totalPages={totalPages}
-                onPageChange={setPage}
-                perPage={perPage}
-                onPerPageChange={(v) => {
-                  setPerPage(v);
-                  setPage(1);
-                }}
-              />
-            </div>
-          )}
         </main>
       </div>
     </div>

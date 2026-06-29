@@ -206,7 +206,7 @@ function UserModal({
           </button>
         </div>
         {error && (
-          <p className="col-span-2 mt-3 text-[#9f2d20] text-sm">{error}</p>
+          <p className="col-span-2 mt-3 text-[var(--accent)] text-sm">{error}</p>
         )}
       </form>
     </Modal>
@@ -445,7 +445,7 @@ export function UsersPanel() {
                         setRoleFilter("");
                         setPage(1);
                       }}
-                      className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-red-100 text-red-700 font-semibold text-sm hover:bg-red-200 transition-colors"
+                      className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-[var(--accent)]/20 text-[var(--accent)] font-semibold text-sm hover:bg-[var(--accent)]/30 transition-colors"
                     >
                       <Icon icon="tabler:x" width="20" height="20" />
                       Clear Filter
@@ -483,7 +483,7 @@ export function UsersPanel() {
                           badgeClass = "bg-yellow-100 text-yellow-800";
                         else if (user.role === "manager")
                           badgeClass = "bg-green-100 text-green-800";
-                        else badgeClass = "bg-blue-100 text-blue-800";
+                        else badgeClass = "bg-[var(--navy)]/20 text-[var(--navy)]";
 
                         return (
                           <tr
@@ -517,7 +517,7 @@ export function UsersPanel() {
                                     Edit
                                   </button>
                                   <button
-                                    className="px-3 py-1 flex items-center gap-1 rounded-full bg-red-100 text-red-700 font-semibold text-sm hover:bg-red-200 transition-colors"
+                                    className="px-3 py-1 flex items-center gap-1 rounded-full bg-[var(--accent)]/20 text-[var(--accent)] font-semibold text-sm hover:bg-[var(--accent)]/30 transition-colors"
                                     title="Delete"
                                     type="button"
                                     onClick={() => handleDelete(user)}
@@ -589,18 +589,18 @@ export function UsersPanel() {
               <form onSubmit={onDeleteSubmit} className="flex flex-col gap-6">
                 <div className="flex flex-col items-center text-center">
                   <div className="w-full flex flex-col items-center justify-center mb-2">
-                    <div className="w-16 h-16 flex items-center justify-center rounded-full bg-red-100 mb-2">
+                    <div className="w-16 h-16 flex items-center justify-center rounded-full bg-[var(--accent)]/20 mb-2">
                       <Icon
                         icon="tabler:alert-triangle"
                         width="38"
                         height="38"
-                        className="text-red-500"
+                        className="text-[var(--accent)]"
                       />
                     </div>
                   </div>
                   <p className="text-base font-semibold text-(--text) mb-1">
                     Are you sure you want to{" "}
-                    <span className="text-red-600 font-bold">delete</span> this
+                    <span className="text-[var(--accent)] font-bold">delete</span> this
                     user?
                   </p>
                   <p className="text-sm text-(--muted)">
@@ -619,14 +619,14 @@ export function UsersPanel() {
                   </button>
                   <button
                     type="submit"
-                    className="border-none text-white bg-linear-to-br from-red-500 to-red-700 rounded-full px-4 py-2 font-bold transition-all duration-150 hover:brightness-110 hover:scale-105 shadow-md shadow-red-200"
+                    className="border-none text-white bg-linear-to-br from-[var(--accent)] to-[var(--accent)] rounded-full px-4 py-2 font-bold transition-all duration-150 hover:brightness-110 hover:scale-105 shadow-[0_4px_16px_rgba(220,53,69,0.25)]"
                     disabled={isSubmitting}
                   >
                     {isSubmitting ? "Deleting..." : "Delete"}
                   </button>
                 </div>
                 {error && (
-                  <p className="mt-3 text-[#9f2d20] text-sm text-center">
+                  <p className="mt-3 text-[var(--accent)] text-sm text-center">
                     {error}
                   </p>
                 )}

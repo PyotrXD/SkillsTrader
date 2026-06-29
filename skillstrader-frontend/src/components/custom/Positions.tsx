@@ -250,7 +250,7 @@ export default function Positions() {
                 <button
                   type="button"
                   onClick={() => { setSearch(""); setFilterPosition(""); }}
-                  className="px-4 py-2.5 flex items-center gap-1 rounded-md bg-red-100 text-red-700 font-semibold text-xs hover:bg-red-200 transition-colors"
+                  className="px-4 py-2.5 flex items-center gap-1 rounded-md bg-[var(--accent)]/20 text-[var(--accent)] font-semibold text-xs hover:bg-[var(--accent)]/30 transition-colors"
                 >
                   <Icon icon="tabler:x" width="14" height="14" />
                   Clear
@@ -311,7 +311,7 @@ export default function Positions() {
                                 </button>
                                 <button
                                   type="button"
-                                  className="px-3 py-1.5 flex items-center gap-1 rounded-md bg-red-100 text-red-700 font-semibold text-sm hover:bg-red-200 transition-colors"
+                                  className="px-3 py-1.5 flex items-center gap-1 rounded-md bg-[var(--accent)]/20 text-[var(--accent)] font-semibold text-sm hover:bg-[var(--accent)]/30 transition-colors"
                                   onClick={() => openDeleteModal(p)}
                                 >
                                   <Icon icon="tabler:trash" width="15" height="15" />
@@ -413,12 +413,12 @@ export default function Positions() {
         <form onSubmit={(e) => { e.preventDefault(); onDeleteSubmit(); }} className="flex flex-col gap-6">
           <div className="flex flex-col items-center text-center">
             <div className="w-full flex flex-col items-center justify-center mb-2">
-              <div className="w-16 h-16 flex items-center justify-center rounded-full bg-red-100 mb-2">
-                <Icon icon="tabler:trash" width="38" height="38" className="text-red-500" />
+              <div className="w-16 h-16 flex items-center justify-center rounded-full bg-[var(--accent)]/20 mb-2">
+                <Icon icon="tabler:trash" width="38" height="38" className="text-[var(--accent)]" />
               </div>
             </div>
             <p className="text-base font-semibold text-(--text) mb-1">
-              Are you sure you want to <span className="text-red-600 font-bold">delete</span> this position?
+              Are you sure you want to <span className="text-[var(--accent)] font-bold">delete</span> this position?
             </p>
             <p className="text-sm text-(--muted)">
               <span className="font-bold">{deletePosition?.title}</span> — {deletePosition?.industry}
@@ -428,11 +428,11 @@ export default function Positions() {
             <button type="button" className="border border-(--border) bg-white text-(--text) rounded-md px-4 py-2 font-bold transition-all duration-150 hover:bg-(--surface2) hover:scale-105" onClick={closeDeleteModal} disabled={isSubmitting}>
               Cancel
             </button>
-            <button type="submit" className="border-none text-white bg-linear-to-br from-red-500 to-red-700 rounded-md px-4 py-2 font-bold transition-all duration-150 hover:brightness-110 hover:scale-105 shadow-md shadow-red-200" disabled={isSubmitting}>
+            <button type="submit" className="border-none text-white bg-linear-to-br from-[var(--accent)] to-[var(--accent)] rounded-md px-4 py-2 font-bold transition-all duration-150 hover:brightness-110 hover:scale-105 shadow-[0_4px_16px_rgba(220,53,69,0.25)]" disabled={isSubmitting}>
               {isSubmitting ? "Deleting..." : "Delete"}
             </button>
           </div>
-          {error && <p className="mt-3 text-[#9f2d20] text-sm text-center">{error}</p>}
+          {error && <p className="mt-3 text-[var(--accent)] text-sm text-center">{error}</p>}
         </form>
       </Modal>
     </div>

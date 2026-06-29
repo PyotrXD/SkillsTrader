@@ -199,7 +199,7 @@ export default function JobOrders() {
 
               {(search || statusFilter) && (
                 <div className="ml-2 flex-shrink-0">
-                  <button type="button" onClick={() => { setSearch(""); setStatusFilter(""); setPage(1); }} className="px-4 py-1.5 flex items-center gap-1 rounded-full bg-red-100 text-red-700 font-semibold text-sm hover:bg-red-200 transition-colors">
+                  <button type="button" onClick={() => { setSearch(""); setStatusFilter(""); setPage(1); }} className="px-4 py-1.5 flex items-center gap-1 rounded-full bg-[var(--accent)]/20 text-[var(--accent)] font-semibold text-sm hover:bg-[var(--accent)]/30 transition-colors">
                     <Icon icon="tabler:x" width="18" height="18" />
                     Clear Filter
                   </button>
@@ -246,7 +246,7 @@ export default function JobOrders() {
                               j.status === 'Open'
                                 ? 'bg-[#e3f6e9] text-[#1d9a4a]'
                                 : j.status === 'Filled'
-                                ? 'bg-[#fff4e6] text-[var(--primary)]'
+                                ? 'bg-[var(--primary)]/20 text-[var(--primary)]'
                                 : 'bg-[var(--surface2)] text-[var(--muted)]'
                             }`}
                           >
@@ -261,7 +261,7 @@ export default function JobOrders() {
                             <button type="button" title="Edit" aria-label="Edit" onClick={() => handleEdit(j)} className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--navy2)] text-white hover:brightness-110 transition-all">
                               <Icon icon="tabler:edit" width="15" height="15" />
                             </button>
-                            <button type="button" title="Delete" aria-label="Delete" onClick={() => handleDelete(j)} className="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 text-red-700 hover:bg-red-200 transition-colors">
+                            <button type="button" title="Delete" aria-label="Delete" onClick={() => handleDelete(j)} className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--accent)]/20 text-[var(--accent)] hover:bg-[var(--accent)]/30 transition-colors">
                               <Icon icon="tabler:trash" width="15" height="15" />
                             </button>
                           </div>
@@ -273,8 +273,6 @@ export default function JobOrders() {
               </tbody>
             </table>
           </div>
-
-          {/* pagination moved below the section */}
 
           {/* Add / Edit modal */}
           <Modal open={isModalOpen || isEditModalOpen} onClose={isModalOpen ? handleCloseModal : handleCloseEdit} title={isModalOpen ? "Add Job" : "Edit Job"}>
@@ -364,7 +362,7 @@ export default function JobOrders() {
               <p>Are you sure you want to delete <strong>{deleteOrder?.title}</strong>?</p>
               <div className="flex justify-end gap-2">
                 <button type="button" onClick={handleCloseDelete} className="border border-(--border) bg-white text-(--text) rounded-full px-4 py-2 font-bold transition-all duration-150 hover:bg-(--surface2) hover:scale-105" disabled={isSubmitting}>Cancel</button>
-                <button type="button" onClick={onDeleteSubmit} className="border-none text-white bg-linear-to-br from-red-500 to-red-700 rounded-full px-4 py-2 font-bold transition-all duration-150 hover:brightness-110 hover:scale-105 shadow-md shadow-red-200" disabled={isSubmitting}>{isSubmitting ? 'Deleting...' : 'Delete'}</button>
+                <button type="button" onClick={onDeleteSubmit} className="border-none text-white bg-linear-to-br from-[var(--accent)] to-[var(--accent)] rounded-full px-4 py-2 font-bold transition-all duration-150 hover:brightness-110 hover:scale-105 shadow-[0_4px_16px_rgba(220,53,69,0.25)]" disabled={isSubmitting}>{isSubmitting ? 'Deleting...' : 'Delete'}</button>
               </div>
             </div>
           </Modal>

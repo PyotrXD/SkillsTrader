@@ -41,9 +41,10 @@ const resultOptions = [
   { value: "Failed", label: "Failed" },
 ];
 
+// Updated result badges with new theme
 const resultBadge: Record<string, string> = {
   Passed: "bg-green-100 text-green-700",
-  Failed: "bg-red-100 text-red-700",
+  Failed: "bg-[var(--accent)]/20 text-[var(--accent)]",
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -81,19 +82,20 @@ function scoreLabel(interview: InterviewRecord | null): string {
   return `${score} / ${maxScore}`;
 }
 
+// Updated candidate status badges with new theme
 const candidateStatusBadge: Record<string, string> = {
   "New Applicant": "bg-gray-100 text-gray-700",
   "Lined-Up": "bg-blue-100 text-blue-700",
-  "For final interview": "bg-indigo-100 text-indigo-700",
+  "For final interview": "bg-yellow-100 text-yellow-700",
   "For medical": "bg-purple-100 text-purple-700",
   "Fit to work": "bg-green-100 text-green-700",
-  "Unfit to work": "bg-red-100 text-red-700",
+  "Unfit to work": "bg-[var(--accent)]/20 text-[var(--accent)]",
   "Pending medical": "bg-orange-100 text-orange-700",
   "For deployment": "bg-sky-100 text-sky-700",
   "Visa Arrived": "bg-emerald-100 text-emerald-700",
   "Awaiting Visa": "bg-amber-100 text-amber-700",
   "Deployed": "bg-teal-100 text-teal-700",
-  "Rejected": "bg-rose-100 text-rose-700",
+  "Rejected": "bg-[var(--accent)]/20 text-[var(--accent)]",
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -412,7 +414,7 @@ export default function Interviews() {
                           {row.interview?.interview_date ? (
                             formatDate(row.interview.interview_date)
                           ) : (
-                            <span className="inline-block px-3 py-1 rounded-xl text-sm font-medium bg-orange-100 text-orange-700">
+                            <span className="inline-block px-3 py-1 rounded-xl text-sm font-medium bg-yellow-100 text-yellow-700">
                               Not Scheduled
                             </span>
                           )}
@@ -451,7 +453,7 @@ export default function Interviews() {
                                   <button
                                     type="button"
                                     onClick={() => handleSchedule(row.candidate)}
-                                    className="px-3 py-1.5 bg-green-100 text-green-700 rounded-md font-semibold flex items-center gap-1 text-sm hover:bg-green-200 transition-colors"
+                                    className="px-3 py-1.5 bg-(--primary)/20 text-[var(--primary)] rounded-md font-semibold flex items-center gap-1 text-sm hover:bg-(--primary)/30 transition-colors"
                                   >
                                     <Icon icon="tabler:calendar-plus" width="15" height="15" /> Schedule
                                   </button>
@@ -529,7 +531,7 @@ export default function Interviews() {
           >
             <form onSubmit={(e) => handleInterviewSubmit(e, !!editRow)} className="grid gap-4">
               {renderFormFields()}
-              {error && <p className="text-red-600 text-sm">{error}</p>}
+              {error && <p className="text-[var(--accent)] text-sm">{error}</p>}
               <div className="flex justify-end gap-2">
                 <button
                   type="button"

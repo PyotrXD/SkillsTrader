@@ -94,7 +94,7 @@ const AUDIT_LOG_ICON = (
 const NAV_BASE =
   'flex items-center gap-2.5 rounded-lg text-[13px] font-semibold cursor-pointer transition-colors border';
 const NAV_ACTIVE =
-  'bg-gradient-to-r from-[var(--primary)] to-[var(--primary2)] border-transparent text-white shadow-[0_4px_12px_rgba(238,114,3,0.25)]';
+  'bg-gradient-to-r from-[var(--primary)] to-[var(--primary2)] border-transparent text-white shadow-[0_4px_12px_rgba(255,193,7,0.25)]';
 const NAV_IDLE =
   'border-transparent bg-transparent text-[var(--navy2)] hover:bg-[var(--surface2)]';
 

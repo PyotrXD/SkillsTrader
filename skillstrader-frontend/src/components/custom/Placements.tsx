@@ -208,7 +208,7 @@ export default function Placements() {
 
               {(search || statusFilter) && (
                 <div className="ml-2 flex-shrink-0">
-                  <button type="button" onClick={() => { setSearch(''); setStatusFilter(''); setPage(1); }} className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-red-100 text-red-700 font-semibold text-xs hover:bg-red-200 transition-colors">
+                  <button type="button" onClick={() => { setSearch(''); setStatusFilter(''); setPage(1); }} className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-[var(--accent)]/20 text-[var(--accent)] font-semibold text-xs hover:bg-[var(--accent)]/30 transition-colors">
                     <Icon icon="tabler:x" width="18" height="18" />
                     Clear Filter
                   </button>
@@ -263,7 +263,7 @@ export default function Placements() {
                               <Icon icon="tabler:edit" width="15" height="15" />
                               Edit
                             </button>
-                            <button type="button" title="Delete" onClick={() => handleDelete(p)} className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-red-100 text-red-700 font-semibold text-xs hover:bg-red-200 transition-colors">
+                            <button type="button" title="Delete" onClick={() => handleDelete(p)} className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-[var(--accent)]/20 text-[var(--accent)] font-semibold text-xs hover:bg-[var(--accent)]/30 transition-colors">
                               <Icon icon="tabler:trash" width="15" height="15" />
                               Delete
                             </button>
@@ -344,7 +344,7 @@ export default function Placements() {
             <button type="button" onClick={isModalOpen ? handleCloseModal : handleCloseEdit} className="border border-(--border) bg-(--surface) text-(--text) rounded-full px-3.5 py-2.5 text-[13px] font-bold cursor-pointer transition-all duration-150 hover:brightness-105 hover:scale-105 active:translate-y-px active:filter-none inline-flex items-center justify-center no-underline">Cancel</button>
             <button type="submit" disabled={isSubmitting} className="border-none text-white bg-linear-to-br from-(--primary) to-(--primary2) shadow-[0_8px_26px_rgba(200,75,49,0.18)] rounded-full px-3.5 py-2.5 text-[13px] font-bold cursor-pointer transition-all duration-150 hover:brightness-105 hover:scale-105 active:translate-y-px active:filter-none inline-flex items-center justify-center no-underline disabled:opacity-70">{isSubmitting ? (isModalOpen ? 'Adding...' : 'Saving...') : (isModalOpen ? 'Add Placement' : 'Save changes')}</button>
           </div>
-          {error ? <div className="text-red-600">{error}</div> : null}
+          {error ? <div className="text-[var(--accent)]">{error}</div> : null}
         </form>
       </Modal>
 

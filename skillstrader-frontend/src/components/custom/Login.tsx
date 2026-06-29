@@ -279,7 +279,7 @@ export default function Login() {
               {contactLoading ? 'Sending...' : 'Send Request'}
             </button>
             {contactError && (
-              <p className="text-xs text-red-500 text-center mt-2">{contactError}</p>
+              <p className="text-xs text-[var(--accent)] text-center mt-2">{contactError}</p>
             )}
             {contactSuccess && (
               <p className="text-xs text-green-600 text-center mt-2">{contactSuccess}</p>

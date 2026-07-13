@@ -11,7 +11,6 @@ import {
 import Navbar from "../ui/Navbar";
 import Sidebar from "./Sidebar";
 import Modal from "../ui/Modal";
-import usersData from "../../data/users.json";
 import Searchbar from "../ui/Searchbar";
 import Filter from "../ui/Filter";
 import Pagination from "../ui/Pagination";
@@ -245,36 +244,43 @@ export function UsersPanel() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteUser, setDeleteUser] = useState<UserListItem | null>(null);
 
-  // Pagination state (demo)
+  // Pagination state
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(5);
   const [totalPages, setTotalPages] = useState(1);
-  const [pagedUsers, setPagedUsers] = useState<UserListItem[]>(
-    (usersData as UserListItem[]).slice(0, perPage)
-  );
-
-  // Derived filtered users
-  const filteredUsers = (usersData as UserListItem[]).filter((user) => {
-    const matchesSearch =
-      user.name.toLowerCase().includes(search.toLowerCase()) ||
-      user.email.toLowerCase().includes(search.toLowerCase());
-    const matchesRole = roleFilter ? user.role === roleFilter : true;
-    return matchesSearch && matchesRole;
-  });
+  const [pagedUsers, setPagedUsers] = useState<UserListItem[]>([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // For demo: paginate filteredUsers locally
-    const total = Math.ceil(filteredUsers.length / perPage);
-    setTotalPages(total);
-    const start = (page - 1) * perPage;
-    setPagedUsers(filteredUsers.slice(start, start + perPage));
-    // For real backend: fetch from PocketBase here
-    // Example:
-    // pb.collection('users').getList(page, perPage).then(result => {
-    //   setPagedUsers(result.items);
-    //   setTotalPages(result.totalPages);
-    // });
-  }, [filteredUsers, page, perPage]);
+    const fetchUsers = async () => {
+      setLoading(true);
+      try {
+        // Fetch users from PocketBase with pagination
+        const result = await pb.collection('users').getList(page, perPage, {
+          sort: 'name'
+        });
+        
+        // Convert RecordModel[] to UserListItem[]
+        const users: UserListItem[] = result.items.map(item => ({
+          id: item.id,
+          email: item.email,
+          name: item.name,
+          role: item.role
+        }));
+        
+        setPagedUsers(users);
+        setTotalPages(result.totalPages);
+      } catch (err) {
+        console.error('Failed to fetch users:', err);
+        setPagedUsers([]);
+        setTotalPages(1);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, [page, perPage]);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -331,8 +337,8 @@ export function UsersPanel() {
         setError("No user selected for update.");
         return;
       }
-      // Simulate update (replace with real API call)
-      // await pb.collection('users').update(editUserId, { ...editForm });
+      // Update user in PocketBase
+      await pb.collection('users').update(editUserId, { ...editForm });
       setSuccess(`User ${editForm.email.trim()} updated.`);
       setIsEditModalOpen(false);
       setShowToast(true);
@@ -345,6 +351,10 @@ export function UsersPanel() {
   }
 
   function handleDelete(user: UserListItem) {
+    if (!user.id) {
+      setError("Invalid user selected for deletion.");
+      return;
+    }
     setDeleteUser(user);
     setIsDeleteModalOpen(true);
   }
@@ -360,16 +370,16 @@ export function UsersPanel() {
     setError("");
     setSuccess("");
     try {
-      if (!deleteUser) {
+      if (!deleteUser || !deleteUser.id) {
         setError("No user selected for deletion.");
         return;
       }
-      // Simulate delete (replace with real API call)
-      // await pb.collection('users').delete(deleteUser.id);
+      // Delete user from PocketBase
+      await pb.collection('users').delete(String(deleteUser.id));
       setSuccess(`User ${deleteUser.email} deleted.`);
       setIsDeleteModalOpen(false);
       setShowToast(true);
-    } catch {
+    } catch (err) {
       setError("Failed to delete user.");
     } finally {
       setIsSubmitting(false);
@@ -454,29 +464,34 @@ export function UsersPanel() {
                 )}
               </div>
               <div className="overflow-x-auto mt-5">
-                <table className="min-w-full text-sm text-left">
-                  <thead>
-                    <tr className="bg-(--surface2)">
-                      <th className="px-4 py-3 font-bold text-(--muted) rounded-tl-xl">#</th>
-                      <th className="px-4 py-2 font-bold text-(--muted)">Email</th>
-                      <th className="px-4 py-2 font-bold text-(--muted)">Name</th>
-                      <th className="px-4 py-2 font-bold text-(--muted)">Role</th>
-                      <th className="px-4 py-3 font-bold text-(--muted) rounded-tr-xl">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pagedUsers.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="py-12 text-center text-(--muted)">
-                          <div className="flex flex-col items-center justify-center gap-2">
-                            <Icon icon="tabler:user-off" width="48" height="48" className="text-(--muted) mb-2" />
-                            <span className="text-lg font-semibold">No users found</span>
-                            <span className="text-sm">There are currently no users to display.</span>
-                          </div>
-                        </td>
+                {loading ? (
+                  <div className="py-12 text-center">
+                    <div className="flex justify-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-(--primary)"></div>
+                    </div>
+                    <p className="mt-2 text-(--muted)">Loading users...</p>
+                  </div>
+                ) : pagedUsers.length === 0 ? (
+                  <div className="py-12 text-center">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <Icon icon="tabler:user-off" width="48" height="48" className="text-(--muted) mb-2" />
+                      <span className="text-lg font-semibold">No users found</span>
+                      <span className="text-sm">There are currently no users to display.</span>
+                    </div>
+                  </div>
+                ) : (
+                  <table className="min-w-full text-sm text-left">
+                    <thead>
+                      <tr className="bg-(--surface2)">
+                        <th className="px-4 py-3 font-bold text-(--muted) rounded-tl-xl">#</th>
+                        <th className="px-4 py-2 font-bold text-(--muted)">Email</th>
+                        <th className="px-4 py-2 font-bold text-(--muted)">Name</th>
+                        <th className="px-4 py-2 font-bold text-(--muted)">Role</th>
+                        <th className="px-4 py-3 font-bold text-(--muted) rounded-tr-xl">Actions</th>
                       </tr>
-                    ) : (
-                      pagedUsers.map((user, idx) => {
+                    </thead>
+                    <tbody>
+                      {pagedUsers.map((user, idx) => {
                         // Badge color by role
                         let badgeClass = "";
                         if (user.role === "administrator")
@@ -534,10 +549,10 @@ export function UsersPanel() {
                             </td>
                           </tr>
                         );
-                      })
-                    )}
-                  </tbody>
-                </table>
+                      })}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </section>
             {/* Pagination Controls */}

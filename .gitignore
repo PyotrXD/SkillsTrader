@@ -31,3 +31,5 @@ release/bin/
 .DS_Store
 Thumbs.db
 *.log
+pb_data/auxiliary.db
+pb_data/data.db

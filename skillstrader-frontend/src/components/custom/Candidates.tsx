@@ -250,8 +250,8 @@ export default function Candidates() {
   const [viewTab, setViewTab] = useState<
     "info" | "details" | "documents" | "notes"
   >("info");
-  const [activeTab, setActiveTab] = useState<"info" | "details" | "documents">(
-    "info",
+  const [activeTab, setActiveTab] = useState<"info" | "details" | "documents" | "tab1" | "tab2" | "tab3">(
+    "tab1",
   );
   const printRef = useRef<HTMLDivElement | null>(null);
 
@@ -637,7 +637,7 @@ export default function Candidates() {
     setForm(initialForm);
     setIsModalOpen(true);
     setError("");
-    setActiveTab("info");
+    setActiveTab("tab1");
   }
 
   function handleCloseModal() {
@@ -1190,92 +1190,268 @@ export default function Candidates() {
                 onClose={handleCloseModal}
                 title="Add New Candidate"
               >
-                <form onSubmit={onSubmit} className="p-4">
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      First Name
-                    </label>
-                    <input
-                      type="text"
-                      value={form.first_name}
-                      onChange={(e) => setForm({...form, first_name: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Last Name
-                    </label>
-                    <input
-                      type="text"
-                      value={form.last_name}
-                      onChange={(e) => setForm({...form, last_name: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      value={form.email}
-                      onChange={(e) => setForm({...form, email: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Phone
-                    </label>
-                    <input
-                      type="tel"
-                      value={form.phone}
-                      onChange={(e) => setForm({...form, phone: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                  
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Status
-                    </label>
-                    <select
-                      value={form.status}
-                      onChange={(e) => setForm({...form, status: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      {candidateStatuses.map((status) => (
-                        <option key={status} value={status}>
-                          {status}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <div className="flex justify-end space-x-2 mt-6">
+                <div className="p-4">
+                  {/* Tab Navigation */}
+                  <div className="flex border-b border-gray-200 mb-6">
                     <button
                       type="button"
-                      onClick={handleCloseModal}
-                      className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      className={`px-4 py-2 font-medium text-sm ${
+                        activeTab === "tab1"
+                          ? "text-blue-600 border-b-2 border-blue-600"
+                          : "text-gray-500 hover:text-gray-700"
+                      }`}
+                      onClick={() => setActiveTab("tab1")}
                     >
-                      Cancel
+                      Tab 1
                     </button>
                     <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                      type="button"
+                      className={`px-4 py-2 font-medium text-sm ${
+                        activeTab === "tab2"
+                          ? "text-blue-600 border-b-2 border-blue-600"
+                          : "text-gray-500 hover:text-gray-700"
+                      }`}
+                      onClick={() => setActiveTab("tab2")}
                     >
-                      {isSubmitting ? "Adding..." : "Add Candidate"}
+                      Tab 2
+                    </button>
+                    <button
+                      type="button"
+                      className={`px-4 py-2 font-medium text-sm ${
+                        activeTab === "tab3"
+                          ? "text-blue-600 border-b-2 border-blue-600"
+                          : "text-gray-500 hover:text-gray-700"
+                      }`}
+                      onClick={() => setActiveTab("tab3")}
+                    >
+                      Tab 3
                     </button>
                   </div>
-                </form>
+
+                  {/* Tab Content */}
+                  <form onSubmit={onSubmit}>
+                    {/* Tab 1 Content */}
+                    {activeTab === "tab1" && (
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-medium text-gray-900 mb-4">
+                          Personal Information & Contact Details
+                        </h3>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              First Name *
+                            </label>
+                            <input
+                              type="text"
+                              value={form.first_name}
+                              onChange={(e) => setForm({...form, first_name: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              required
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Last Name *
+                            </label>
+                            <input
+                              type="text"
+                              value={form.last_name}
+                              onChange={(e) => setForm({...form, last_name: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              required
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Middle Name
+                            </label>
+                            <input
+                              type="text"
+                              value={form.middle_name}
+                              onChange={(e) => setForm({...form, middle_name: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Prefix
+                            </label>
+                            <input
+                              type="text"
+                              value={form.prefix}
+                              onChange={(e) => setForm({...form, prefix: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Suffix
+                            </label>
+                            <input
+                              type="text"
+                              value={form.suffix}
+                              onChange={(e) => setForm({...form, suffix: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Email *
+                            </label>
+                            <input
+                              type="email"
+                              value={form.email}
+                              onChange={(e) => setForm({...form, email: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              required
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Phone *
+                            </label>
+                            <input
+                              type="tel"
+                              value={form.phone}
+                              onChange={(e) => setForm({...form, phone: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              required
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="mt-6">
+                          <h3 className="text-lg font-medium text-gray-900 mb-4">
+                            Address Information
+                          </h3>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="md:col-span-2">
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Home Address
+                              </label>
+                              <input
+                                type="text"
+                                value={form.home_address}
+                                onChange={(e) => setForm({...form, home_address: e.target.value})}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              />
+                            </div>
+                            
+                            <div className="md:col-span-2">
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Permanent Address
+                              </label>
+                              <input
+                                type="text"
+                                value={form.permanent_address}
+                                onChange={(e) => setForm({...form, permanent_address: e.target.value})}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              />
+                            </div>
+                            
+                            <div className="md:col-span-2">
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Marital Status
+                              </label>
+                              <select
+                                value={form.marital_status}
+                                onChange={(e) => setForm({...form, marital_status: e.target.value})}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              >
+                                <option value="">Select Marital Status</option>
+                                <option value="Single">Single</option>
+                                <option value="Married">Married</option>
+                                <option value="Divorced">Divorced</option>
+                                <option value="Widowed">Widowed</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tab 2 Content */}
+                    {activeTab === "tab2" && (
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-medium text-gray-900 mb-4">
+                          Pre-Employment Requirements
+                        </h3>
+                        <p className="text-gray-600">
+                          Coming soon...
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Tab 3 Content */}
+                    {activeTab === "tab3" && (
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-medium text-gray-900 mb-4">
+                          Employment and Education History
+                        </h3>
+                        <p className="text-gray-600">
+                          Coming soon...
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Navigation Buttons */}
+                    <div className="flex justify-between mt-6">
+                      <div>
+                        {activeTab !== "tab1" && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (activeTab === "tab2") setActiveTab("tab1");
+                              else if (activeTab === "tab3") setActiveTab("tab2");
+                            }}
+                            className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                          >
+                            Back
+                          </button>
+                        )}
+                      </div>
+                      
+                      <div className="flex space-x-2">
+                        <button
+                          type="button"
+                          onClick={handleCloseModal}
+                          className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        >
+                          Cancel
+                        </button>
+                        
+                        {activeTab !== "tab3" ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (activeTab === "tab1") setActiveTab("tab2");
+                              else if (activeTab === "tab2") setActiveTab("tab3");
+                            }}
+                            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                          >
+                            Next
+                          </button>
+                        ) : (
+                          <button
+                            type="submit"
+                            disabled={isSubmitting}
+                            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                          >
+                            {isSubmitting ? "Adding..." : "Add Candidate"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </form>
+                </div>
               </Modal>
             )}
 

@@ -251,27 +251,32 @@ export function UsersPanel() {
   const [pagedUsers, setPagedUsers] = useState<UserListItem[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const [refreshToken, setRefreshToken] = useState(0);
+
   useEffect(() => {
     const fetchUsers = async () => {
       setLoading(true);
       try {
-        // Fetch users from PocketBase with pagination
-        const result = await pb.collection('users').getList(page, perPage, {
-          sort: 'name'
+        // Fetch users from PocketBase with pagination.
+        // Note: PocketBase listRule must allow the caller to see other users
+        // (administrators). Default auth rule "id = @request.auth.id" only
+        // returns the currently logged-in user.
+        const result = await pb.collection("users").getList(page, perPage, {
+          sort: "name",
+          requestKey: null,
         });
-        
-        // Convert RecordModel[] to UserListItem[]
-        const users: UserListItem[] = result.items.map(item => ({
+
+        const users: UserListItem[] = result.items.map((item) => ({
           id: item.id,
           email: item.email,
           name: item.name,
-          role: item.role
+          role: item.role,
         }));
-        
+
         setPagedUsers(users);
-        setTotalPages(result.totalPages);
+        setTotalPages(Math.max(1, result.totalPages));
       } catch (err) {
-        console.error('Failed to fetch users:', err);
+        console.error("Failed to fetch users:", err);
         setPagedUsers([]);
         setTotalPages(1);
       } finally {
@@ -280,7 +285,8 @@ export function UsersPanel() {
     };
 
     fetchUsers();
-  }, [page, perPage]);
+  }, [page, perPage, refreshToken]);
+
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -299,6 +305,8 @@ export function UsersPanel() {
       setForm((previous) => ({ ...initialForm, role: previous.role }));
       setIsModalOpen(false); // Close modal on success
       setShowToast(true);
+      setRefreshToken((v) => v + 1);
+
     } catch (err) {
       const message = getErrorMessage(err);
       if (message) setError(message);
@@ -338,10 +346,12 @@ export function UsersPanel() {
         return;
       }
       // Update user in PocketBase
-      await pb.collection('users').update(editUserId, { ...editForm });
+      await pb.collection("users").update(editUserId, { ...editForm });
       setSuccess(`User ${editForm.email.trim()} updated.`);
       setIsEditModalOpen(false);
       setShowToast(true);
+      setRefreshToken((v) => v + 1);
+
     } catch (err) {
       const message = getErrorMessage(err);
       if (message) setError(message);
@@ -375,10 +385,12 @@ export function UsersPanel() {
         return;
       }
       // Delete user from PocketBase
-      await pb.collection('users').delete(String(deleteUser.id));
+      await pb.collection("users").delete(String(deleteUser.id));
       setSuccess(`User ${deleteUser.email} deleted.`);
       setIsDeleteModalOpen(false);
       setShowToast(true);
+      setRefreshToken((v) => v + 1);
+
     } catch (err) {
       setError("Failed to delete user.");
     } finally {

@@ -633,6 +633,7 @@ export default function Candidates() {
   }
 
   function handleOpenModal() {
+    console.log("DEBUG: handleOpenModal called");
     setForm(initialForm);
     setIsModalOpen(true);
     setError("");
@@ -1160,13 +1161,17 @@ export default function Candidates() {
                 </p>
               </div>
               <div className="ml-auto flex items-center gap-2">
-                <button
-                  className="border-none text-white flex items-center gap-1 text-sm bg-linear-to-br from-(--primary) to-(--primary2) rounded-md px-2.5 py-2 font-bold transition-all duration-150 hover:brightness-110 hover:scale-105"
-                  onClick={handleOpenModal}
-                >
-                  <Icon icon="mynaui:plus" width="24" height="24" />
-                  Add Candidate
-                </button>
+                {canManageCandidates && (
+                  <button
+                    className="border-none text-white flex items-center gap-1 text-sm bg-linear-to-br from-(--primary) to-(--primary2) rounded-md px-2.5 py-2 font-bold transition-all duration-150 hover:brightness-110 hover:scale-105"
+                    onClick={handleOpenModal}
+                    aria-label="Add new candidate"
+                    data-testid="add-candidate-button"
+                  >
+                    <Icon icon="mynaui:plus" width="24" height="24" />
+                    Add Candidate
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={handleOpenArchive}
@@ -1177,6 +1182,102 @@ export default function Candidates() {
                 </button>
               </div>
             </div>
+
+            {/* Modal for adding new candidate */}
+            {isModalOpen && (
+              <Modal
+                open={isModalOpen}
+                onClose={handleCloseModal}
+                title="Add New Candidate"
+              >
+                <form onSubmit={onSubmit} className="p-4">
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      First Name
+                    </label>
+                    <input
+                      type="text"
+                      value={form.first_name}
+                      onChange={(e) => setForm({...form, first_name: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Last Name
+                    </label>
+                    <input
+                      type="text"
+                      value={form.last_name}
+                      onChange={(e) => setForm({...form, last_name: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      value={form.email}
+                      onChange={(e) => setForm({...form, email: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Phone
+                    </label>
+                    <input
+                      type="tel"
+                      value={form.phone}
+                      onChange={(e) => setForm({...form, phone: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Status
+                    </label>
+                    <select
+                      value={form.status}
+                      onChange={(e) => setForm({...form, status: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      {candidateStatuses.map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div className="flex justify-end space-x-2 mt-6">
+                    <button
+                      type="button"
+                      onClick={handleCloseModal}
+                      className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                    >
+                      {isSubmitting ? "Adding..." : "Add Candidate"}
+                    </button>
+                  </div>
+                </form>
+              </Modal>
+            )}
 
             <div className="flex flex-wrap gap-3 items-end">
               <div className="max-w-sm flex-1">

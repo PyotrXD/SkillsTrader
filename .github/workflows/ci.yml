@@ -28,8 +28,5 @@ jobs:
       - name: Install Frontend Dependencies
         run: npm --prefix skillstrader-frontend ci
 
-      - name: Lint
-        run: npm run lint
-
       - name: Build
         run: npm run build

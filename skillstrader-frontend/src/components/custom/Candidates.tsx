@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import type { FormEvent } from "react";
 import { Icon } from "@iconify/react";
 import Modal from "../ui/Modal";
@@ -1202,7 +1202,7 @@ export default function Candidates() {
                       }`}
                       onClick={() => setActiveTab("tab1")}
                     >
-                      Tab 1
+                      Information
                     </button>
                     <button
                       type="button"
@@ -1213,7 +1213,7 @@ export default function Candidates() {
                       }`}
                       onClick={() => setActiveTab("tab2")}
                     >
-                      Tab 2
+                      Pre-Employment Requirements
                     </button>
                     <button
                       type="button"
@@ -1224,7 +1224,7 @@ export default function Candidates() {
                       }`}
                       onClick={() => setActiveTab("tab3")}
                     >
-                      Tab 3
+                      Employment and Education History
                     </button>
                   </div>
 
@@ -1381,9 +1381,6 @@ export default function Candidates() {
                     {/* Tab 2 Content */}
                     {activeTab === "tab2" && (
                       <div className="space-y-4">
-                        <h3 className="text-lg font-medium text-gray-900 mb-4">
-                          Pre-Employment Requirements
-                        </h3>
                         <p className="text-gray-600">
                           Coming soon...
                         </p>
@@ -1393,9 +1390,6 @@ export default function Candidates() {
                     {/* Tab 3 Content */}
                     {activeTab === "tab3" && (
                       <div className="space-y-4">
-                        <h3 className="text-lg font-medium text-gray-900 mb-4">
-                          Employment and Education History
-                        </h3>
                         <p className="text-gray-600">
                           Coming soon...
                         </p>

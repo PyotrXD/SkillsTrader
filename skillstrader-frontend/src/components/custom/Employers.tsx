@@ -5,7 +5,7 @@ import Modal from "../ui/Modal";
 import Toast from "../ui/Toast";
 import Searchbar from "../ui/Searchbar";
 import Pagination from "../ui/Pagination";
-import employersData from "../../data/employers.json";
+import { pb } from "../../lib/pocketbase/pb";
 
 type Employer = {
   id?: number | string;
@@ -40,6 +40,18 @@ const initialForm: Employer = {
 
 export default function Employers() {
   const [employers, setEmployers] = useState<Employer[]>([]);
+  
+  async function fetchEmployers(page = 1, perPage = 50) {
+    try {
+      const result = await pb.collection('employer').getList(page, perPage, {
+        sort: '-created'
+      });
+      setEmployers(result.items);
+      setTotalPages(result.totalPages);
+    } catch (err) {
+      console.error('Failed to fetch employers:', err);
+    }
+  }
   const [form, setForm] = useState<Employer>(initialForm);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -60,7 +72,7 @@ export default function Employers() {
   const [pagedEmployers, setPagedEmployers] = useState<Employer[]>([]);
 
   useEffect(() => {
-    setEmployers(employersData as Employer[]);
+    fetchEmployers();
   }, []);
 
   const filtered = useMemo(
@@ -81,7 +93,6 @@ export default function Employers() {
   );
 
   useEffect(() => {
-    setTotalPages(Math.ceil(filtered.length / perPage) || 1);
     setPagedEmployers(filtered.slice((page - 1) * perPage, page * perPage));
   }, [filtered, page, perPage]);
 
@@ -91,7 +102,13 @@ export default function Employers() {
     setShowToast(true);
   }
 
-  function handleOpenModal() {
+function handleOpenModal() {
+    // Check if user is authenticated
+    if (!pb.authStore.isValid) {
+      setError("Please log in to add employers");
+      return;
+    }
+    
     setForm(initialForm);
     setIsModalOpen(true);
     setError("");
@@ -138,12 +155,28 @@ export default function Employers() {
         setError("Company name is required");
         return;
       }
-      setEmployers((prev) => [{ ...form, id: Date.now() }, ...prev]);
+      
+      console.log("Sending form data to PocketBase:", form);
+      const newEmployer = await pb.collection('employer').create(form);
+      console.log("Created employer:", newEmployer);
+      setEmployers(prev => [newEmployer, ...prev]);
       showFeedback("success", "Employer created");
       setIsModalOpen(false);
-    } catch {
-      setError("Failed to create employer");
-      showFeedback("error", "Failed to create employer");
+    } catch (err: any) {
+      console.error("Error creating employer:", err);
+      // Enhanced error handling to provide more specific feedback
+      let errorMessage = "Failed to create employer";
+      if (err.status === 400) {
+        errorMessage = "Validation failed. Please check all required fields.";
+      } else if (err.status === 401) {
+        errorMessage = "Authentication required. Please log in.";
+      } else if (err.status === 403) {
+        errorMessage = "Access denied. Insufficient permissions.";
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      setError(errorMessage);
+      showFeedback("error", errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -155,10 +188,12 @@ export default function Employers() {
     setError("");
     try {
       if (!editEmployer) return;
-      setEmployers((prev) => prev.map((it) => (it.id === editEmployer.id ? { ...it, ...form } : it)));
+      
+      const updatedEmployer = await pb.collection('employer').update(editEmployer.id, form);
+      setEmployers(prev => prev.map((it) => (it.id === editEmployer.id ? updatedEmployer : it)));
       showFeedback("success", "Employer updated");
       setIsEditModalOpen(false);
-    } catch {
+    } catch (err) {
       setError("Failed to update");
       showFeedback("error", "Failed to update");
     } finally {
@@ -170,10 +205,12 @@ export default function Employers() {
     setIsSubmitting(true);
     try {
       if (!deleteEmployer) return;
-      setEmployers((prev) => prev.filter((it) => it.id !== deleteEmployer.id));
+      
+      await pb.collection('employer').delete(deleteEmployer.id);
+      setEmployers(prev => prev.filter((it) => it.id !== deleteEmployer.id));
       showFeedback("success", "Employer deleted");
       setIsDeleteModalOpen(false);
-    } catch {
+    } catch (err) {
       showFeedback("error", "Failed to delete employer");
     } finally {
       setIsSubmitting(false);
@@ -199,10 +236,10 @@ export default function Employers() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-2.5 items-center" aria-label="Search and actions">
-            <div className="flex items-center gap-2 w-full">
-              <div className="max-w-sm flex-1">
-                <Searchbar value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search employers..." />
-              </div>
+              <div className="flex items-center gap-2 w-full">
+                <div className="max-w-sm flex-1">
+                  <Searchbar value={search} onChange={(v) => { setSearch(v); setPage(1); fetchEmployers(1, perPage); }} placeholder="Search employers..." />
+                </div>
 
               {search && (
                 <button
@@ -376,9 +413,16 @@ export default function Employers() {
         <Pagination
           page={page}
           totalPages={totalPages}
-          onPageChange={setPage}
+          onPageChange={(newPage) => {
+            setPage(newPage);
+            fetchEmployers(newPage, perPage);
+          }}
           perPage={perPage}
-          onPerPageChange={(v) => { setPerPage(v); setPage(1); }}
+          onPerPageChange={(v) => { 
+            setPerPage(v); 
+            setPage(1);
+            fetchEmployers(1, v);
+          }}
         />
       </div>
 

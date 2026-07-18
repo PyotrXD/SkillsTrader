@@ -72,16 +72,68 @@ onRecordCreateRequest((e) => {
     let entityName = 'unknown';
     const record = e?.record;
     if (record) {
-      const candidates = ['full_name', 'company_name', 'title', 'name', 'doc_type', 'email', 'status'];
-      for (const fieldName of candidates) {
+      // Enhanced entity name detection for better audit logging
+      const collectionName = e?.collection?.name ?? '';
+      
+      // Priority-based detection for specific collections
+      if (collectionName === 'employer') {
+        // For employers, prioritize company_name
+        const companyNames = ['company_name', 'name', 'title'];
+        for (const fieldName of companyNames) {
+          try {
+            const value = toStringValue(record.get(fieldName));
+            if (value) {
+              entityName = value;
+              break;
+            }
+          } catch (_) {}
+        }
+      } else if (collectionName === 'placements') {
+        // For placements, try to get meaningful info from related records
         try {
-          const value = toStringValue(record.get(fieldName));
-          if (value) {
-            entityName = value;
-            break;
+          const candidate = record.get('candidate');
+          if (candidate && typeof candidate === 'object' && candidate.full_name) {
+            entityName = `Placement for ${candidate.full_name}`;
+          } else if (candidate && typeof candidate === 'string') {
+            // Try to get candidate name from the ID
+            const candidateRecord = $app.findRecordById('candidates', candidate);
+            if (candidateRecord && candidateRecord.full_name) {
+              entityName = `Placement for ${candidateRecord.full_name}`;
+            }
           }
         } catch (_) {}
+        
+        // Fallback to job order if candidate not available
+        if (entityName === 'unknown') {
+          try {
+            const jobOrder = record.get('job_order');
+            if (jobOrder && typeof jobOrder === 'object' && jobOrder.title) {
+              entityName = `Placement for ${jobOrder.title}`;
+            } else if (jobOrder && typeof jobOrder === 'string') {
+              // Try to get job order title from the ID
+              const jobOrderRecord = $app.findRecordById('job_orders', jobOrder);
+              if (jobOrderRecord && jobOrderRecord.title) {
+                entityName = `Placement for ${jobOrderRecord.title}`;
+              }
+            }
+          } catch (_) {}
+        }
       }
+      
+      // Default fallback for all collections
+      if (entityName === 'unknown') {
+        const candidates = ['full_name', 'company_name', 'title', 'name', 'doc_type', 'email', 'status'];
+        for (const fieldName of candidates) {
+          try {
+            const value = toStringValue(record.get(fieldName));
+            if (value) {
+              entityName = value;
+              break;
+            }
+          } catch (_) {}
+        }
+      }
+      
       if (entityName === 'unknown') entityName = toStringValue(record.id, 'unknown');
     }
 
@@ -205,16 +257,68 @@ onRecordUpdateRequest((e) => {
     let entityName = 'unknown';
     const record = e?.record;
     if (record) {
-      const candidates = ['full_name', 'company_name', 'title', 'name', 'doc_type', 'email', 'status'];
-      for (const fieldName of candidates) {
+      // Enhanced entity name detection for better audit logging
+      const collectionName = e?.collection?.name ?? '';
+      
+      // Priority-based detection for specific collections
+      if (collectionName === 'employer') {
+        // For employers, prioritize company_name
+        const companyNames = ['company_name', 'name', 'title'];
+        for (const fieldName of companyNames) {
+          try {
+            const value = toStringValue(record.get(fieldName));
+            if (value) {
+              entityName = value;
+              break;
+            }
+          } catch (_) {}
+        }
+      } else if (collectionName === 'placements') {
+        // For placements, try to get meaningful info from related records
         try {
-          const value = toStringValue(record.get(fieldName));
-          if (value) {
-            entityName = value;
-            break;
+          const candidate = record.get('candidate');
+          if (candidate && typeof candidate === 'object' && candidate.full_name) {
+            entityName = `Placement for ${candidate.full_name}`;
+          } else if (candidate && typeof candidate === 'string') {
+            // Try to get candidate name from the ID
+            const candidateRecord = $app.findRecordById('candidates', candidate);
+            if (candidateRecord && candidateRecord.full_name) {
+              entityName = `Placement for ${candidateRecord.full_name}`;
+            }
           }
         } catch (_) {}
+        
+        // Fallback to job order if candidate not available
+        if (entityName === 'unknown') {
+          try {
+            const jobOrder = record.get('job_order');
+            if (jobOrder && typeof jobOrder === 'object' && jobOrder.title) {
+              entityName = `Placement for ${jobOrder.title}`;
+            } else if (jobOrder && typeof jobOrder === 'string') {
+              // Try to get job order title from the ID
+              const jobOrderRecord = $app.findRecordById('job_orders', jobOrder);
+              if (jobOrderRecord && jobOrderRecord.title) {
+                entityName = `Placement for ${jobOrderRecord.title}`;
+              }
+            }
+          } catch (_) {}
+        }
       }
+      
+      // Default fallback for all collections
+      if (entityName === 'unknown') {
+        const candidates = ['full_name', 'company_name', 'title', 'name', 'doc_type', 'email', 'status'];
+        for (const fieldName of candidates) {
+          try {
+            const value = toStringValue(record.get(fieldName));
+            if (value) {
+              entityName = value;
+              break;
+            }
+          } catch (_) {}
+        }
+      }
+      
       if (entityName === 'unknown') entityName = toStringValue(record.id, 'unknown');
     }
 
@@ -338,16 +442,68 @@ onRecordDeleteRequest((e) => {
     let entityName = 'unknown';
     const record = e?.record;
     if (record) {
-      const candidates = ['full_name', 'company_name', 'title', 'name', 'doc_type', 'email', 'status'];
-      for (const fieldName of candidates) {
+      // Enhanced entity name detection for better audit logging
+      const collectionName = e?.collection?.name ?? '';
+      
+      // Priority-based detection for specific collections
+      if (collectionName === 'employer') {
+        // For employers, prioritize company_name
+        const companyNames = ['company_name', 'name', 'title'];
+        for (const fieldName of companyNames) {
+          try {
+            const value = toStringValue(record.get(fieldName));
+            if (value) {
+              entityName = value;
+              break;
+            }
+          } catch (_) {}
+        }
+      } else if (collectionName === 'placements') {
+        // For placements, try to get meaningful info from related records
         try {
-          const value = toStringValue(record.get(fieldName));
-          if (value) {
-            entityName = value;
-            break;
+          const candidate = record.get('candidate');
+          if (candidate && typeof candidate === 'object' && candidate.full_name) {
+            entityName = `Placement for ${candidate.full_name}`;
+          } else if (candidate && typeof candidate === 'string') {
+            // Try to get candidate name from the ID
+            const candidateRecord = $app.findRecordById('candidates', candidate);
+            if (candidateRecord && candidateRecord.full_name) {
+              entityName = `Placement for ${candidateRecord.full_name}`;
+            }
           }
         } catch (_) {}
+        
+        // Fallback to job order if candidate not available
+        if (entityName === 'unknown') {
+          try {
+            const jobOrder = record.get('job_order');
+            if (jobOrder && typeof jobOrder === 'object' && jobOrder.title) {
+              entityName = `Placement for ${jobOrder.title}`;
+            } else if (jobOrder && typeof jobOrder === 'string') {
+              // Try to get job order title from the ID
+              const jobOrderRecord = $app.findRecordById('job_orders', jobOrder);
+              if (jobOrderRecord && jobOrderRecord.title) {
+                entityName = `Placement for ${jobOrderRecord.title}`;
+              }
+            }
+          } catch (_) {}
+        }
       }
+      
+      // Default fallback for all collections
+      if (entityName === 'unknown') {
+        const candidates = ['full_name', 'company_name', 'title', 'name', 'doc_type', 'email', 'status'];
+        for (const fieldName of candidates) {
+          try {
+            const value = toStringValue(record.get(fieldName));
+            if (value) {
+              entityName = value;
+              break;
+            }
+          } catch (_) {}
+        }
+      }
+      
       if (entityName === 'unknown') entityName = toStringValue(record.id, 'unknown');
     }
 

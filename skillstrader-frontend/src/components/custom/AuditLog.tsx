@@ -11,6 +11,7 @@ import Searchbar from '../ui/Searchbar';
 import Filter from '../ui/Filter';
 import Pagination from '../ui/Pagination';
 import Modal from '../ui/Modal';
+import { pb } from '../../lib/pocketbase/pb';
 
 const ACTION_LABELS: Record<AuditAction, string> = {
   view: 'Viewed',
@@ -43,7 +44,8 @@ function formatDate(iso: string): string {
 }
 
 export default function AuditLog() {
-  const [logs, setLogs] = useState<AuditLogEntry[]>(() => getAuditLogs());
+  const [logs, setLogs] = useState<AuditLogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [actionFilter, setActionFilter] = useState('');
   const [entityFilter, setEntityFilter] = useState('');
@@ -53,10 +55,74 @@ export default function AuditLog() {
   const [perPage, setPerPage] = useState(5);
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
 
+  // Fetch audit logs from PocketBase
+  async function fetchAuditLogs() {
+    if (!pb.authStore.isValid) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const result = await pb.collection('audit_logs').getList<AuditLogEntry>(page, perPage, {
+        sort: '-timestamp',
+        filter: buildFilter(),
+        requestKey: null,
+      });
+      
+      setLogs(result.items);
+      setLoading(false);
+    } catch (err) {
+      console.error('Failed to fetch audit logs:', err);
+      setLogs([]);
+      setLoading(false);
+    }
+  }
+
+  // Build filter string for PocketBase query
+  function buildFilter(): string {
+    const conditions: string[] = [];
+    
+    if (search) {
+      const escapedSearch = search.replace(/"/g, '\\"'); // Escape quotes
+      conditions.push(
+        `(actor_email ~ "${escapedSearch}" || entity_name ~ "${escapedSearch}" || entity ~ "${escapedSearch}")`
+      );
+    }
+    
+    if (actionFilter) {
+      conditions.push(`action = "${actionFilter}"`);
+    }
+    
+    if (entityFilter) {
+      conditions.push(`entity = "${entityFilter}"`);
+    }
+    
+    if (dateFrom) {
+      conditions.push(`timestamp >= "${dateFrom}"`);
+    }
+    
+    if (dateTo) {
+      conditions.push(`timestamp <= "${dateTo}T23:59:59"`);
+    }
+    
+    return conditions.join(' && ');
+  }
+
+  // Refresh logs when filters change
   useEffect(() => {
-    return subscribeAuditLog(() => setLogs(getAuditLogs()));
+    fetchAuditLogs();
+  }, [page, perPage, search, actionFilter, entityFilter, dateFrom, dateTo]);
+
+  // Keep local storage subscription for compatibility
+  useEffect(() => {
+    return subscribeAuditLog(() => {
+      // This is for backward compatibility - local storage logs
+      // but we'll primarily rely on PocketBase data
+    });
   }, []);
 
+  // Get unique entities for filter dropdown
   const entities = Array.from(new Set(logs.map((l) => l.entity))).sort();
 
   const filtered = logs.filter((l) => {
@@ -204,7 +270,16 @@ export default function AuditLog() {
                   </tr>
                 </thead>
                 <tbody>
-                  {paged.length === 0 ? (
+                  {loading ? (
+                    <tr>
+                      <td colSpan={7} className="py-14 text-center text-(--muted)">
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-(--primary)"></div>
+                          <span className="text-base font-semibold">Loading audit logs...</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : paged.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="py-14 text-center text-(--muted)">
                         <div className="flex flex-col items-center gap-2">

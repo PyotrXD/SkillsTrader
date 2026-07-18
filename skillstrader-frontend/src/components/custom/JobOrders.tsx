@@ -57,6 +57,28 @@ const initialForm: JobOrder = {
   description: "",
 };
 
+// Helper function to map JobOrderRecord to JobOrder
+function mapJobOrderRecordToJobOrder(item: JobOrderRecord): JobOrder {
+  return {
+    id: String(item.id),
+    title: String(item.title ?? ''),
+    openings: Number(item.openings ?? 0),
+    employer: item.employer ? String(item.employer) : undefined,
+    status: item.status ?? 'Open',
+    location: String(item.location ?? ''),
+    description: String(item.description ?? ''),
+    created: item.created,
+    updated: item.updated,
+    expand: {
+      employer: item.expand?.employer
+        ? {
+            company_name: String(item.expand.employer.company_name ?? ''),
+          }
+        : undefined,
+    },
+  };
+}
+
 export default function JobOrders() {
   const [jobOrders, setJobOrders] = useState<JobOrder[]>([]);
   const [form, setForm] = useState<JobOrder>(initialForm);
@@ -157,6 +179,19 @@ export default function JobOrders() {
     setPagedOrders(filtered.slice((page - 1) * perPage, page * perPage));
   }, [filtered, page, perPage]);
 
+  // Unified function to refresh job orders list
+  async function refreshJobOrders() {
+    try {
+      const jobOrdersList = await pb.collection('job_orders').getFullList<JobOrderRecord>({
+        sort: '-created',
+        expand: 'employer'
+      });
+      setJobOrders(jobOrdersList.map(mapJobOrderRecordToJobOrder));
+    } catch (error) {
+      console.error('Failed to refresh job orders:', error);
+    }
+  }
+
   function showFeedback(type: "success" | "error" | "info", message: string) {
     setToastType(type);
     setSuccess(message);
@@ -211,7 +246,7 @@ export default function JobOrders() {
       }
       
       // Submit to PocketBase
-      const newJobOrder = await pb.collection('job_orders').create({
+      await pb.collection('job_orders').create({
         title: form.title,
         openings: form.openings,
         employer: form.employer,
@@ -221,30 +256,7 @@ export default function JobOrders() {
       });
       
       // Refresh the list
-      const updatedJobOrders = await pb.collection('job_orders').getFullList({
-        sort: '-created',
-        expand: 'employer'
-      });
-      setJobOrders(
-        updatedJobOrders.map((item) => ({
-          id: String(item.id),
-          title: String(item.title ?? ''),
-          openings: Number(item.openings ?? 0),
-          employer: item.employer ? String(item.employer) : undefined,
-          status: item.status ?? 'Open',
-          location: String(item.location ?? ''),
-          description: String(item.description ?? ''),
-          created: item.created,
-          updated: item.updated,
-          expand: {
-            employer: item.expand?.employer
-              ? {
-                  company_name: String(item.expand.employer.company_name ?? ''),
-                }
-              : undefined,
-          },
-        }))
-      );
+      await refreshJobOrders();
       
       showFeedback("success", "Job order created");
       setIsModalOpen(false);
@@ -274,30 +286,7 @@ export default function JobOrders() {
       });
       
       // Refresh the list
-      const updatedJobOrders = await pb.collection('job_orders').getFullList({
-        sort: '-created',
-        expand: 'employer'
-      });
-      setJobOrders(
-        updatedJobOrders.map((item) => ({
-          id: String(item.id),
-          title: String(item.title ?? ''),
-          openings: Number(item.openings ?? 0),
-          employer: item.employer ? String(item.employer) : undefined,
-          status: item.status ?? 'Open',
-          location: String(item.location ?? ''),
-          description: String(item.description ?? ''),
-          created: item.created,
-          updated: item.updated,
-          expand: {
-            employer: item.expand?.employer
-              ? {
-                  company_name: String(item.expand.employer.company_name ?? ''),
-                }
-              : undefined,
-          },
-        }))
-      );
+      await refreshJobOrders();
       
       showFeedback("success", "Job order updated");
       setIsEditModalOpen(false);
@@ -319,30 +308,7 @@ export default function JobOrders() {
       await pb.collection('job_orders').delete(deleteOrder.id);
       
       // Refresh the list
-      const updatedJobOrders = await pb.collection('job_orders').getFullList({
-        sort: '-created',
-        expand: 'employer'
-      });
-      setJobOrders(
-        updatedJobOrders.map((item) => ({
-          id: String(item.id),
-          title: String(item.title ?? ''),
-          openings: Number(item.openings ?? 0),
-          employer: item.employer ? String(item.employer) : undefined,
-          status: item.status ?? 'Open',
-          location: String(item.location ?? ''),
-          description: String(item.description ?? ''),
-          created: item.created,
-          updated: item.updated,
-          expand: {
-            employer: item.expand?.employer
-              ? {
-                  company_name: String(item.expand.employer.company_name ?? ''),
-                }
-              : undefined,
-          },
-        }))
-      );
+      await refreshJobOrders();
       
       showFeedback("success", "Job order deleted");
       setIsDeleteModalOpen(false);

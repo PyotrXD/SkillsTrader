@@ -371,7 +371,7 @@ export default function JobOrders() {
                 <Searchbar value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search job title or employer" />
               </div>
 
-              <div className="w-44 ml-2 flex-shrink-0">
+              <div className="w-44 ml-2 shrink-0">
                 <Filter value={statusFilter} onChange={(v) => { setStatusFilter(v); setPage(1); }} options={[{ value: "", label: "All statuses" }, { value: "Open", label: "Open" }, { value: "Closed", label: "Closed" }, { value: "Filled", label: "Filled" }]} placeholder="Filter by status" />
               </div>
 

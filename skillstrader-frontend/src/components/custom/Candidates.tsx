@@ -6,6 +6,7 @@ import Toast from "../ui/Toast";
 import Searchbar from "../ui/Searchbar";
 import Filter from "../ui/Filter";
 import Pagination from "../ui/Pagination";
+import Selection from "../ui/Selection";
 import defaultProfile from "../../assets/images/default-profile.png";
 import { generateResumeHtml } from "./resumeTemplate";
 import { getUserRole, pb } from "../../lib/pocketbase/pb";
@@ -17,6 +18,7 @@ import type {
   CandidateRecord,
   DocumentRecord,
   InterviewSummary,
+  PositionRecord
 } from "../../types/Candidate";
 import { hasChanges } from "../../utils/hasChanges";
 import {
@@ -36,6 +38,7 @@ import {
 
 export default function Candidates() {
   const [form, setForm] = useState<CandidateForm>(initialForm);
+  const [positions, setPositions] = useState<PositionRecord[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editCandidate, setEditCandidate] = useState<CandidateForm | null>(
@@ -340,6 +343,8 @@ export default function Candidates() {
   useEffect(() => {
     if (!pb.authStore.isValid) return;
     void fetchCandidatePage(page);
+    // Fetch positions for dropdown
+    fetchPositions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     page,
@@ -351,6 +356,19 @@ export default function Candidates() {
     quickFilter,
     refreshToken,
   ]);
+
+  async function fetchPositions() {
+    try {
+      const items = await pb.collection('positions').getFullList<PositionRecord>({
+        sort: 'industry,title',
+        requestKey: null,
+      });
+      setPositions(items);
+    } catch (err) {
+      console.error('Failed to load positions', err);
+      setPositions([]);
+    }
+  }
 
   useEffect(() => {
     if (!isArchiveOpen) return;
@@ -1290,639 +1308,761 @@ export default function Candidates() {
           </Modal>
         )}
         
-        {/* Add Candidate Modal */}
-        {isModalOpen && (
-          <Modal
-            open={isModalOpen}
-            onClose={handleCloseModal}
-            title="Add New Candidate"
-          >
-            <div className="p-4 max-h-[90vh] overflow-y-auto">
-              <form onSubmit={onSubmit}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <h3 className="text-lg font-medium text-(--text) mb-3">Personal Information</h3>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Last Name *</label>
-                        <input
-                          type="text"
-                          value={form.last_name}
-                          onChange={(e) => setForm({...form, last_name: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">First Name *</label>
-                        <input
-                          type="text"
-                          value={form.first_name}
-                          onChange={(e) => setForm({...form, first_name: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Middle Name</label>
-                        <input
-                          type="text"
-                          value={form.middle_name}
-                          onChange={(e) => setForm({...form, middle_name: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Prefix</label>
-                        <input
-                          type="text"
-                          value={form.prefix}
-                          onChange={(e) => setForm({...form, prefix: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Suffix</label>
-                        <input
-                          type="text"
-                          value={form.suffix}
-                          onChange={(e) => setForm({...form, suffix: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Email *</label>
-                        <input
-                          type="email"
-                          value={form.email}
-                          onChange={(e) => setForm({...form, email: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Phone *</label>
-                        <input
-                          type="tel"
-                          value={form.phone}
-                          onChange={(e) => setForm({...form, phone: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Marital Status</label>
-                        <select
-                          value={form.marital_status}
-                          onChange={(e) => setForm({...form, marital_status: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        >
-                          <option value="">Select Marital Status</option>
-                          <option value="Single">Single</option>
-                          <option value="Married">Married</option>
-                          <option value="Widowed">Widowed</option>
-                          <option value="Divorced">Divorced</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Status</label>
-                        <select
-                          value={form.status}
-                          onChange={(e) => setForm({...form, status: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        >
-                          {candidateStatuses.map((status) => (
-                            <option key={status} value={status}>{status}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-lg font-medium text-(--text) mb-3">Contact Information</h3>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Home Address</label>
-                        <textarea
-                          value={form.home_address}
-                          onChange={(e) => setForm({...form, home_address: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                          rows={3}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Permanent Address</label>
-                        <textarea
-                          value={form.permanent_address}
-                          onChange={(e) => setForm({...form, permanent_address: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                          rows={3}
-                        />
-                      </div>
-                    </div>
-                    
-                    <h3 className="text-lg font-medium text-(--text) mb-3 mt-4">Government IDs</h3>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Pag-IBIG Number</label>
-                        <input
-                          type="text"
-                          value={form.pagibig_number}
-                          onChange={(e) => setForm({...form, pagibig_number: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">SSS Number</label>
-                        <input
-                          type="text"
-                          value={form.sss_number}
-                          onChange={(e) => setForm({...form, sss_number: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">PhilHealth</label>
-                        <input
-                          type="text"
-                          value={form.philhealth}
-                          onChange={(e) => setForm({...form, philhealth: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
+         {/* Add Candidate Modal */}
+         {isModalOpen && (
+           <Modal
+             open={isModalOpen}
+             onClose={handleCloseModal}
+             title="Add New Candidate"
+           >
+             <div className="p-4 max-h-[90vh] overflow-y-auto">
+               <div className="mb-6">
+                 <div className="flex items-center gap-4">
+                   <div className="relative">
+                     <div className="bg-gray-200 border-2 border-dashed rounded-xl w-16 h-16 flex items-center justify-center">
+                       {form.profile_photo ? (
+                         typeof form.profile_photo === "string" ? (
+                           <img 
+                             src={form.profile_photo} 
+                             alt="Profile preview" 
+                             className="w-full h-full rounded-xl object-cover"
+                           />
+                         ) : (
+                           <img 
+                             src={URL.createObjectURL(form.profile_photo)} 
+                             alt="Profile preview" 
+                             className="w-full h-full rounded-xl object-cover"
+                           />
+                         )
+                       ) : (
+                         <Icon icon="tabler:user" width="24" height="24" className="text-gray-400" />
+                       )}
+                     </div>
+                     <input
+                       type="file"
+                       id="profile-photo-upload"
+                       accept="image/*"
+                       className="hidden"
+                       onChange={(e) => {
+                         const file = e.target.files?.[0];
+                         if (file) {
+                           setForm({...form, profile_photo: file});
+                         }
+                       }}
+                     />
+                     <label 
+                       htmlFor="profile-photo-upload"
+                       className="absolute bottom-0 right-0 bg-blue-600 text-white rounded-full p-1 cursor-pointer hover:bg-blue-700 transition-colors"
+                     >
+                       <Icon icon="tabler:camera" width="16" height="16" />
+                     </label>
+                   </div>
+                   <div>
+                     <h2 className="text-xl font-bold text-(--text)">Add New Candidate</h2>
+                     <p className="text-sm text-(--muted)">Fill in the candidate details</p>
+                   </div>
+                 </div>
+               </div>
+               
+               <form onSubmit={onSubmit}>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <div className="border border-(--border) rounded-xl p-4">
+                     <h3 className="text-lg font-semibold text-(--text) mb-4">Personal Information</h3>
+                     <div className="space-y-4">
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Last Name *</label>
+                         <input
+                           type="text"
+                           value={form.last_name}
+                           onChange={(e) => setForm({...form, last_name: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                           required
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">First Name *</label>
+                         <input
+                           type="text"
+                           value={form.first_name}
+                           onChange={(e) => setForm({...form, first_name: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                           required
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Middle Name</label>
+                         <input
+                           type="text"
+                           value={form.middle_name}
+                           onChange={(e) => setForm({...form, middle_name: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Prefix</label>
+                         <input
+                           type="text"
+                           value={form.prefix}
+                           onChange={(e) => setForm({...form, prefix: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Suffix</label>
+                         <input
+                           type="text"
+                           value={form.suffix}
+                           onChange={(e) => setForm({...form, suffix: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Email *</label>
+                         <input
+                           type="email"
+                           value={form.email}
+                           onChange={(e) => setForm({...form, email: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                           required
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Phone *</label>
+                         <input
+                           type="tel"
+                           value={form.phone}
+                           onChange={(e) => setForm({...form, phone: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                           required
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Marital Status</label>
+                         <select
+                           value={form.marital_status}
+                           onChange={(e) => setForm({...form, marital_status: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         >
+                           <option value="">Select Marital Status</option>
+                           <option value="Single">Single</option>
+                           <option value="Married">Married</option>
+                           <option value="Widowed">Widowed</option>
+                           <option value="Divorced">Divorced</option>
+                         </select>
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Status</label>
+                         <select
+                           value={form.status}
+                           onChange={(e) => setForm({...form, status: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         >
+                           {candidateStatuses.map((status) => (
+                             <option key={status} value={status}>{status}</option>
+                           ))}
+                         </select>
+                       </div>
+                     </div>
+                   </div>
+                   
+                   <div className="border border-(--border) rounded-xl p-4">
+                     <h3 className="text-lg font-semibold text-(--text) mb-4">Contact Information</h3>
+                     <div className="space-y-4">
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Home Address</label>
+                         <textarea
+                           value={form.home_address}
+                           onChange={(e) => setForm({...form, home_address: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                           rows={3}
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Permanent Address</label>
+                         <textarea
+                           value={form.permanent_address}
+                           onChange={(e) => setForm({...form, permanent_address: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                           rows={3}
+                         />
+                       </div>
+                     </div>
+                     
+                     <h3 className="text-lg font-semibold text-(--text) mb-4 mt-6">Government IDs</h3>
+                     <div className="space-y-4">
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Pag-IBIG Number</label>
+                         <input
+                           type="text"
+                           value={form.pagibig_number}
+                           onChange={(e) => setForm({...form, pagibig_number: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">SSS Number</label>
+                         <input
+                           type="text"
+                           value={form.sss_number}
+                           onChange={(e) => setForm({...form, sss_number: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">PhilHealth</label>
+                         <input
+                           type="text"
+                           value={form.philhealth}
+                           onChange={(e) => setForm({...form, philhealth: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                     </div>
+                   </div>
+                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                  <div>
-                    <h3 className="text-lg font-medium text-(--text) mb-3">Education</h3>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Highest Educational Attainment</label>
-                        <input
-                          type="text"
-                          value={form.highest_educ_attainment}
-                          onChange={(e) => setForm({...form, highest_educ_attainment: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Elementary School</label>
-                        <input
-                          type="text"
-                          value={form.school_elementary}
-                          onChange={(e) => setForm({...form, school_elementary: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Junior High School</label>
-                        <input
-                          type="text"
-                          value={form.school_junior_high}
-                          onChange={(e) => setForm({...form, school_junior_high: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Senior High School</label>
-                        <input
-                          type="text"
-                          value={form.school_senior_high}
-                          onChange={(e) => setForm({...form, school_senior_high: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">College</label>
-                        <input
-                          type="text"
-                          value={form.school_college}
-                          onChange={(e) => setForm({...form, school_college: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Other School</label>
-                        <input
-                          type="text"
-                          value={form.school_other}
-                          onChange={(e) => setForm({...form, school_other: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Other School Name</label>
-                        <input
-                          type="text"
-                          value={form.school_other_name}
-                          onChange={(e) => setForm({...form, school_other_name: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-lg font-medium text-(--text) mb-3">Work Experience</h3>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Work History</label>
-                        <textarea
-                          value={form.work_history}
-                          onChange={(e) => setForm({...form, work_history: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                          rows={3}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Skills</label>
-                        <textarea
-                          value={form.skills}
-                          onChange={(e) => setForm({...form, skills: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                          rows={3}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Certifications</label>
-                        <textarea
-                          value={form.certifications}
-                          onChange={(e) => setForm({...form, certifications: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                          rows={3}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Desired Salary</label>
-                        <input
-                          type="text"
-                          value={form.desired_salary}
-                          onChange={(e) => setForm({...form, desired_salary: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Position Screened</label>
-                        <input
-                          type="text"
-                          value={form.position_screened}
-                          onChange={(e) => setForm({...form, position_screened: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Notes</label>
-                        <textarea
-                          value={form.notes}
-                          onChange={(e) => setForm({...form, notes: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                          rows={3}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                   <div className="border border-(--border) rounded-xl p-4">
+                     <h3 className="text-lg font-semibold text-(--text) mb-4">Education</h3>
+                     <div className="space-y-4">
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Highest Educational Attainment</label>
+                         <input
+                           type="text"
+                           value={form.highest_educ_attainment}
+                           onChange={(e) => setForm({...form, highest_educ_attainment: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Elementary School</label>
+                         <input
+                           type="text"
+                           value={form.school_elementary}
+                           onChange={(e) => setForm({...form, school_elementary: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Junior High School</label>
+                         <input
+                           type="text"
+                           value={form.school_junior_high}
+                           onChange={(e) => setForm({...form, school_junior_high: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Senior High School</label>
+                         <input
+                           type="text"
+                           value={form.school_senior_high}
+                           onChange={(e) => setForm({...form, school_senior_high: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">College</label>
+                         <input
+                           type="text"
+                           value={form.school_college}
+                           onChange={(e) => setForm({...form, school_college: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Other School</label>
+                         <input
+                           type="text"
+                           value={form.school_other}
+                           onChange={(e) => setForm({...form, school_other: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Other School Name</label>
+                         <input
+                           type="text"
+                           value={form.school_other_name}
+                           onChange={(e) => setForm({...form, school_other_name: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                     </div>
+                   </div>
+                   
+                   <div className="border border-(--border) rounded-xl p-4">
+                     <h3 className="text-lg font-semibold text-(--text) mb-4">Work Experience</h3>
+                     <div className="space-y-4">
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Work History</label>
+                         <textarea
+                           value={form.work_history}
+                           onChange={(e) => setForm({...form, work_history: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                           rows={3}
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Skills</label>
+                         <textarea
+                           value={form.skills}
+                           onChange={(e) => setForm({...form, skills: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                           rows={3}
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Certifications</label>
+                         <textarea
+                           value={form.certifications}
+                           onChange={(e) => setForm({...form, certifications: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                           rows={3}
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Desired Salary</label>
+                         <input
+                           type="text"
+                           value={form.desired_salary}
+                           onChange={(e) => setForm({...form, desired_salary: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Position Screened</label>
+                         <select
+                           value={form.position_screened}
+                           onChange={(e) => setForm({...form, position_screened: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         >
+                           <option value="">Select a position</option>
+                           {positions.map((position) => (
+                             <option key={position.id} value={position.title}>
+                               {position.industry} - {position.title}
+                             </option>
+                           ))}
+                         </select>
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Notes</label>
+                         <textarea
+                           value={form.notes}
+                           onChange={(e) => setForm({...form, notes: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                           rows={3}
+                         />
+                       </div>
+                     </div>
+                   </div>
+                 </div>
 
-                <div className="mt-6 flex justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={handleCloseModal}
-                    className="px-4 py-2 border border-(--border) text-(--text) rounded-md hover:bg-(--surface2) transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="px-4 py-2 bg-(--primary) text-white rounded-md hover:bg-(--primary2) transition-colors disabled:opacity-50"
-                  >
-                    {isSubmitting ? 'Adding...' : 'Add Candidate'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </Modal>
-        )}
+                 <div className="mt-8 flex justify-end gap-3">
+                   <button
+                     type="button"
+                     onClick={handleCloseModal}
+                     className="px-4 py-2 border border-(--border) text-(--text) rounded-md hover:bg-(--surface2) transition-colors"
+                   >
+                     Cancel
+                   </button>
+                   <button
+                     type="submit"
+                     disabled={isSubmitting}
+                     className="px-4 py-2 bg-(--primary) text-white rounded-md hover:bg-(--primary2) transition-colors disabled:opacity-50"
+                   >
+                     {isSubmitting ? 'Adding...' : 'Add Candidate'}
+                   </button>
+                 </div>
+               </form>
+             </div>
+           </Modal>
+         )}
         
-        {/* Edit Candidate Modal */}
-        {isEditModalOpen && editCandidate && (
-          <Modal
-            open={isEditModalOpen}
-            onClose={handleCloseEditModal}
-            title="Edit Candidate"
-          >
-            <div className="p-4 max-h-[90vh] overflow-y-auto">
-              <form onSubmit={onEditSubmit}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <h3 className="text-lg font-medium text-(--text) mb-3">Personal Information</h3>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Last Name *</label>
-                        <input
-                          type="text"
-                          value={form.last_name}
-                          onChange={(e) => setForm({...form, last_name: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">First Name *</label>
-                        <input
-                          type="text"
-                          value={form.first_name}
-                          onChange={(e) => setForm({...form, first_name: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Middle Name</label>
-                        <input
-                          type="text"
-                          value={form.middle_name}
-                          onChange={(e) => setForm({...form, middle_name: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Prefix</label>
-                        <input
-                          type="text"
-                          value={form.prefix}
-                          onChange={(e) => setForm({...form, prefix: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Suffix</label>
-                        <input
-                          type="text"
-                          value={form.suffix}
-                          onChange={(e) => setForm({...form, suffix: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Email *</label>
-                        <input
-                          type="email"
-                          value={form.email}
-                          onChange={(e) => setForm({...form, email: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Phone *</label>
-                        <input
-                          type="tel"
-                          value={form.phone}
-                          onChange={(e) => setForm({...form, phone: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Marital Status</label>
-                        <select
-                          value={form.marital_status}
-                          onChange={(e) => setForm({...form, marital_status: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        >
-                          <option value="">Select Marital Status</option>
-                          <option value="Single">Single</option>
-                          <option value="Married">Married</option>
-                          <option value="Widowed">Widowed</option>
-                          <option value="Divorced">Divorced</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Status</label>
-                        <select
-                          value={form.status}
-                          onChange={(e) => setForm({...form, status: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        >
-                          {candidateStatuses.map((status) => (
-                            <option key={status} value={status}>{status}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-lg font-medium text-(--text) mb-3">Contact Information</h3>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Home Address</label>
-                        <textarea
-                          value={form.home_address}
-                          onChange={(e) => setForm({...form, home_address: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                          rows={3}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Permanent Address</label>
-                        <textarea
-                          value={form.permanent_address}
-                          onChange={(e) => setForm({...form, permanent_address: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                          rows={3}
-                        />
-                      </div>
-                    </div>
-                    
-                    <h3 className="text-lg font-medium text-(--text) mb-3 mt-4">Government IDs</h3>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Pag-IBIG Number</label>
-                        <input
-                          type="text"
-                          value={form.pagibig_number}
-                          onChange={(e) => setForm({...form, pagibig_number: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">SSS Number</label>
-                        <input
-                          type="text"
-                          value={form.sss_number}
-                          onChange={(e) => setForm({...form, sss_number: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">PhilHealth</label>
-                        <input
-                          type="text"
-                          value={form.philhealth}
-                          onChange={(e) => setForm({...form, philhealth: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
+         {/* Edit Candidate Modal */}
+         {isEditModalOpen && editCandidate && (
+           <Modal
+             open={isEditModalOpen}
+             onClose={handleCloseEditModal}
+             title="Edit Candidate"
+           >
+             <div className="p-4 max-h-[90vh] overflow-y-auto">
+               <div className="mb-6">
+                 <div className="flex items-center gap-4">
+                   <div className="relative">
+                     <div className="bg-gray-200 border-2 border-dashed rounded-xl w-16 h-16 flex items-center justify-center">
+                       {form.profile_photo ? (
+                         typeof form.profile_photo === "string" ? (
+                           <img 
+                             src={form.profile_photo} 
+                             alt="Profile preview" 
+                             className="w-full h-full rounded-xl object-cover"
+                           />
+                         ) : (
+                           <img 
+                             src={URL.createObjectURL(form.profile_photo)} 
+                             alt="Profile preview" 
+                             className="w-full h-full rounded-xl object-cover"
+                           />
+                         )
+                       ) : editCandidate.profile_photo ? (
+                         typeof editCandidate.profile_photo === "string" ? (
+                           <img 
+                             src={editCandidate.profile_photo} 
+                             alt="Profile preview" 
+                             className="w-full h-full rounded-xl object-cover"
+                           />
+                         ) : (
+                           <img 
+                             src={URL.createObjectURL(editCandidate.profile_photo)} 
+                             alt="Profile preview" 
+                             className="w-full h-full rounded-xl object-cover"
+                           />
+                         )
+                       ) : (
+                         <Icon icon="tabler:user" width="24" height="24" className="text-gray-400" />
+                       )}
+                     </div>
+                     <input
+                       type="file"
+                       id="profile-photo-edit-upload"
+                       accept="image/*"
+                       className="hidden"
+                       onChange={(e) => {
+                         const file = e.target.files?.[0];
+                         if (file) {
+                           setForm({...form, profile_photo: file});
+                         }
+                       }}
+                     />
+                     <label 
+                       htmlFor="profile-photo-edit-upload"
+                       className="absolute bottom-0 right-0 bg-blue-600 text-white rounded-full p-1 cursor-pointer hover:bg-blue-700 transition-colors"
+                     >
+                       <Icon icon="tabler:camera" width="16" height="16" />
+                     </label>
+                   </div>
+                   <div>
+                     <h2 className="text-xl font-bold text-(--text)">Edit Candidate</h2>
+                     <p className="text-sm text-(--muted)">Update the candidate details</p>
+                   </div>
+                 </div>
+               </div>
+               
+               <form onSubmit={onEditSubmit}>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <div className="border border-(--border) rounded-xl p-4">
+                     <h3 className="text-lg font-semibold text-(--text) mb-4">Personal Information</h3>
+                     <div className="space-y-4">
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Last Name *</label>
+                         <input
+                           type="text"
+                           value={form.last_name}
+                           onChange={(e) => setForm({...form, last_name: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                           required
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">First Name *</label>
+                         <input
+                           type="text"
+                           value={form.first_name}
+                           onChange={(e) => setForm({...form, first_name: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                           required
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Middle Name</label>
+                         <input
+                           type="text"
+                           value={form.middle_name}
+                           onChange={(e) => setForm({...form, middle_name: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Prefix</label>
+                         <input
+                           type="text"
+                           value={form.prefix}
+                           onChange={(e) => setForm({...form, prefix: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Suffix</label>
+                         <input
+                           type="text"
+                           value={form.suffix}
+                           onChange={(e) => setForm({...form, suffix: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Email *</label>
+                         <input
+                           type="email"
+                           value={form.email}
+                           onChange={(e) => setForm({...form, email: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                           required
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Phone *</label>
+                         <input
+                           type="tel"
+                           value={form.phone}
+                           onChange={(e) => setForm({...form, phone: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                           required
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Marital Status</label>
+                         <select
+                           value={form.marital_status}
+                           onChange={(e) => setForm({...form, marital_status: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         >
+                           <option value="">Select Marital Status</option>
+                           <option value="Single">Single</option>
+                           <option value="Married">Married</option>
+                           <option value="Widowed">Widowed</option>
+                           <option value="Divorced">Divorced</option>
+                         </select>
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Status</label>
+                         <select
+                           value={form.status}
+                           onChange={(e) => setForm({...form, status: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         >
+                           {candidateStatuses.map((status) => (
+                             <option key={status} value={status}>{status}</option>
+                           ))}
+                         </select>
+                       </div>
+                     </div>
+                   </div>
+                   
+                   <div className="border border-(--border) rounded-xl p-4">
+                     <h3 className="text-lg font-semibold text-(--text) mb-4">Contact Information</h3>
+                     <div className="space-y-4">
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Home Address</label>
+                         <textarea
+                           value={form.home_address}
+                           onChange={(e) => setForm({...form, home_address: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                           rows={3}
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Permanent Address</label>
+                         <textarea
+                           value={form.permanent_address}
+                           onChange={(e) => setForm({...form, permanent_address: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                           rows={3}
+                         />
+                       </div>
+                     </div>
+                     
+                     <h3 className="text-lg font-semibold text-(--text) mb-4 mt-6">Government IDs</h3>
+                     <div className="space-y-4">
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Pag-IBIG Number</label>
+                         <input
+                           type="text"
+                           value={form.pagibig_number}
+                           onChange={(e) => setForm({...form, pagibig_number: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">SSS Number</label>
+                         <input
+                           type="text"
+                           value={form.sss_number}
+                           onChange={(e) => setForm({...form, sss_number: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">PhilHealth</label>
+                         <input
+                           type="text"
+                           value={form.philhealth}
+                           onChange={(e) => setForm({...form, philhealth: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                     </div>
+                   </div>
+                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                  <div>
-                    <h3 className="text-lg font-medium text-(--text) mb-3">Education</h3>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Highest Educational Attainment</label>
-                        <input
-                          type="text"
-                          value={form.highest_educ_attainment}
-                          onChange={(e) => setForm({...form, highest_educ_attainment: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Elementary School</label>
-                        <input
-                          type="text"
-                          value={form.school_elementary}
-                          onChange={(e) => setForm({...form, school_elementary: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Junior High School</label>
-                        <input
-                          type="text"
-                          value={form.school_junior_high}
-                          onChange={(e) => setForm({...form, school_junior_high: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Senior High School</label>
-                        <input
-                          type="text"
-                          value={form.school_senior_high}
-                          onChange={(e) => setForm({...form, school_senior_high: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">College</label>
-                        <input
-                          type="text"
-                          value={form.school_college}
-                          onChange={(e) => setForm({...form, school_college: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Other School</label>
-                        <input
-                          type="text"
-                          value={form.school_other}
-                          onChange={(e) => setForm({...form, school_other: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Other School Name</label>
-                        <input
-                          type="text"
-                          value={form.school_other_name}
-                          onChange={(e) => setForm({...form, school_other_name: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-lg font-medium text-(--text) mb-3">Work Experience</h3>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Work History</label>
-                        <textarea
-                          value={form.work_history}
-                          onChange={(e) => setForm({...form, work_history: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                          rows={3}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Skills</label>
-                        <textarea
-                          value={form.skills}
-                          onChange={(e) => setForm({...form, skills: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                          rows={3}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Certifications</label>
-                        <textarea
-                          value={form.certifications}
-                          onChange={(e) => setForm({...form, certifications: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                          rows={3}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Desired Salary</label>
-                        <input
-                          type="text"
-                          value={form.desired_salary}
-                          onChange={(e) => setForm({...form, desired_salary: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Position Screened</label>
-                        <input
-                          type="text"
-                          value={form.position_screened}
-                          onChange={(e) => setForm({...form, position_screened: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-(--muted) mb-1">Notes</label>
-                        <textarea
-                          value={form.notes}
-                          onChange={(e) => setForm({...form, notes: e.target.value})}
-                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                          rows={3}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                   <div className="border border-(--border) rounded-xl p-4">
+                     <h3 className="text-lg font-semibold text-(--text) mb-4">Education</h3>
+                     <div className="space-y-4">
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Highest Educational Attainment</label>
+                         <input
+                           type="text"
+                           value={form.highest_educ_attainment}
+                           onChange={(e) => setForm({...form, highest_educ_attainment: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Elementary School</label>
+                         <input
+                           type="text"
+                           value={form.school_elementary}
+                           onChange={(e) => setForm({...form, school_elementary: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Junior High School</label>
+                         <input
+                           type="text"
+                           value={form.school_junior_high}
+                           onChange={(e) => setForm({...form, school_junior_high: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Senior High School</label>
+                         <input
+                           type="text"
+                           value={form.school_senior_high}
+                           onChange={(e) => setForm({...form, school_senior_high: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">College</label>
+                         <input
+                           type="text"
+                           value={form.school_college}
+                           onChange={(e) => setForm({...form, school_college: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Other School</label>
+                         <input
+                           type="text"
+                           value={form.school_other}
+                           onChange={(e) => setForm({...form, school_other: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Other School Name</label>
+                         <input
+                           type="text"
+                           value={form.school_other_name}
+                           onChange={(e) => setForm({...form, school_other_name: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                     </div>
+                   </div>
+                   
+                   <div className="border border-(--border) rounded-xl p-4">
+                     <h3 className="text-lg font-semibold text-(--text) mb-4">Work Experience</h3>
+                     <div className="space-y-4">
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Work History</label>
+                         <textarea
+                           value={form.work_history}
+                           onChange={(e) => setForm({...form, work_history: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                           rows={3}
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Skills</label>
+                         <textarea
+                           value={form.skills}
+                           onChange={(e) => setForm({...form, skills: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                           rows={3}
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Certifications</label>
+                         <textarea
+                           value={form.certifications}
+                           onChange={(e) => setForm({...form, certifications: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                           rows={3}
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Desired Salary</label>
+                         <input
+                           type="text"
+                           value={form.desired_salary}
+                           onChange={(e) => setForm({...form, desired_salary: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Position Screened</label>
+                         <select
+                           value={form.position_screened}
+                           onChange={(e) => setForm({...form, position_screened: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         >
+                           <option value="">Select a position</option>
+                           {positions.map((position) => (
+                             <option key={position.id} value={position.title}>
+                               {position.industry} - {position.title}
+                             </option>
+                           ))}
+                         </select>
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Notes</label>
+                         <textarea
+                           value={form.notes}
+                           onChange={(e) => setForm({...form, notes: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                           rows={3}
+                         />
+                       </div>
+                     </div>
+                   </div>
+                 </div>
 
-                <div className="mt-6 flex justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={handleCloseEditModal}
-                    className="px-4 py-2 border border-(--border) text-(--text) rounded-md hover:bg-(--surface2) transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="px-4 py-2 bg-(--primary) text-white rounded-md hover:bg-(--primary2) transition-colors disabled:opacity-50"
-                  >
-                    {isSubmitting ? 'Saving...' : 'Save Changes'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </Modal>
-        )}
+                 <div className="mt-8 flex justify-end gap-3">
+                   <button
+                     type="button"
+                     onClick={handleCloseEditModal}
+                     className="px-4 py-2 border border-(--border) text-(--text) rounded-md hover:bg-(--surface2) transition-colors"
+                   >
+                     Cancel
+                   </button>
+                   <button
+                     type="submit"
+                     disabled={isSubmitting}
+                     className="px-4 py-2 bg-(--primary) text-white rounded-md hover:bg-(--primary2) transition-colors disabled:opacity-50"
+                   >
+                     {isSubmitting ? 'Saving...' : 'Save Changes'}
+                   </button>
+                 </div>
+               </form>
+             </div>
+           </Modal>
+         )}
         
         {/* Delete Confirmation Modal */}
         {isDeleteModalOpen && deleteCandidate && (

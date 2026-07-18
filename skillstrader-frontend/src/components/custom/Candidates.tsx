@@ -50,6 +50,8 @@ const initialForm: CandidateForm = {
   home_address: "",
   permanent_address: "",
   pagibig_number: "",
+  sss_number: "",
+  philhealth: "",
   highest_educ_attainment: "",
   school_elementary: "",
   school_junior_high: "",
@@ -250,7 +252,7 @@ export default function Candidates() {
   const [viewTab, setViewTab] = useState<
     "info" | "details" | "documents" | "notes"
   >("info");
-  const [activeTab, setActiveTab] = useState<"info" | "details" | "documents" | "tab1" | "tab2" | "tab3">(
+  const [activeTab, setActiveTab] = useState<"tab1" | "tab2" | "tab3" | "info">(
     "tab1",
   );
   const printRef = useRef<HTMLDivElement | null>(null);
@@ -475,6 +477,8 @@ export default function Candidates() {
         home_address: item.home_address ?? "",
         permanent_address: item.permanent_address ?? "",
         pagibig_number: item.pagibig_number ?? "",
+        sss_number: item.sss_number ?? "",
+        philhealth: item.philhealth ?? "",
         highest_educ_attainment: item.highest_educ_attainment ?? "",
         school_elementary: item.school_elementary ?? "",
         school_junior_high: item.school_junior_high ?? "",
@@ -654,7 +658,7 @@ export default function Candidates() {
     });
     setIsEditModalOpen(true);
     setError("");
-    setActiveTab("info");
+    setViewTab("info");
   }
 
   function handleCloseEditModal() {
@@ -712,6 +716,8 @@ export default function Candidates() {
         home_address: form.home_address || null,
         permanent_address: form.permanent_address || null,
         pagibig_number: form.pagibig_number || null,
+        sss_number: form.sss_number || null,
+        philhealth: form.philhealth || null,
         highest_educ_attainment: form.highest_educ_attainment || null,
         school_elementary: form.school_elementary || null,
         school_junior_high: form.school_junior_high || null,
@@ -770,7 +776,8 @@ export default function Candidates() {
     e.preventDefault();
     setIsSubmitting(true);
     setError("");
-
+    
+    // Fix: Declare the changed variable
     const changed = hasChanges(editCandidate!, form, [
       "last_name",
       "first_name",
@@ -790,6 +797,8 @@ export default function Candidates() {
       "position_screened",
       "skills",
       "pagibig_number",
+      "sss_number",
+      "philhealth",
       "highest_educ_attainment",
       "school_elementary",
       "school_junior_high",
@@ -827,6 +836,8 @@ export default function Candidates() {
         home_address: form.home_address || null,
         permanent_address: form.permanent_address || null,
         pagibig_number: form.pagibig_number || null,
+        sss_number: form.sss_number || null,
+        philhealth: form.philhealth || null,
         highest_educ_attainment: form.highest_educ_attainment || null,
         school_elementary: form.school_elementary || null,
         school_junior_high: form.school_junior_high || null,
@@ -1230,7 +1241,7 @@ export default function Candidates() {
 
                   {/* Tab Content */}
                   <form onSubmit={onSubmit}>
-                    {/* Tab 1 Content */}
+                     {/* Tab 1 Content */}
                     {activeTab === "tab1" && (
                       <div className="space-y-4">
                         <h3 className="text-lg font-medium text-gray-900 mb-4">
@@ -1329,49 +1340,55 @@ export default function Candidates() {
                         
                         <div className="mt-6">
                           <h3 className="text-lg font-medium text-gray-900 mb-4">
-                            Address Information
+                            Documents
                           </h3>
                           
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="md:col-span-2">
+                            <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Home Address
+                                Pag-IBIG Number
                               </label>
                               <input
                                 type="text"
-                                value={form.home_address}
-                                onChange={(e) => setForm({...form, home_address: e.target.value})}
+                                value={form.pagibig_number}
+                                onChange={(e) => setForm({...form, pagibig_number: e.target.value})}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                               />
                             </div>
                             
-                            <div className="md:col-span-2">
+                            <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Permanent Address
+                                SSS Number
                               </label>
                               <input
                                 type="text"
-                                value={form.permanent_address}
-                                onChange={(e) => setForm({...form, permanent_address: e.target.value})}
+                                value={form.sss_number}
+                                onChange={(e) => setForm({...form, sss_number: e.target.value})}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                               />
                             </div>
                             
-                            <div className="md:col-span-2">
+                            <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Marital Status
+                                Philhealth
                               </label>
-                              <select
-                                value={form.marital_status}
-                                onChange={(e) => setForm({...form, marital_status: e.target.value})}
+                              <input
+                                type="text"
+                                value={form.philhealth}
+                                onChange={(e) => setForm({...form, philhealth: e.target.value})}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              >
-                                <option value="">Select Marital Status</option>
-                                <option value="Single">Single</option>
-                                <option value="Married">Married</option>
-                                <option value="Divorced">Divorced</option>
-                                <option value="Widowed">Widowed</option>
-                              </select>
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                NBI/Police Clearance
+                              </label>
+                              <input
+                                type="file"
+                                onChange={(e) => handleDocumentFileChange(e, "nbi_clearance")}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              />
                             </div>
                           </div>
                         </div>
@@ -1381,18 +1398,190 @@ export default function Candidates() {
                     {/* Tab 2 Content */}
                     {activeTab === "tab2" && (
                       <div className="space-y-4">
-                        <p className="text-gray-600">
-                          Coming soon...
-                        </p>
+                        <h3 className="text-lg font-medium text-gray-900 mb-4">
+                          Pre-Employment Requirements
+                        </h3>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Pag-IBIG Number
+                            </label>
+                            <input
+                              type="text"
+                              value={form.pagibig_number}
+                              onChange={(e) => setForm({...form, pagibig_number: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Highest Educational Attainment
+                            </label>
+                            <input
+                              type="text"
+                              value={form.highest_educ_attainment}
+                              onChange={(e) => setForm({...form, highest_educ_attainment: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                          
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Elementary School
+                            </label>
+                            <input
+                              type="text"
+                              value={form.school_elementary}
+                              onChange={(e) => setForm({...form, school_elementary: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                          
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Junior High School
+                            </label>
+                            <input
+                              type="text"
+                              value={form.school_junior_high}
+                              onChange={(e) => setForm({...form, school_junior_high: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                          
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Senior High School
+                            </label>
+                            <input
+                              type="text"
+                              value={form.school_senior_high}
+                              onChange={(e) => setForm({...form, school_senior_high: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                          
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              College
+                            </label>
+                            <input
+                              type="text"
+                              value={form.school_college}
+                              onChange={(e) => setForm({...form, school_college: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Other School
+                            </label>
+                            <input
+                              type="text"
+                              value={form.school_other}
+                              onChange={(e) => setForm({...form, school_other: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Other School Name
+                            </label>
+                            <input
+                              type="text"
+                              value={form.school_other_name}
+                              onChange={(e) => setForm({...form, school_other_name: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                        </div>
                       </div>
                     )}
 
                     {/* Tab 3 Content */}
                     {activeTab === "tab3" && (
                       <div className="space-y-4">
-                        <p className="text-gray-600">
-                          Coming soon...
-                        </p>
+                        <h3 className="text-lg font-medium text-gray-900 mb-4">
+                          Employment and Education History
+                        </h3>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Work History
+                            </label>
+                            <textarea
+                              value={form.work_history}
+                              onChange={(e) => setForm({...form, work_history: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              rows={4}
+                            />
+                          </div>
+                          
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Skills
+                            </label>
+                            <textarea
+                              value={form.skills}
+                              onChange={(e) => setForm({...form, skills: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              rows={4}
+                            />
+                          </div>
+                          
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Certifications
+                            </label>
+                            <textarea
+                              value={form.certifications}
+                              onChange={(e) => setForm({...form, certifications: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              rows={4}
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Desired Salary
+                            </label>
+                            <input
+                              type="text"
+                              value={form.desired_salary}
+                              onChange={(e) => setForm({...form, desired_salary: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Position Screened
+                            </label>
+                            <input
+                              type="text"
+                              value={form.position_screened}
+                              onChange={(e) => setForm({...form, position_screened: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                          
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Notes
+                            </label>
+                            <textarea
+                              value={form.notes}
+                              onChange={(e) => setForm({...form, notes: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              rows={4}
+                            />
+                          </div>
+                        </div>
                       </div>
                     )}
 
@@ -1511,7 +1700,7 @@ export default function Candidates() {
                     setSearch("");
                     setPage(1);
                   }}
-                  className="px-4 py-1.5 flex items-center gap-1 rounded-md bg-[var(--accent)]/20 text-[var(--accent)] font-semibold text-xs hover:bg-[var(--accent)]/30 transition-colors"
+                  className="px-4 py-1.5 flex items-center gap-1 rounded-md bg-(--accent)/20 text-(--accent) font-semibold text-xs hover:bg-(--accent)/30 transition-colors"
                 >
                   <Icon icon="tabler:x" width="15" height="15" />
                   Clear Filter
@@ -1670,7 +1859,7 @@ export default function Candidates() {
                         </tr>
                       );
                     })
-                  )}
+                  )}  
                 </tbody>
               </table>
             </div>
@@ -1686,12 +1875,315 @@ export default function Candidates() {
                     setPerPage(v);
                     setPage(1);
                   }}
-                />
+                 />
+               </div>
+             )}
+           </section>
+         </main>
+       </div>
+
+        {/* View Modal */}
+        {viewCandidate && (
+          <Modal
+            open={!!viewCandidate}
+            onClose={handleCloseViewModal}
+            title={`Candidate Details: ${viewCandidate.full_name || viewCandidate.last_name ? `${viewCandidate.last_name}, ${viewCandidate.first_name}` : 'Unnamed Candidate'}`}
+          >
+            <div className="p-4">
+             {/* Header with profile photo and basic info */}
+             <div className="flex flex-col md:flex-row items-start gap-4 mb-6">
+               <img
+                 src={profileUrl}
+                 alt="Profile"
+                 className="w-24 h-24 rounded-full object-cover border-2 border-(--border)"
+               />
+               <div className="flex-1">
+                 <h2 className="text-xl font-bold text-(--text)">
+                   {viewCandidate.last_name
+                     ? `${viewCandidate.last_name}, ${viewCandidate.first_name}${
+                         viewCandidate.middle_name ? " " + viewCandidate.middle_name : ""
+                       }`
+                     : viewCandidate.full_name || "Unnamed Candidate"}
+                 </h2>
+                 <div className="mt-2">
+                   <span
+                     className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                       statusBadge[viewCandidate.status] ?? "bg-gray-100 text-gray-700"
+                     }`}
+                   >
+                     {viewCandidate.status}
+                   </span>
+                 </div>
+                 <div className="mt-3 flex flex-wrap gap-2">
+                   <div className="text-sm">
+                     <span className="text-(--muted)">Email:</span>{" "}
+                     <span className="text-(--text)">{viewCandidate.email || "N/A"}</span>
+                   </div>
+                   <div className="text-sm">
+                     <span className="text-(--muted)">Phone:</span>{" "}
+                     <span className="text-(--text)">{viewCandidate.phone || "N/A"}</span>
+                   </div>
+                 </div>
+               </div>
+               <div className="ml-auto">
+                 <button
+                   type="button"
+                   onClick={handleDownloadPdf}
+                   className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+                 >
+                   <Icon icon="tabler:download" width="16" height="16" />
+                   Download PDF
+                 </button>
+               </div>
+             </div>
+
+             {/* Tab Navigation */}
+             <div className="flex border-b border-gray-200 mb-6">
+               <button
+                 type="button"
+                 className={`px-4 py-2 font-medium text-sm ${
+                   viewTab === "info"
+                     ? "text-blue-600 border-b-2 border-blue-600"
+                     : "text-gray-500 hover:text-gray-700"
+                 }`}
+                 onClick={() => setViewTab("info")}
+               >
+                 Info
+               </button>
+               <button
+                 type="button"
+                 className={`px-4 py-2 font-medium text-sm ${
+                   viewTab === "details"
+                     ? "text-blue-600 border-b-2 border-blue-600"
+                     : "text-gray-500 hover:text-gray-700"
+                 }`}
+                 onClick={() => setViewTab("details")}
+               >
+                 Details
+               </button>
+               <button
+                 type="button"
+                 className={`px-4 py-2 font-medium text-sm ${
+                   viewTab === "documents"
+                     ? "text-blue-600 border-b-2 border-blue-600"
+                     : "text-gray-500 hover:text-gray-700"
+                 }`}
+                 onClick={() => setViewTab("documents")}
+               >
+                 Documents
+               </button>
+               <button
+                 type="button"
+                 className={`px-4 py-2 font-medium text-sm ${
+                   viewTab === "notes"
+                     ? "text-blue-600 border-b-2 border-blue-600"
+                     : "text-gray-500 hover:text-gray-700"
+                 }`}
+                 onClick={() => setViewTab("notes")}
+               >
+                 Notes
+               </button>
+             </div>
+
+             {/* Tab Content */}
+             <div>
+               {viewTab === "info" && (
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                   <div>
+                     <h3 className="text-lg font-medium text-(--text) mb-3">Personal Information</h3>
+                     <dl className="grid grid-cols-1 gap-2">
+                       <div>
+                         <dt className="text-sm text-(--muted)">Last Name</dt>
+                         <dd className="text-(--text)">{viewCandidate.last_name || "N/A"}</dd>
+                       </div>
+                       <div>
+                         <dt className="text-sm text-(--muted)">First Name</dt>
+                         <dd className="text-(--text)">{viewCandidate.first_name || "N/A"}</dd>
+                       </div>
+                       <div>
+                         <dt className="text-sm text-(--muted)">Middle Name</dt>
+                         <dd className="text-(--text)">{viewCandidate.middle_name || "N/A"}</dd>
+                       </div>
+                       <div>
+                         <dt className="text-sm text-(--muted)">Prefix</dt>
+                         <dd className="text-(--text)">{viewCandidate.prefix || "N/A"}</dd>
+                       </div>
+                       <div>
+                         <dt className="text-sm text-(--muted)">Suffix</dt>
+                         <dd className="text-(--text)">{viewCandidate.suffix || "N/A"}</dd>
+                       </div>
+                       <div>
+                         <dt className="text-sm text-(--muted)">Marital Status</dt>
+                         <dd className="text-(--text)">{viewCandidate.marital_status || "N/A"}</dd>
+                       </div>
+                     </dl>
+                   </div>
+                   <div>
+                     <h3 className="text-lg font-medium text-(--text) mb-3">Contact Information</h3>
+                     <dl className="grid grid-cols-1 gap-2">
+                       <div>
+                         <dt className="text-sm text-(--muted)">Email</dt>
+                         <dd className="text-(--text)">{viewCandidate.email || "N/A"}</dd>
+                       </div>
+                       <div>
+                         <dt className="text-sm text-(--muted)">Phone</dt>
+                         <dd className="text-(--text)">{viewCandidate.phone || "N/A"}</dd>
+                       </div>
+                       <div>
+                         <dt className="text-sm text-(--muted)">Home Address</dt>
+                         <dd className="text-(--text)">{viewCandidate.home_address || "N/A"}</dd>
+                       </div>
+                       <div>
+                         <dt className="text-sm text-(--muted)">Permanent Address</dt>
+                         <dd className="text-(--text)">{viewCandidate.permanent_address || "N/A"}</dd>
+                       </div>
+                     </dl>
+                   </div>
+                 </div>
+               )}
+
+               {viewTab === "details" && (
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                   <div>
+                     <h3 className="text-lg font-medium text-(--text) mb-3">Government IDs</h3>
+                     <dl className="grid grid-cols-1 gap-2">
+                       <div>
+                         <dt className="text-sm text-(--muted)">Pag-IBIG Number</dt>
+                         <dd className="text-(--text)">{viewCandidate.pagibig_number || "N/A"}</dd>
+                       </div>
+                       <div>
+                         <dt className="text-sm text-(--muted)">SSS Number</dt>
+                         <dd className="text-(--text)">{viewCandidate.sss_number || "N/A"}</dd>
+                       </div>
+                       <div>
+                         <dt className="text-sm text-(--muted)">PhilHealth</dt>
+                         <dd className="text-(--text)">{viewCandidate.philhealth || "N/A"}</dd>
+                       </div>
+                     </dl>
+                   </div>
+                   <div>
+                     <h3 className="text-lg font-medium text-(--text) mb-3">Education</h3>
+                     <dl className="grid grid-cols-1 gap-2">
+                       <div>
+                         <dt className="text-sm text-(--muted)">Highest Educational Attainment</dt>
+                         <dd className="text-(--text)">{viewCandidate.highest_educ_attainment || "N/A"}</dd>
+                       </div>
+                       <div>
+                         <dt className="text-sm text-(--muted)">Elementary School</dt>
+                         <dd className="text-(--text)">{viewCandidate.school_elementary || "N/A"}</dd>
+                       </div>
+                       <div>
+                         <dt className="text-sm text-(--muted)">Junior High School</dt>
+                         <dd className="text-(--text)">{viewCandidate.school_junior_high || "N/A"}</dd>
+                       </div>
+                       <div>
+                         <dt className="text-sm text-(--muted)">Senior High School</dt>
+                         <dd className="text-(--text)">{viewCandidate.school_senior_high || "N/A"}</dd>
+                       </div>
+                       <div>
+                         <dt className="text-sm text-(--muted)">College</dt>
+                         <dd className="text-(--text)">{viewCandidate.school_college || "N/A"}</dd>
+                       </div>
+                       <div>
+                         <dt className="text-sm text-(--muted)">Other School</dt>
+                         <dd className="text-(--text)">{viewCandidate.school_other || "N/A"}</dd>
+                       </div>
+                       <div>
+                         <dt className="text-sm text-(--muted)">Other School Name</dt>
+                         <dd className="text-(--text)">{viewCandidate.school_other_name || "N/A"}</dd>
+                       </div>
+                     </dl>
+                   </div>
+                   <div className="md:col-span-2">
+                     <h3 className="text-lg font-medium text-(--text) mb-3">Work Experience</h3>
+                     <div className="text-(--text)">
+                       {viewCandidate.work_history || "No work history provided"}
+                     </div>
+                   </div>
+                   <div className="md:col-span-2">
+                     <h3 className="text-lg font-medium text-(--text) mb-3">Skills</h3>
+                     <div className="text-(--text)">
+                       {viewCandidate.skills || "No skills provided"}
+                     </div>
+                   </div>
+                   <div className="md:col-span-2">
+                     <h3 className="text-lg font-medium text-(--text) mb-3">Certifications</h3>
+                     <div className="text-(--text)">
+                       {viewCandidate.certifications || "No certifications provided"}
+                     </div>
+                   </div>
+                   <div className="md:col-span-2">
+                     <h3 className="text-lg font-medium text-(--text) mb-3">Application Details</h3>
+                     <dl className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                       <div>
+                         <dt className="text-sm text-(--muted)">Desired Salary</dt>
+                         <dd className="text-(--text)">{viewCandidate.desired_salary || "N/A"}</dd>
+                       </div>
+                       <div>
+                         <dt className="text-sm text-(--muted)">Position Screened</dt>
+                         <dd className="text-(--text)">{viewCandidate.position_screened || "N/A"}</dd>
+                       </div>
+                     </dl>
+                   </div>
+                 </div>
+               )}
+
+               {viewTab === "documents" && (
+                 <div>
+                   <h3 className="text-lg font-medium text-(--text) mb-3">Uploaded Documents</h3>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                     {documentTypes.map(([key, label]) => {
+                       const docUrl = viewCandidate.documents?.[key];
+                       return (
+                         <div key={key} className="border border-(--border) rounded-lg p-3">
+                           <div className="flex justify-between items-start">
+                             <div>
+                               <h4 className="font-medium text-(--text)">{label}</h4>
+                               {docUrl ? (
+                                 <p className="text-sm text-(--muted)">Uploaded</p>
+                               ) : (
+                                 <p className="text-sm text-(--muted)">Not uploaded</p>
+                               )}
+                             </div>
+                             {docUrl && (
+                               <button
+                                 type="button"
+                                 onClick={() => handleDocumentDownload(key, docUrl)}
+                                 className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                               >
+                                 Download
+                               </button>
+                             )}
+                           </div>
+                         </div>
+                       );
+                     })}
+                   </div>
+                 </div>
+               )}
+
+               {viewTab === "notes" && (
+                 <div>
+                   <h3 className="text-lg font-medium text-(--text) mb-3">Notes</h3>
+                   <div className="border border-(--border) rounded-lg p-4">
+                     <p className="text-(--text)">
+                       {viewCandidate.notes || "No notes provided"}
+                     </p>
+                   </div>
+                   <div className="mt-4">
+                     <h3 className="text-lg font-medium text-(--text) mb-3">Position Screened</h3>
+                     <div className="border border-(--border) rounded-lg p-4">
+                       <p className="text-(--text)">
+                         {viewCandidate.position_screened || "No position screened information"}
+                       </p>
+                     </div>
+                   </div>
+                 </div>
+                )}
               </div>
-            )}
-          </section>
-        </main>
+            </div>
+          </Modal>
+        )}
       </div>
-    </div>
   );
 }

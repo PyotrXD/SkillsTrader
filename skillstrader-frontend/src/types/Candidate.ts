@@ -20,6 +20,8 @@ export type CandidateRecord = {
   home_address?: string;
   permanent_address?: string;
   pagibig_number?: string;
+  sss_number?: string;
+  philhealth?: string;
   highest_educ_attainment?: string;
   school_elementary?: string;
   school_junior_high?: string;
@@ -88,6 +90,8 @@ export type CandidateForm = {
 
   // Government IDs
   pagibig_number: string;
+  sss_number: string;
+  philhealth: string;
 
   // Education
   highest_educ_attainment: string;

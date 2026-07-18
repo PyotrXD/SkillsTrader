@@ -772,7 +772,7 @@ export default function Candidates() {
     }
   }
 
-  async function onEditSubmit(e: FormEvent<HTMLFormElement>) {
+   async function onEditSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setIsSubmitting(true);
     setError("");
@@ -1194,12 +1194,12 @@ export default function Candidates() {
               </div>
             </div>
 
-            {/* Modal for adding new candidate */}
-            {isModalOpen && (
+            {/* Modal for adding/editing candidate */}
+            {(isModalOpen || isEditModalOpen) && (
               <Modal
-                open={isModalOpen}
-                onClose={handleCloseModal}
-                title="Add New Candidate"
+                open={isModalOpen || isEditModalOpen}
+                onClose={isEditModalOpen ? handleCloseEditModal : handleCloseModal}
+                title={isEditModalOpen ? "Edit Candidate" : "Add New Candidate"}
               >
                 <div className="p-4">
                   {/* Tab Navigation */}
@@ -1240,7 +1240,7 @@ export default function Candidates() {
                   </div>
 
                   {/* Tab Content */}
-                  <form onSubmit={onSubmit}>
+                  <form onSubmit={isEditModalOpen ? onEditSubmit : onSubmit}>
                      {/* Tab 1 Content */}
                     {activeTab === "tab1" && (
                       <div className="space-y-4">
@@ -1346,6 +1346,27 @@ export default function Candidates() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Profile Photo
+                              </label>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={handleProfilePhotoChange}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                />
+                                {formProfilePreviewUrl && (
+                                  <img
+                                    src={formProfilePreviewUrl}
+                                    alt="Profile preview"
+                                    className="w-16 h-16 rounded-full object-cover"
+                                  />
+                                )}
+                              </div>
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Pag-IBIG Number
                               </label>
                               <input
@@ -1382,11 +1403,132 @@ export default function Candidates() {
                             
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Resume
+                              </label>
+                              <input
+                                type="file"
+                                accept="application/pdf"
+                                onChange={(e) => handleDocumentFileChange(e, "resume")}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Passport
+                              </label>
+                              <input
+                                type="file"
+                                accept="application/pdf"
+                                onChange={(e) => handleDocumentFileChange(e, "passport")}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                VISA
+                              </label>
+                              <input
+                                type="file"
+                                accept="application/pdf"
+                                onChange={(e) => handleDocumentFileChange(e, "visa")}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
                                 NBI/Police Clearance
                               </label>
                               <input
                                 type="file"
+                                accept="application/pdf"
                                 onChange={(e) => handleDocumentFileChange(e, "nbi_clearance")}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Police Clearance
+                              </label>
+                              <input
+                                type="file"
+                                accept="application/pdf"
+                                onChange={(e) => handleDocumentFileChange(e, "police_clearance")}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Offer Letter
+                              </label>
+                              <input
+                                type="file"
+                                accept="application/pdf"
+                                onChange={(e) => handleDocumentFileChange(e, "offer_letter")}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                DMW Approved Contract
+                              </label>
+                              <input
+                                type="file"
+                                accept="application/pdf"
+                                onChange={(e) => handleDocumentFileChange(e, "dmw_approved_contract")}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Overseas Employment Certificate
+                              </label>
+                              <input
+                                type="file"
+                                accept="application/pdf"
+                                onChange={(e) => handleDocumentFileChange(e, "overseas_employment_certificate")}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                PEOS Certificate
+                              </label>
+                              <input
+                                type="file"
+                                accept="application/pdf"
+                                onChange={(e) => handleDocumentFileChange(e, "peos_certificate")}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                E-registration File
+                              </label>
+                              <input
+                                type="file"
+                                accept="application/pdf"
+                                onChange={(e) => handleDocumentFileChange(e, "e_registration_file")}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Other Document
+                              </label>
+                              <input
+                                type="file"
+                                accept="application/pdf"
+                                onChange={(e) => handleDocumentFileChange(e, "other")}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                               />
                             </div>
@@ -1605,7 +1747,7 @@ export default function Candidates() {
                       <div className="flex space-x-2">
                         <button
                           type="button"
-                          onClick={handleCloseModal}
+                          onClick={isEditModalOpen ? handleCloseEditModal : handleCloseModal}
                           className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                         >
                           Cancel
@@ -1628,7 +1770,7 @@ export default function Candidates() {
                             disabled={isSubmitting}
                             className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
                           >
-                            {isSubmitting ? "Adding..." : "Add Candidate"}
+                            {isSubmitting ? (isEditModalOpen ? "Updating..." : "Adding...") : (isEditModalOpen ? "Update Candidate" : "Add Candidate")}
                           </button>
                         )}
                       </div>

@@ -1,210 +1,38 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import type { FormEvent } from "react";
 import { Icon } from "@iconify/react";
 import Modal from "../ui/Modal";
 import Toast from "../ui/Toast";
 import Searchbar from "../ui/Searchbar";
 import Filter from "../ui/Filter";
-import Selection from "../ui/Selection";
 import Pagination from "../ui/Pagination";
-import IndustryPositionPicker from "../ui/IndustryPositionPicker";
 import defaultProfile from "../../assets/images/default-profile.png";
 import { generateResumeHtml } from "./resumeTemplate";
 import { getUserRole, pb } from "../../lib/pocketbase/pb";
 import { addAuditLog } from "../../utils/auditLog";
 import { computeCandidateFlags } from "../../utils/candidateFlags";
 import type {
-  CandidateForm,
   ArchivedCandidate,
+  CandidateForm,
   CandidateRecord,
   DocumentRecord,
   InterviewSummary,
-  PositionRecord,
-  StatusRule,
 } from "../../types/Candidate";
 import { hasChanges } from "../../utils/hasChanges";
-
-const candidateStatuses = [
-  "New Applicant",
-  "Lined-Up",
-  "For final interview",
-  "For medical",
-  "Fit to work",
-  "Unfit to work",
-  "Pending medical",
-  "For deployment",
-  "Visa Arrived",
-  "Awaiting Visa",
-  "Deployed",
-  "Rejected",
-];
-
-const initialForm: CandidateForm = {
-  last_name: "",
-  first_name: "",
-  middle_name: "",
-  prefix: "",
-  suffix: "",
-  full_name: "",
-  marital_status: "",
-  home_address: "",
-  permanent_address: "",
-  pagibig_number: "",
-  sss_number: "",
-  philhealth: "",
-  highest_educ_attainment: "",
-  school_elementary: "",
-  school_junior_high: "",
-  school_senior_high: "",
-  school_college: "",
-  school_other: "",
-  school_other_name: "",
-  email: "",
-  phone: "",
-  work_history: "",
-  skills: "",
-  certifications: "",
-  desired_salary: "",
-  position_screened: "",
-  notes: "",
-  status: "New Applicant",
-  consent_given: false,
-  consent_at: "",
-  consent_source: "",
-  consent_version: "",
-  profile_photo: null,
-  documents: {},
-};
-
-// Flag display badges — updated for yellow-blue-red theme
-const flagBadge: Record<string, string> = {
-  "Not Interviewed": "bg-yellow-100 text-yellow-800",
-  "Not Scheduled": "bg-yellow-100 text-yellow-800",
-  "Missing Docs": "bg-[var(--accent)]/20 text-[var(--accent)]",
-  Completed: "bg-blue-100 text-blue-700",
-};
-
-const quickFilters = [
-  { key: "not-interviewed", label: "Not Interviewed" },
-  { key: "not-scheduled", label: "Not Scheduled" },
-  { key: "missing-docs", label: "Missing Docs" },
-];
-
-const documentTypes: Array<[string, string]> = [
-  ["resume", "Resume"],
-  ["passport", "Passport"],
-  ["visa", "VISA"],
-  ["nbi_clearance", "NBI Clearance"],
-  ["police_clearance", "Police Clearance"],
-  ["offer_letter", "Offer Letter"],
-  ["dmw_approved_contract", "DMW Approved Contract"],
-  ["overseas_employment_certificate", "Overseas Employment Certificate"],
-  ["peos_certificate", "PEOS Certificate"],
-  ["e_registration_file", "E-registration File"],
-  ["other", "Other"],
-];
-
-function escapeFilterValue(value: string): string {
-  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-}
-
-function createEmptyDocumentsMap(): Record<string, string | null> {
-  const docs: Record<string, string | null> = {};
-  for (const [key] of documentTypes) docs[key] = null;
-  return docs;
-}
-
-const statusRules: Record<string, StatusRule> = {
-  "Lined-Up": {
-    warning: (c) =>
-      (c.computed_flags ?? []).includes("Not Scheduled")
-        ? "No interview scheduled yet. Please schedule first before setting as Lined-Up."
-        : null,
-  },
-  "For final interview": {
-    disabled: (c) =>
-      !["Lined-Up", "For final interview"].includes(c.status ?? ""),
-    disabledReason: "Must be Lined-Up first.",
-    warning: (c) =>
-      (c.computed_flags ?? []).includes("Not Interviewed")
-        ? "No interview result yet. Proceed to Final Interview?"
-        : null,
-  },
-  "For medical": {
-    disabled: (c) => {
-      const docs = c.documents ?? {};
-      return !(
-        docs["resume"] &&
-        docs["nbi_clearance"] &&
-        docs["police_clearance"]
-      );
-    },
-    disabledReason:
-      "Resume, NBI Clearance, and Police Clearance are required.",
-  },
-  "Fit to work": {
-    disabled: (c) =>
-      !["For medical", "Pending medical", "Fit to work"].includes(
-        c.status ?? "",
-      ),
-    disabledReason: "Must be For Medical or Pending Medical first.",
-  },
-  "Unfit to work": {
-    disabled: (c) =>
-      !["For medical", "Pending medical", "Unfit to work"].includes(
-        c.status ?? "",
-      ),
-    disabledReason: "Must be For Medical or Pending Medical first.",
-  },
-  "Pending medical": {
-    disabled: (c) =>
-      !["For medical", "Pending medical"].includes(c.status ?? ""),
-    disabledReason: "Must be For Medical first.",
-  },
-  "For deployment": {
-    disabled: (c) =>
-      !["Fit to work", "For deployment"].includes(c.status ?? ""),
-    disabledReason: "Must be Fit to Work first.",
-    warning: (c) => {
-      const docs = c.documents ?? {};
-      const missing = ["offer_letter", "dmw_approved_contract"].filter(
-        (key) => !docs[key],
-      );
-      return missing.length > 0
-        ? `Missing deployment docs: ${missing.map((k) =>
-            k.replace(/_/g, " "),
-          ).join(", ")}.`
-        : null;
-    },
-  },
-  "Awaiting Visa": {
-    disabled: (c) =>
-      !["For deployment", "Awaiting Visa"].includes(c.status ?? ""),
-    disabledReason: "Must be For Deployment first.",
-  },
-  "Visa Arrived": {
-    disabled: (c) =>
-      !["Awaiting Visa", "Visa Arrived"].includes(c.status ?? ""),
-    disabledReason: "Must be Awaiting Visa first.",
-  },
-  Deployed: {
-    disabled: (c) => !["Visa Arrived", "Deployed"].includes(c.status ?? ""),
-    disabledReason: "Must be Visa Arrived first.",
-    warning: (c) => {
-      const docs = c.documents ?? {};
-      const missing = [
-        "overseas_employment_certificate",
-        "peos_certificate",
-        "e_registration_file",
-      ].filter((key) => !docs[key]);
-      return missing.length > 0
-        ? `Missing deployment docs: ${missing.map((k) =>
-            k.replace(/_/g, " "),
-          ).join(", ")}.`
-        : null;
-    },
-  },
-};
+import {
+  candidateStatuses,
+  documentTypes,
+  flagBadge,
+  quickFilters,
+  statusBadge,
+} from "./candidates.constants";
+import {
+  buildCandidatePayload,
+  createEmptyDocumentsMap,
+  escapeFilterValue,
+  getCandidateDisplayName,
+  initialForm,
+} from "./candidates.utils";
 
 export default function Candidates() {
   const [form, setForm] = useState<CandidateForm>(initialForm);
@@ -221,7 +49,7 @@ export default function Candidates() {
     null,
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState("");
+  const [, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [showToast, setShowToast] = useState(false);
   const [toastType, setToastType] = useState<"success" | "error" | "info">(
@@ -238,10 +66,6 @@ export default function Candidates() {
   const [pagedCandidates, setPagedCandidates] = useState<CandidateForm[]>([]);
   const [isListLoading, setIsListLoading] = useState(false);
   const [refreshToken, setRefreshToken] = useState(0);
-  const [positionsList, setPositionsList] = useState<
-    Array<{ id: string; industry: string; title: string }>
-  >([]);
-  const [positionsLoading, setPositionsLoading] = useState(false);
   const [archivedCandidates, setArchivedCandidates] = useState<
     ArchivedCandidate[]
   >([]);
@@ -252,73 +76,10 @@ export default function Candidates() {
   const [viewTab, setViewTab] = useState<
     "info" | "details" | "documents" | "notes"
   >("info");
-  const [activeTab, setActiveTab] = useState<"tab1" | "tab2" | "tab3" | "info">(
-    "tab1",
-  );
-  const printRef = useRef<HTMLDivElement | null>(null);
-
-  // ─── Status Warning Modal ─────────────────────────────────────────────────
-  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
-  const [statusWarning, setStatusWarning] = useState<string | null>(null);
-  const [showStatusWarningModal, setShowStatusWarningModal] = useState(false);
-
   const userRole = useMemo(() => getUserRole() ?? "staff", []);
   const canManageCandidates =
     userRole === "administrator" || userRole === "manager";
-
   const canRestoreArchived = canManageCandidates;
-
-  function getStatusOptions(candidate: CandidateForm | null) {
-    return candidateStatuses.map((s) => {
-      const rule = statusRules[s];
-      const isDisabled = candidate
-        ? (rule?.disabled?.(candidate) ?? false)
-        : false;
-      return {
-        value: s,
-        label:
-          isDisabled && rule?.disabledReason
-            ? `${s} — ${rule.disabledReason}`
-            : s,
-        disabled: isDisabled,
-      };
-    });
-  }
-
-  function handleStatusChange(newStatus: string) {
-    if (!editCandidate) {
-      setForm((f) => ({ ...f, status: newStatus }));
-      return;
-    }
-
-    const rule = statusRules[newStatus];
-    const warning = rule?.warning?.(editCandidate) ?? null;
-
-    if (warning) {
-      setPendingStatus(newStatus);
-      setStatusWarning(warning);
-      setShowStatusWarningModal(true);
-    } else {
-      setForm((f) => ({ ...f, status: newStatus }));
-    }
-  }
-
-  function confirmStatusChange() {
-    if (pendingStatus) {
-      setForm((f) => ({ ...f, status: pendingStatus }));
-    }
-    setPendingStatus(null);
-    setStatusWarning(null);
-    setShowStatusWarningModal(false);
-  }
-
-  function cancelStatusChange() {
-    setPendingStatus(null);
-    setStatusWarning(null);
-    setShowStatusWarningModal(false);
-  }
-
-  // ─── Filter builder ───────────────────────────────────────────────────────
 
   function buildCandidateFilter(archived: boolean): string {
     const conditions: string[] = [
@@ -543,7 +304,7 @@ export default function Candidates() {
 
       setPagedCandidates(mapped);
       setTotalPages(Math.max(1, result.totalPages));
-      if (result.page !== page) setPage(result.page);
+      if (result.page !== targetPage) setPage(result.page);
     } catch (err) {
       console.error("Failed to fetch candidates:", err);
       setPagedCandidates([]);
@@ -566,7 +327,7 @@ export default function Candidates() {
       const mapped = await mapCandidateRecords(result.items);
       setArchivedCandidates(mapped);
       setArchivedTotalPages(Math.max(1, result.totalPages));
-      if (result.page !== archivedPage) setArchivedPage(result.page);
+      if (result.page !== targetPage) setArchivedPage(result.page);
     } catch (err) {
       console.error("Failed to fetch archived candidates:", err);
       setArchivedCandidates([]);
@@ -597,39 +358,6 @@ export default function Candidates() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isArchiveOpen, archivedPage, perPage, refreshToken]);
 
-  useEffect(() => {
-    let mounted = true;
-    async function fetchPositions() {
-      setPositionsLoading(true);
-      try {
-        const items = await pb
-          .collection("positions")
-          .getFullList<PositionRecord>({
-            sort: "industry,title",
-            requestKey: null,
-          });
-        if (!mounted) return;
-        setPositionsList(
-          items.map((it) => ({
-            id: it.id,
-            industry: it.industry ?? "",
-            title: it.title ?? "",
-          })),
-        );
-      } catch (err) {
-        console.error("Failed to load positions from PocketBase", err);
-        if (!mounted) return;
-        setPositionsList([]);
-      } finally {
-        if (mounted) setPositionsLoading(false);
-      }
-    }
-    fetchPositions();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
   function showFeedback(type: "success" | "error" | "info", message: string) {
     setToastType(type);
     setSuccess(message);
@@ -637,11 +365,9 @@ export default function Candidates() {
   }
 
   function handleOpenModal() {
-    console.log("DEBUG: handleOpenModal called");
     setForm(initialForm);
     setIsModalOpen(true);
     setError("");
-    setActiveTab("tab1");
   }
 
   function handleCloseModal() {
@@ -685,7 +411,7 @@ export default function Candidates() {
       actor_role: getUserRole() ?? "staff",
       action: "view",
       entity: "Candidate",
-      entity_name: candidate.full_name || String(candidate.id ?? "—"),
+      entity_name: getCandidateDisplayName(candidate),
     });
   }
 
@@ -698,50 +424,7 @@ export default function Candidates() {
     setIsSubmitting(true);
     setError("");
     try {
-      const computedFullName =
-        [form.last_name, form.first_name, form.middle_name]
-          .filter(Boolean)
-          .join(" ") ||
-        form.full_name ||
-        "Unknown";
-
-      const payload: Record<string, unknown> = {
-        last_name: form.last_name,
-        first_name: form.first_name,
-        middle_name: form.middle_name,
-        prefix: form.prefix || null,
-        suffix: form.suffix || null,
-        full_name: computedFullName,
-        marital_status: form.marital_status || null,
-        home_address: form.home_address || null,
-        permanent_address: form.permanent_address || null,
-        pagibig_number: form.pagibig_number || null,
-        sss_number: form.sss_number || null,
-        philhealth: form.philhealth || null,
-        highest_educ_attainment: form.highest_educ_attainment || null,
-        school_elementary: form.school_elementary || null,
-        school_junior_high: form.school_junior_high || null,
-        school_senior_high: form.school_senior_high || null,
-        school_college: form.school_college || null,
-        school_other: form.school_other || null,
-        school_other_name: form.school_other_name || null,
-        email: form.email,
-        phone: form.phone,
-        work_history: form.work_history,
-        skills: form.skills || null,
-        certifications: form.certifications,
-        desired_salary: form.desired_salary,
-        position_screened: form.position_screened || null,
-        notes: form.notes || null,
-        status: form.status,
-        consent_given: form.consent_given,
-        consent_at: form.consent_at || null,
-        consent_source: form.consent_source,
-        consent_version: form.consent_version,
-      };
-
-      if (form.profile_photo instanceof File)
-        payload["photo"] = form.profile_photo;
+      const payload = buildCandidatePayload(form);
 
       const record = await pb.collection("candidates").create(payload);
       await createDocumentsForCandidate(record.id, form.documents || {});
@@ -751,9 +434,7 @@ export default function Candidates() {
         actor_role: getUserRole() ?? "staff",
         action: "create",
         entity: "Candidate",
-        entity_name:
-          [form.last_name, form.first_name].filter(Boolean).join(", ") ||
-          computedFullName,
+        entity_name: getCandidateDisplayName(form),
       });
 
       showFeedback("success", "Candidate added successfully.");
@@ -772,13 +453,17 @@ export default function Candidates() {
     }
   }
 
-   async function onEditSubmit(e: FormEvent<HTMLFormElement>) {
+  async function onEditSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setIsSubmitting(true);
     setError("");
-    
-    // Fix: Declare the changed variable
-    const changed = hasChanges(editCandidate!, form, [
+    if (!editCandidate) {
+      showFeedback("error", "No candidate selected.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    const changed = hasChanges(editCandidate, form, [
       "last_name",
       "first_name",
       "middle_name",
@@ -818,57 +503,12 @@ export default function Candidates() {
     }
 
     try {
-      const computedFullNameEdit =
-        [form.last_name, form.first_name, form.middle_name]
-          .filter(Boolean)
-          .join(" ") ||
-        form.full_name ||
-        "Unknown";
+      const payload = buildCandidatePayload(form);
 
-      const payload: Record<string, unknown> = {
-        last_name: form.last_name,
-        first_name: form.first_name,
-        middle_name: form.middle_name,
-        prefix: form.prefix || null,
-        suffix: form.suffix || null,
-        full_name: computedFullNameEdit,
-        marital_status: form.marital_status || null,
-        home_address: form.home_address || null,
-        permanent_address: form.permanent_address || null,
-        pagibig_number: form.pagibig_number || null,
-        sss_number: form.sss_number || null,
-        philhealth: form.philhealth || null,
-        highest_educ_attainment: form.highest_educ_attainment || null,
-        school_elementary: form.school_elementary || null,
-        school_junior_high: form.school_junior_high || null,
-        school_senior_high: form.school_senior_high || null,
-        school_college: form.school_college || null,
-        school_other: form.school_other || null,
-        school_other_name: form.school_other_name || null,
-        email: form.email,
-        phone: form.phone,
-        work_history: form.work_history,
-        skills: form.skills || null,
-        certifications: form.certifications,
-        desired_salary: form.desired_salary,
-        position_screened: form.position_screened || null,
-        notes: form.notes || null,
-        status: form.status,
-        consent_given: form.consent_given,
-        consent_at: form.consent_at || null,
-        consent_source: form.consent_source,
-        consent_version: form.consent_version,
-      };
-
-      if (form.profile_photo instanceof File)
-        payload["photo"] = form.profile_photo;
-
-      await pb
-        .collection("candidates")
-        .update(String(editCandidate?.id), payload);
+      await pb.collection("candidates").update(String(editCandidate.id), payload);
       await updateDocumentsForCandidate(
-        String(editCandidate?.id),
-        editCandidate?.documents || {},
+        String(editCandidate.id),
+        editCandidate.documents || {},
         form.documents || {},
       );
 
@@ -877,9 +517,7 @@ export default function Candidates() {
         actor_role: getUserRole() ?? "staff",
         action: "update",
         entity: "Candidate",
-        entity_name:
-          [form.last_name, form.first_name].filter(Boolean).join(", ") ||
-          computedFullNameEdit,
+        entity_name: getCandidateDisplayName(form),
       });
 
       showFeedback("success", "Candidate updated successfully.");
@@ -916,7 +554,7 @@ export default function Candidates() {
         action: "archive",
         entity: "Candidate",
         entity_name:
-          deleteCandidate.full_name || String(deleteCandidate.id ?? "—"),
+          getCandidateDisplayName(deleteCandidate),
       });
       setRefreshToken((v) => v + 1);
       showFeedback("success", "Candidate archived.");
@@ -979,96 +617,29 @@ export default function Candidates() {
     await createDocumentsForCandidate(candidateId, newDocuments);
   }
 
-  const handleProfilePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      showFeedback(
-        "error",
-        "Invalid file type. Please upload an image (JPG, PNG, etc.)",
-      );
-      e.target.value = "";
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      showFeedback("error", "File is too large. Maximum size is 2MB.");
-      e.target.value = "";
-      return;
-    }
-    setForm((f) => ({ ...f, profile_photo: file }));
-  };
-
-  const handleDocumentFileChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    key: string,
-  ) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.type !== "application/pdf") {
-      showFeedback(
-        "error",
-        "Invalid file type. Only PDF documents are allowed.",
-      );
-      e.target.value = "";
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      showFeedback("error", "Document is too large. Maximum size is 5MB.");
-      e.target.value = "";
-      return;
-    }
-    setForm((prev) => ({
-      ...prev,
-      documents: { ...(prev.documents ?? {}), [key]: file },
-    }));
-  };
-
   const profileUrl = useMemo(() => {
     if (!viewCandidate) return defaultProfile;
-    const pp = viewCandidate.profile_photo;
-    if (pp) {
-      if (typeof pp === "string" && pp) return pp;
-      if (pp instanceof File) {
-        try {
-          return URL.createObjectURL(pp);
-        } catch {
-          return defaultProfile;
-        }
+
+    const photo = viewCandidate.profile_photo;
+    if (typeof photo === "string" && photo) return photo;
+    if (photo instanceof File) {
+      try {
+        return URL.createObjectURL(photo);
+      } catch {
+        return defaultProfile;
       }
     }
+
     return defaultProfile;
   }, [viewCandidate]);
 
   useEffect(() => {
     return () => {
-      try {
-        if (profileUrl?.startsWith("blob:")) URL.revokeObjectURL(profileUrl);
-      } catch {
-        /* ignore */
+      if (profileUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(profileUrl);
       }
     };
   }, [profileUrl]);
-
-  const [formProfilePreviewUrl, setFormProfilePreviewUrl] = useState<
-    string | null
-  >(null);
-  useEffect(() => {
-    const pp = form.profile_photo;
-    if (!pp) {
-      setFormProfilePreviewUrl(null);
-      return;
-    }
-    if (typeof pp === "string") {
-      setFormProfilePreviewUrl(pp);
-      return;
-    }
-    if (pp instanceof File) {
-      const url = URL.createObjectURL(pp);
-      setFormProfilePreviewUrl(url);
-      return () => URL.revokeObjectURL(url);
-    }
-    return undefined;
-  }, [form.profile_photo]);
 
   function handleDownloadPdf() {
     if (!viewCandidate) return;
@@ -1121,7 +692,7 @@ export default function Candidates() {
         actor_role: getUserRole() ?? "staff",
         action: "restore",
         entity: "Candidate",
-        entity_name: candidate.full_name || String(candidate.id ?? "—"),
+        entity_name: getCandidateDisplayName(candidate),
       });
       setRefreshToken((v) => v + 1);
       showFeedback("success", "Candidate restored.");
@@ -1134,22 +705,6 @@ export default function Candidates() {
     setArchivedPage(1);
     setIsArchiveOpen(true);
   }
-
-  // Status badges — updated for new theme
-  const statusBadge: Record<string, string> = {
-    "New Applicant": "bg-gray-100 text-gray-700",
-    "Lined-Up": "bg-blue-100 text-blue-700",
-    "For final interview": "bg-yellow-100 text-yellow-700",
-    "For medical": "bg-purple-100 text-purple-700",
-    "Fit to work": "bg-green-100 text-green-700",
-    "Unfit to work": "bg-[var(--accent)]/20 text-[var(--accent)]",
-    "Pending medical": "bg-orange-100 text-orange-700",
-    "For deployment": "bg-sky-100 text-sky-700",
-    "Visa Arrived": "bg-emerald-100 text-emerald-700",
-    "Awaiting Visa": "bg-amber-100 text-amber-700",
-    Deployed: "bg-teal-100 text-teal-700",
-    Rejected: "bg-[var(--accent)]/20 text-[var(--accent)]",
-  };
 
   return (
     <div className="flex-1 flex flex-col min-w-0">
@@ -1193,592 +748,6 @@ export default function Candidates() {
                 </button>
               </div>
             </div>
-
-            {/* Modal for adding/editing candidate */}
-            {(isModalOpen || isEditModalOpen) && (
-              <Modal
-                open={isModalOpen || isEditModalOpen}
-                onClose={isEditModalOpen ? handleCloseEditModal : handleCloseModal}
-                title={isEditModalOpen ? "Edit Candidate" : "Add New Candidate"}
-              >
-                <div className="p-4">
-                  {/* Tab Navigation */}
-                  <div className="flex border-b border-gray-200 mb-6">
-                    <button
-                      type="button"
-                      className={`px-4 py-2 font-medium text-sm ${
-                        activeTab === "tab1"
-                          ? "text-blue-600 border-b-2 border-blue-600"
-                          : "text-gray-500 hover:text-gray-700"
-                      }`}
-                      onClick={() => setActiveTab("tab1")}
-                    >
-                      Information
-                    </button>
-                    <button
-                      type="button"
-                      className={`px-4 py-2 font-medium text-sm ${
-                        activeTab === "tab2"
-                          ? "text-blue-600 border-b-2 border-blue-600"
-                          : "text-gray-500 hover:text-gray-700"
-                      }`}
-                      onClick={() => setActiveTab("tab2")}
-                    >
-                      Pre-Employment Requirements
-                    </button>
-                    <button
-                      type="button"
-                      className={`px-4 py-2 font-medium text-sm ${
-                        activeTab === "tab3"
-                          ? "text-blue-600 border-b-2 border-blue-600"
-                          : "text-gray-500 hover:text-gray-700"
-                      }`}
-                      onClick={() => setActiveTab("tab3")}
-                    >
-                      Employment and Education History
-                    </button>
-                  </div>
-
-                  {/* Tab Content */}
-                  <form onSubmit={isEditModalOpen ? onEditSubmit : onSubmit}>
-                     {/* Tab 1 Content */}
-                    {activeTab === "tab1" && (
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-medium text-gray-900 mb-4">
-                          Personal Information & Contact Details
-                        </h3>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              First Name *
-                            </label>
-                            <input
-                              type="text"
-                              value={form.first_name}
-                              onChange={(e) => setForm({...form, first_name: e.target.value})}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              required
-                            />
-                          </div>
-                          
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Last Name *
-                            </label>
-                            <input
-                              type="text"
-                              value={form.last_name}
-                              onChange={(e) => setForm({...form, last_name: e.target.value})}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              required
-                            />
-                          </div>
-                          
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Middle Name
-                            </label>
-                            <input
-                              type="text"
-                              value={form.middle_name}
-                              onChange={(e) => setForm({...form, middle_name: e.target.value})}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            />
-                          </div>
-                          
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Prefix
-                            </label>
-                            <input
-                              type="text"
-                              value={form.prefix}
-                              onChange={(e) => setForm({...form, prefix: e.target.value})}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            />
-                          </div>
-                          
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Suffix
-                            </label>
-                            <input
-                              type="text"
-                              value={form.suffix}
-                              onChange={(e) => setForm({...form, suffix: e.target.value})}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            />
-                          </div>
-                          
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Email *
-                            </label>
-                            <input
-                              type="email"
-                              value={form.email}
-                              onChange={(e) => setForm({...form, email: e.target.value})}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              required
-                            />
-                          </div>
-                          
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Phone *
-                            </label>
-                            <input
-                              type="tel"
-                              value={form.phone}
-                              onChange={(e) => setForm({...form, phone: e.target.value})}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              required
-                            />
-                          </div>
-                        </div>
-                        
-                        <div className="mt-6">
-                          <h3 className="text-lg font-medium text-gray-900 mb-4">
-                            Documents
-                          </h3>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Profile Photo
-                              </label>
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={handleProfilePhotoChange}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                                />
-                                {formProfilePreviewUrl && (
-                                  <img
-                                    src={formProfilePreviewUrl}
-                                    alt="Profile preview"
-                                    className="w-16 h-16 rounded-full object-cover"
-                                  />
-                                )}
-                              </div>
-                            </div>
-                            
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Pag-IBIG Number
-                              </label>
-                              <input
-                                type="text"
-                                value={form.pagibig_number}
-                                onChange={(e) => setForm({...form, pagibig_number: e.target.value})}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              />
-                            </div>
-                            
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                SSS Number
-                              </label>
-                              <input
-                                type="text"
-                                value={form.sss_number}
-                                onChange={(e) => setForm({...form, sss_number: e.target.value})}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              />
-                            </div>
-                            
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Philhealth
-                              </label>
-                              <input
-                                type="text"
-                                value={form.philhealth}
-                                onChange={(e) => setForm({...form, philhealth: e.target.value})}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              />
-                            </div>
-                            
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Resume
-                              </label>
-                              <input
-                                type="file"
-                                accept="application/pdf"
-                                onChange={(e) => handleDocumentFileChange(e, "resume")}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              />
-                            </div>
-                            
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Passport
-                              </label>
-                              <input
-                                type="file"
-                                accept="application/pdf"
-                                onChange={(e) => handleDocumentFileChange(e, "passport")}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              />
-                            </div>
-                            
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                VISA
-                              </label>
-                              <input
-                                type="file"
-                                accept="application/pdf"
-                                onChange={(e) => handleDocumentFileChange(e, "visa")}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              />
-                            </div>
-                            
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                NBI/Police Clearance
-                              </label>
-                              <input
-                                type="file"
-                                accept="application/pdf"
-                                onChange={(e) => handleDocumentFileChange(e, "nbi_clearance")}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              />
-                            </div>
-                            
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Police Clearance
-                              </label>
-                              <input
-                                type="file"
-                                accept="application/pdf"
-                                onChange={(e) => handleDocumentFileChange(e, "police_clearance")}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              />
-                            </div>
-                            
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Offer Letter
-                              </label>
-                              <input
-                                type="file"
-                                accept="application/pdf"
-                                onChange={(e) => handleDocumentFileChange(e, "offer_letter")}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              />
-                            </div>
-                            
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                DMW Approved Contract
-                              </label>
-                              <input
-                                type="file"
-                                accept="application/pdf"
-                                onChange={(e) => handleDocumentFileChange(e, "dmw_approved_contract")}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              />
-                            </div>
-                            
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Overseas Employment Certificate
-                              </label>
-                              <input
-                                type="file"
-                                accept="application/pdf"
-                                onChange={(e) => handleDocumentFileChange(e, "overseas_employment_certificate")}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              />
-                            </div>
-                            
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                PEOS Certificate
-                              </label>
-                              <input
-                                type="file"
-                                accept="application/pdf"
-                                onChange={(e) => handleDocumentFileChange(e, "peos_certificate")}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              />
-                            </div>
-                            
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                E-registration File
-                              </label>
-                              <input
-                                type="file"
-                                accept="application/pdf"
-                                onChange={(e) => handleDocumentFileChange(e, "e_registration_file")}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              />
-                            </div>
-                            
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Other Document
-                              </label>
-                              <input
-                                type="file"
-                                accept="application/pdf"
-                                onChange={(e) => handleDocumentFileChange(e, "other")}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Tab 2 Content */}
-                    {activeTab === "tab2" && (
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-medium text-gray-900 mb-4">
-                          Pre-Employment Requirements
-                        </h3>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Pag-IBIG Number
-                            </label>
-                            <input
-                              type="text"
-                              value={form.pagibig_number}
-                              onChange={(e) => setForm({...form, pagibig_number: e.target.value})}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            />
-                          </div>
-                          
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Highest Educational Attainment
-                            </label>
-                            <input
-                              type="text"
-                              value={form.highest_educ_attainment}
-                              onChange={(e) => setForm({...form, highest_educ_attainment: e.target.value})}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            />
-                          </div>
-                          
-                          <div className="md:col-span-2">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Elementary School
-                            </label>
-                            <input
-                              type="text"
-                              value={form.school_elementary}
-                              onChange={(e) => setForm({...form, school_elementary: e.target.value})}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            />
-                          </div>
-                          
-                          <div className="md:col-span-2">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Junior High School
-                            </label>
-                            <input
-                              type="text"
-                              value={form.school_junior_high}
-                              onChange={(e) => setForm({...form, school_junior_high: e.target.value})}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            />
-                          </div>
-                          
-                          <div className="md:col-span-2">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Senior High School
-                            </label>
-                            <input
-                              type="text"
-                              value={form.school_senior_high}
-                              onChange={(e) => setForm({...form, school_senior_high: e.target.value})}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            />
-                          </div>
-                          
-                          <div className="md:col-span-2">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              College
-                            </label>
-                            <input
-                              type="text"
-                              value={form.school_college}
-                              onChange={(e) => setForm({...form, school_college: e.target.value})}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            />
-                          </div>
-                          
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Other School
-                            </label>
-                            <input
-                              type="text"
-                              value={form.school_other}
-                              onChange={(e) => setForm({...form, school_other: e.target.value})}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            />
-                          </div>
-                          
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Other School Name
-                            </label>
-                            <input
-                              type="text"
-                              value={form.school_other_name}
-                              onChange={(e) => setForm({...form, school_other_name: e.target.value})}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Tab 3 Content */}
-                    {activeTab === "tab3" && (
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-medium text-gray-900 mb-4">
-                          Employment and Education History
-                        </h3>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="md:col-span-2">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Work History
-                            </label>
-                            <textarea
-                              value={form.work_history}
-                              onChange={(e) => setForm({...form, work_history: e.target.value})}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              rows={4}
-                            />
-                          </div>
-                          
-                          <div className="md:col-span-2">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Skills
-                            </label>
-                            <textarea
-                              value={form.skills}
-                              onChange={(e) => setForm({...form, skills: e.target.value})}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              rows={4}
-                            />
-                          </div>
-                          
-                          <div className="md:col-span-2">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Certifications
-                            </label>
-                            <textarea
-                              value={form.certifications}
-                              onChange={(e) => setForm({...form, certifications: e.target.value})}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              rows={4}
-                            />
-                          </div>
-                          
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Desired Salary
-                            </label>
-                            <input
-                              type="text"
-                              value={form.desired_salary}
-                              onChange={(e) => setForm({...form, desired_salary: e.target.value})}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            />
-                          </div>
-                          
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Position Screened
-                            </label>
-                            <input
-                              type="text"
-                              value={form.position_screened}
-                              onChange={(e) => setForm({...form, position_screened: e.target.value})}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            />
-                          </div>
-                          
-                          <div className="md:col-span-2">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Notes
-                            </label>
-                            <textarea
-                              value={form.notes}
-                              onChange={(e) => setForm({...form, notes: e.target.value})}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                              rows={4}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Navigation Buttons */}
-                    <div className="flex justify-between mt-6">
-                      <div>
-                        {activeTab !== "tab1" && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (activeTab === "tab2") setActiveTab("tab1");
-                              else if (activeTab === "tab3") setActiveTab("tab2");
-                            }}
-                            className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                          >
-                            Back
-                          </button>
-                        )}
-                      </div>
-                      
-                      <div className="flex space-x-2">
-                        <button
-                          type="button"
-                          onClick={isEditModalOpen ? handleCloseEditModal : handleCloseModal}
-                          className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                        >
-                          Cancel
-                        </button>
-                        
-                        {activeTab !== "tab3" ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (activeTab === "tab1") setActiveTab("tab2");
-                              else if (activeTab === "tab2") setActiveTab("tab3");
-                            }}
-                            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                          >
-                            Next
-                          </button>
-                        ) : (
-                          <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                          >
-                            {isSubmitting ? (isEditModalOpen ? "Updating..." : "Adding...") : (isEditModalOpen ? "Update Candidate" : "Add Candidate")}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </form>
-                </div>
-              </Modal>
-            )}
 
             <div className="flex flex-wrap gap-3 items-end">
               <div className="max-w-sm flex-1">
@@ -1918,11 +887,9 @@ export default function Candidates() {
                           <td className="px-4 py-3 text-(--muted) text-sm">
                             {(page - 1) * perPage + idx + 1}
                           </td>
-                          <td className="px-4 py-3 font-semibold text-(--text) text-sm">
-                            {c.last_name
-                              ? `${c.last_name}, ${c.first_name}${c.middle_name ? " " + c.middle_name : ""}`
-                              : c.full_name || "No data available"}
-                          </td>
+                           <td className="px-4 py-3 font-semibold text-(--text) text-sm">
+                             {getCandidateDisplayName(c)}
+                           </td>
                           <td className="px-4 py-3 text-(--text) font-semibold text-sm">
                             {c.phone || "No data available"}
                           </td>
@@ -2029,7 +996,7 @@ export default function Candidates() {
           <Modal
             open={!!viewCandidate}
             onClose={handleCloseViewModal}
-            title={`Candidate Details: ${viewCandidate.full_name || viewCandidate.last_name ? `${viewCandidate.last_name}, ${viewCandidate.first_name}` : 'Unnamed Candidate'}`}
+            title={`Candidate Details: ${getCandidateDisplayName(viewCandidate)}`}
           >
             <div className="p-4">
              {/* Header with profile photo and basic info */}
@@ -2040,13 +1007,9 @@ export default function Candidates() {
                  className="w-24 h-24 rounded-full object-cover border-2 border-(--border)"
                />
                <div className="flex-1">
-                 <h2 className="text-xl font-bold text-(--text)">
-                   {viewCandidate.last_name
-                     ? `${viewCandidate.last_name}, ${viewCandidate.first_name}${
-                         viewCandidate.middle_name ? " " + viewCandidate.middle_name : ""
-                       }`
-                     : viewCandidate.full_name || "Unnamed Candidate"}
-                 </h2>
+                  <h2 className="text-xl font-bold text-(--text)">
+                    {getCandidateDisplayName(viewCandidate)}
+                  </h2>
                  <div className="mt-2">
                    <span
                      className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
@@ -2326,6 +1289,752 @@ export default function Candidates() {
             </div>
           </Modal>
         )}
+        
+        {/* Add Candidate Modal */}
+        {isModalOpen && (
+          <Modal
+            open={isModalOpen}
+            onClose={handleCloseModal}
+            title="Add New Candidate"
+          >
+            <div className="p-4 max-h-[90vh] overflow-y-auto">
+              <form onSubmit={onSubmit}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="text-lg font-medium text-(--text) mb-3">Personal Information</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Last Name *</label>
+                        <input
+                          type="text"
+                          value={form.last_name}
+                          onChange={(e) => setForm({...form, last_name: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">First Name *</label>
+                        <input
+                          type="text"
+                          value={form.first_name}
+                          onChange={(e) => setForm({...form, first_name: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Middle Name</label>
+                        <input
+                          type="text"
+                          value={form.middle_name}
+                          onChange={(e) => setForm({...form, middle_name: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Prefix</label>
+                        <input
+                          type="text"
+                          value={form.prefix}
+                          onChange={(e) => setForm({...form, prefix: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Suffix</label>
+                        <input
+                          type="text"
+                          value={form.suffix}
+                          onChange={(e) => setForm({...form, suffix: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Email *</label>
+                        <input
+                          type="email"
+                          value={form.email}
+                          onChange={(e) => setForm({...form, email: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Phone *</label>
+                        <input
+                          type="tel"
+                          value={form.phone}
+                          onChange={(e) => setForm({...form, phone: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Marital Status</label>
+                        <select
+                          value={form.marital_status}
+                          onChange={(e) => setForm({...form, marital_status: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        >
+                          <option value="">Select Marital Status</option>
+                          <option value="Single">Single</option>
+                          <option value="Married">Married</option>
+                          <option value="Widowed">Widowed</option>
+                          <option value="Divorced">Divorced</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Status</label>
+                        <select
+                          value={form.status}
+                          onChange={(e) => setForm({...form, status: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        >
+                          {candidateStatuses.map((status) => (
+                            <option key={status} value={status}>{status}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-lg font-medium text-(--text) mb-3">Contact Information</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Home Address</label>
+                        <textarea
+                          value={form.home_address}
+                          onChange={(e) => setForm({...form, home_address: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                          rows={3}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Permanent Address</label>
+                        <textarea
+                          value={form.permanent_address}
+                          onChange={(e) => setForm({...form, permanent_address: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                          rows={3}
+                        />
+                      </div>
+                    </div>
+                    
+                    <h3 className="text-lg font-medium text-(--text) mb-3 mt-4">Government IDs</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Pag-IBIG Number</label>
+                        <input
+                          type="text"
+                          value={form.pagibig_number}
+                          onChange={(e) => setForm({...form, pagibig_number: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">SSS Number</label>
+                        <input
+                          type="text"
+                          value={form.sss_number}
+                          onChange={(e) => setForm({...form, sss_number: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">PhilHealth</label>
+                        <input
+                          type="text"
+                          value={form.philhealth}
+                          onChange={(e) => setForm({...form, philhealth: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <h3 className="text-lg font-medium text-(--text) mb-3">Education</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Highest Educational Attainment</label>
+                        <input
+                          type="text"
+                          value={form.highest_educ_attainment}
+                          onChange={(e) => setForm({...form, highest_educ_attainment: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Elementary School</label>
+                        <input
+                          type="text"
+                          value={form.school_elementary}
+                          onChange={(e) => setForm({...form, school_elementary: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Junior High School</label>
+                        <input
+                          type="text"
+                          value={form.school_junior_high}
+                          onChange={(e) => setForm({...form, school_junior_high: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Senior High School</label>
+                        <input
+                          type="text"
+                          value={form.school_senior_high}
+                          onChange={(e) => setForm({...form, school_senior_high: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">College</label>
+                        <input
+                          type="text"
+                          value={form.school_college}
+                          onChange={(e) => setForm({...form, school_college: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Other School</label>
+                        <input
+                          type="text"
+                          value={form.school_other}
+                          onChange={(e) => setForm({...form, school_other: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Other School Name</label>
+                        <input
+                          type="text"
+                          value={form.school_other_name}
+                          onChange={(e) => setForm({...form, school_other_name: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-lg font-medium text-(--text) mb-3">Work Experience</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Work History</label>
+                        <textarea
+                          value={form.work_history}
+                          onChange={(e) => setForm({...form, work_history: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                          rows={3}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Skills</label>
+                        <textarea
+                          value={form.skills}
+                          onChange={(e) => setForm({...form, skills: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                          rows={3}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Certifications</label>
+                        <textarea
+                          value={form.certifications}
+                          onChange={(e) => setForm({...form, certifications: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                          rows={3}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Desired Salary</label>
+                        <input
+                          type="text"
+                          value={form.desired_salary}
+                          onChange={(e) => setForm({...form, desired_salary: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Position Screened</label>
+                        <input
+                          type="text"
+                          value={form.position_screened}
+                          onChange={(e) => setForm({...form, position_screened: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Notes</label>
+                        <textarea
+                          value={form.notes}
+                          onChange={(e) => setForm({...form, notes: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                          rows={3}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={handleCloseModal}
+                    className="px-4 py-2 border border-(--border) text-(--text) rounded-md hover:bg-(--surface2) transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="px-4 py-2 bg-(--primary) text-white rounded-md hover:bg-(--primary2) transition-colors disabled:opacity-50"
+                  >
+                    {isSubmitting ? 'Adding...' : 'Add Candidate'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </Modal>
+        )}
+        
+        {/* Edit Candidate Modal */}
+        {isEditModalOpen && editCandidate && (
+          <Modal
+            open={isEditModalOpen}
+            onClose={handleCloseEditModal}
+            title="Edit Candidate"
+          >
+            <div className="p-4 max-h-[90vh] overflow-y-auto">
+              <form onSubmit={onEditSubmit}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="text-lg font-medium text-(--text) mb-3">Personal Information</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Last Name *</label>
+                        <input
+                          type="text"
+                          value={form.last_name}
+                          onChange={(e) => setForm({...form, last_name: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">First Name *</label>
+                        <input
+                          type="text"
+                          value={form.first_name}
+                          onChange={(e) => setForm({...form, first_name: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Middle Name</label>
+                        <input
+                          type="text"
+                          value={form.middle_name}
+                          onChange={(e) => setForm({...form, middle_name: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Prefix</label>
+                        <input
+                          type="text"
+                          value={form.prefix}
+                          onChange={(e) => setForm({...form, prefix: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Suffix</label>
+                        <input
+                          type="text"
+                          value={form.suffix}
+                          onChange={(e) => setForm({...form, suffix: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Email *</label>
+                        <input
+                          type="email"
+                          value={form.email}
+                          onChange={(e) => setForm({...form, email: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Phone *</label>
+                        <input
+                          type="tel"
+                          value={form.phone}
+                          onChange={(e) => setForm({...form, phone: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Marital Status</label>
+                        <select
+                          value={form.marital_status}
+                          onChange={(e) => setForm({...form, marital_status: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        >
+                          <option value="">Select Marital Status</option>
+                          <option value="Single">Single</option>
+                          <option value="Married">Married</option>
+                          <option value="Widowed">Widowed</option>
+                          <option value="Divorced">Divorced</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Status</label>
+                        <select
+                          value={form.status}
+                          onChange={(e) => setForm({...form, status: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        >
+                          {candidateStatuses.map((status) => (
+                            <option key={status} value={status}>{status}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-lg font-medium text-(--text) mb-3">Contact Information</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Home Address</label>
+                        <textarea
+                          value={form.home_address}
+                          onChange={(e) => setForm({...form, home_address: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                          rows={3}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Permanent Address</label>
+                        <textarea
+                          value={form.permanent_address}
+                          onChange={(e) => setForm({...form, permanent_address: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                          rows={3}
+                        />
+                      </div>
+                    </div>
+                    
+                    <h3 className="text-lg font-medium text-(--text) mb-3 mt-4">Government IDs</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Pag-IBIG Number</label>
+                        <input
+                          type="text"
+                          value={form.pagibig_number}
+                          onChange={(e) => setForm({...form, pagibig_number: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">SSS Number</label>
+                        <input
+                          type="text"
+                          value={form.sss_number}
+                          onChange={(e) => setForm({...form, sss_number: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">PhilHealth</label>
+                        <input
+                          type="text"
+                          value={form.philhealth}
+                          onChange={(e) => setForm({...form, philhealth: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <h3 className="text-lg font-medium text-(--text) mb-3">Education</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Highest Educational Attainment</label>
+                        <input
+                          type="text"
+                          value={form.highest_educ_attainment}
+                          onChange={(e) => setForm({...form, highest_educ_attainment: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Elementary School</label>
+                        <input
+                          type="text"
+                          value={form.school_elementary}
+                          onChange={(e) => setForm({...form, school_elementary: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Junior High School</label>
+                        <input
+                          type="text"
+                          value={form.school_junior_high}
+                          onChange={(e) => setForm({...form, school_junior_high: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Senior High School</label>
+                        <input
+                          type="text"
+                          value={form.school_senior_high}
+                          onChange={(e) => setForm({...form, school_senior_high: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">College</label>
+                        <input
+                          type="text"
+                          value={form.school_college}
+                          onChange={(e) => setForm({...form, school_college: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Other School</label>
+                        <input
+                          type="text"
+                          value={form.school_other}
+                          onChange={(e) => setForm({...form, school_other: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Other School Name</label>
+                        <input
+                          type="text"
+                          value={form.school_other_name}
+                          onChange={(e) => setForm({...form, school_other_name: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-lg font-medium text-(--text) mb-3">Work Experience</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Work History</label>
+                        <textarea
+                          value={form.work_history}
+                          onChange={(e) => setForm({...form, work_history: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                          rows={3}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Skills</label>
+                        <textarea
+                          value={form.skills}
+                          onChange={(e) => setForm({...form, skills: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                          rows={3}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Certifications</label>
+                        <textarea
+                          value={form.certifications}
+                          onChange={(e) => setForm({...form, certifications: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                          rows={3}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Desired Salary</label>
+                        <input
+                          type="text"
+                          value={form.desired_salary}
+                          onChange={(e) => setForm({...form, desired_salary: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Position Screened</label>
+                        <input
+                          type="text"
+                          value={form.position_screened}
+                          onChange={(e) => setForm({...form, position_screened: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-(--muted) mb-1">Notes</label>
+                        <textarea
+                          value={form.notes}
+                          onChange={(e) => setForm({...form, notes: e.target.value})}
+                          className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                          rows={3}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={handleCloseEditModal}
+                    className="px-4 py-2 border border-(--border) text-(--text) rounded-md hover:bg-(--surface2) transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="px-4 py-2 bg-(--primary) text-white rounded-md hover:bg-(--primary2) transition-colors disabled:opacity-50"
+                  >
+                    {isSubmitting ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </Modal>
+        )}
+        
+        {/* Delete Confirmation Modal */}
+        {isDeleteModalOpen && deleteCandidate && (
+          <Modal
+            open={isDeleteModalOpen}
+            onClose={handleCloseDeleteModal}
+            title="Confirm Archive"
+          >
+            <div className="p-4">
+                <p className="mb-4">
+                  Are you sure you want to archive candidate{" "}
+                  <span className="font-semibold">
+                    {getCandidateDisplayName(deleteCandidate)}
+                  </span>?
+                </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={handleCloseDeleteModal}
+                  className="px-4 py-2 border border-(--border) text-(--text) rounded-md hover:bg-(--surface2) transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={onDeleteSubmit}
+                  disabled={isSubmitting}
+                  className="px-4 py-2 bg-(--accent) text-white rounded-md hover:bg-(--accent2) transition-colors disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Archiving...' : 'Archive'}
+                </button>
+              </div>
+            </div>
+          </Modal>
+        )}
+
+        {isArchiveOpen && (
+          <Modal
+            open={isArchiveOpen}
+            onClose={() => setIsArchiveOpen(false)}
+            title="Archived Candidates"
+          >
+            <div className="p-4 max-h-[80vh] overflow-y-auto">
+              {archivedLoading ? (
+                <div className="py-12 text-center text-(--muted)">
+                  Loading archived candidates...
+                </div>
+              ) : archivedCandidates.length === 0 ? (
+                <div className="py-12 text-center text-(--muted)">
+                  No archived candidates found.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {archivedCandidates.map((candidate) => (
+                    <div
+                      key={candidate.id}
+                      className="flex flex-col gap-3 rounded-lg border border-(--border) bg-white p-4 md:flex-row md:items-center md:justify-between"
+                    >
+                      <div>
+                        <div className="font-semibold text-(--text)">
+                          {getCandidateDisplayName(candidate)}
+                        </div>
+                        <div className="text-sm text-(--muted)">
+                          {candidate.status || "No status"} · Archived{" "}
+                          {candidate.archived_at
+                            ? new Date(candidate.archived_at).toLocaleString()
+                            : "Unknown"}
+                        </div>
+                      </div>
+                      {canRestoreArchived && (
+                        <button
+                          type="button"
+                          onClick={() => void handleRestore(candidate)}
+                          className="self-start rounded-md bg-(--primary) px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-(--primary2)"
+                        >
+                          Restore
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-6 flex flex-col gap-3">
+                <Pagination
+                  page={archivedPage}
+                  totalPages={archivedTotalPages}
+                  onPageChange={setArchivedPage}
+                  perPage={perPage}
+                  onPerPageChange={(v) => {
+                    setPerPage(v);
+                    setArchivedPage(1);
+                  }}
+                />
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setIsArchiveOpen(false)}
+                    className="rounded-md border border-(--border) px-4 py-2 text-sm font-semibold text-(--text) transition-colors hover:bg-(--surface2)"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Modal>
+        )}
+        
       </div>
   );
 }
+
+
+
+

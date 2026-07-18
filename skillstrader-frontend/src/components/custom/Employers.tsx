@@ -8,13 +8,13 @@ import Pagination from "../ui/Pagination";
 import { pb } from "../../lib/pocketbase/pb";
 
 type Employer = {
-  id?: number | string;
+  id?: string;
   company_name: string;
   contact_person: string;
   contact_email: string;
   contact_phone: string;
-  country: string;
-  industry: string;
+  country?: string;
+  industry?: string;
   billing_name?: string;
   billing_email?: string;
   billing_phone?: string;
@@ -46,7 +46,23 @@ export default function Employers() {
       const result = await pb.collection('employer').getList(page, perPage, {
         sort: '-created'
       });
-      setEmployers(result.items);
+      // Convert RecordModel[] to Employer[]
+      const employersList = result.items.map(item => ({
+        id: String(item.id),
+        company_name: item.company_name,
+        contact_person: item.contact_person,
+        contact_email: item.contact_email,
+        contact_phone: item.contact_phone,
+        country: item.country,
+        industry: item.industry,
+        billing_name: item.billing_name,
+        billing_email: item.billing_email,
+        billing_phone: item.billing_phone,
+        billing_address: item.billing_address,
+        payment_terms: item.payment_terms,
+        billing_notes: item.billing_notes
+      }));
+      setEmployers(employersList);
       setTotalPages(result.totalPages);
     } catch (err) {
       console.error('Failed to fetch employers:', err);
@@ -159,7 +175,23 @@ function handleOpenModal() {
       console.log("Sending form data to PocketBase:", form);
       const newEmployer = await pb.collection('employer').create(form);
       console.log("Created employer:", newEmployer);
-      setEmployers(prev => [newEmployer, ...prev]);
+      // Convert RecordModel to Employer before adding to state
+      const employer: Employer = {
+        id: String(newEmployer.id),
+        company_name: newEmployer.company_name,
+        contact_person: newEmployer.contact_person,
+        contact_email: newEmployer.contact_email,
+        contact_phone: newEmployer.contact_phone,
+        country: newEmployer.country,
+        industry: newEmployer.industry,
+        billing_name: newEmployer.billing_name,
+        billing_email: newEmployer.billing_email,
+        billing_phone: newEmployer.billing_phone,
+        billing_address: newEmployer.billing_address,
+        payment_terms: newEmployer.payment_terms,
+        billing_notes: newEmployer.billing_notes
+      };
+      setEmployers(prev => [employer, ...prev]);
       showFeedback("success", "Employer created");
       setIsModalOpen(false);
     } catch (err: any) {
@@ -187,10 +219,26 @@ function handleOpenModal() {
     setIsSubmitting(true);
     setError("");
     try {
-      if (!editEmployer) return;
+      if (!editEmployer || !editEmployer.id) return;
       
       const updatedEmployer = await pb.collection('employer').update(editEmployer.id, form);
-      setEmployers(prev => prev.map((it) => (it.id === editEmployer.id ? updatedEmployer : it)));
+      // Convert RecordModel to Employer before updating state
+      const employer: Employer = {
+        id: String(updatedEmployer.id),
+        company_name: updatedEmployer.company_name,
+        contact_person: updatedEmployer.contact_person,
+        contact_email: updatedEmployer.contact_email,
+        contact_phone: updatedEmployer.contact_phone,
+        country: updatedEmployer.country,
+        industry: updatedEmployer.industry,
+        billing_name: updatedEmployer.billing_name,
+        billing_email: updatedEmployer.billing_email,
+        billing_phone: updatedEmployer.billing_phone,
+        billing_address: updatedEmployer.billing_address,
+        payment_terms: updatedEmployer.payment_terms,
+        billing_notes: updatedEmployer.billing_notes
+      };
+      setEmployers(prev => prev.map((it) => (it.id === editEmployer.id ? employer : it)));
       showFeedback("success", "Employer updated");
       setIsEditModalOpen(false);
     } catch (err) {
@@ -204,7 +252,7 @@ function handleOpenModal() {
   async function onDeleteSubmit() {
     setIsSubmitting(true);
     try {
-      if (!deleteEmployer) return;
+      if (!deleteEmployer || !deleteEmployer.id) return;
       
       await pb.collection('employer').delete(deleteEmployer.id);
       setEmployers(prev => prev.filter((it) => it.id !== deleteEmployer.id));

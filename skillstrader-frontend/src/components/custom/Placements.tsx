@@ -6,35 +6,71 @@ import Searchbar from '../ui/Searchbar';
 import Pagination from '../ui/Pagination';
 import Filter from '../ui/Filter';
 import Selection from '../ui/Selection';
-import placementsData from "../../data/placements.json";
-import candidatesData from "../../data/candidates.json";
-import jobOrdersData from "../../data/job-orders.json";
+import { pb, getUserRole } from '../../lib/pocketbase/pb';
 
 type Placement = {
-  id?: number | string;
-  candidate_id?: number | string;
-  job_order_id?: number | string;
+  id?: string;
+  candidate?: string;
+  job_order?: string;
   status: 'Pending' | 'Confirmed' | 'Started' | 'Completed' | 'Cancelled';
   departure_date?: string;
   arrival_date?: string;
+  placement_date?: string;
+  placement_fee_date?: string;
+  placement_fee_amount?: number;
 };
 
 type CandidateOption = {
-  id?: number | string;
+  id?: string;
   full_name?: string;
+  first_name?: string;
+  last_name?: string;
+  middle_name?: string;
 };
 
 type JobOrderOption = {
-  id?: number | string;
+  id?: string;
   title?: string;
 };
 
+type PlacementRecord = {
+  id: string;
+  candidate: string;
+  job_order: string;
+  status: 'Pending' | 'Confirmed' | 'Started' | 'Completed' | 'Cancelled';
+  departure_date?: string;
+  arrival_date?: string;
+  placement_date?: string;
+  placement_fee_date?: string;
+  placement_fee_amount?: number;
+  created: string;
+  updated: string;
+};
+
+type CandidateRecord = {
+  id: string;
+  full_name?: string;
+  first_name?: string;
+  last_name?: string;
+  middle_name?: string;
+  status?: string;
+};
+
+type JobOrderRecord = {
+  id: string;
+  title?: string;
+  description?: string;
+};
+
 const initialForm: Placement = {
-  candidate_id: undefined,
-  job_order_id: undefined,
+  candidate: undefined,
+  job_order: undefined,
   status: 'Pending',
   departure_date: '',
   arrival_date: '',
+  placement_date: '',
+  placement_fee_date: '',
+  placement_fee_amount: undefined,
 };
 
 export default function Placements() {
@@ -51,6 +87,9 @@ export default function Placements() {
   const [success, setSuccess] = useState('');
   const [showToast, setShowToast] = useState(false);
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('success');
+  const [candidates, setCandidates] = useState<CandidateOption[]>([]);
+  const [jobOrders, setJobOrders] = useState<JobOrderOption[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -59,12 +98,98 @@ export default function Placements() {
   const [totalPages, setTotalPages] = useState(1);
   const [paged, setPaged] = useState<Placement[]>([]);
 
+  const userRole = useMemo(() => getUserRole() ?? "staff", []);
+  const canManage = userRole === "administrator" || userRole === "manager";
+
+  // Fetch candidates and job orders for selection dropdowns
   useEffect(() => {
-    setPlacements((placementsData as Placement[]) || []);
+    async function fetchCandidatesAndJobOrders() {
+      try {
+        // Fetch all candidates
+        const candidatesResult = await pb.collection("candidates").getFullList<CandidateRecord>({
+          sort: "last_name",
+          requestKey: null,
+        });
+        
+        // Convert to candidate options
+        const candidateOptions = candidatesResult.map(c => ({
+          id: c.id,
+          full_name: c.full_name || `${c.first_name || ''} ${c.middle_name || ''} ${c.last_name || ''}`.trim(),
+        }));
+
+        // Fetch all job orders
+        const jobOrdersResult = await pb.collection("job_orders").getFullList<JobOrderRecord>({
+          sort: "title",
+          requestKey: null,
+        });
+
+        // Convert to job order options
+        const jobOrderOptions = jobOrdersResult.map(j => ({
+          id: j.id,
+          title: j.title || 'Untitled Job Order'
+        }));
+
+        setCandidates(candidateOptions);
+        setJobOrders(jobOrderOptions);
+      } catch (err) {
+        console.error("Failed to fetch candidates or job orders:", err);
+      }
+    }
+
+    fetchCandidatesAndJobOrders();
   }, []);
 
-  const candidates = (candidatesData as CandidateOption[]) || [];
-  const jobOrders = (jobOrdersData as JobOrderOption[]) || [];
+  // Fetch placements from PocketBase
+  useEffect(() => {
+    async function fetchPlacements() {
+      setIsLoading(true);
+      try {
+        const filter = [];
+        
+        // Apply search filter if needed
+        if (search.trim()) {
+          const q = search.trim().toLowerCase();
+          filter.push(`(candidate.full_name ~ "${q}" || job_order.title ~ "${q}")`);
+        }
+        
+        // Apply status filter if needed
+        if (statusFilter) {
+          filter.push(`status = "${statusFilter}"`);
+        }
+        
+        const result = await pb.collection("placements").getList<PlacementRecord>(page, perPage, {
+          sort: '-created',
+          filter: filter.length > 0 ? filter.join(' && ') : undefined,
+          expand: 'candidate,job_order',
+          requestKey: null,
+        });
+
+        // Convert records to placements
+        const placementsData = result.items.map(item => ({
+          id: item.id,
+          candidate: item.candidate,
+          job_order: item.job_order,
+          status: item.status,
+          departure_date: item.departure_date,
+          arrival_date: item.arrival_date,
+          placement_date: item.placement_date,
+          placement_fee_date: item.placement_fee_date,
+          placement_fee_amount: item.placement_fee_amount,
+        }));
+
+        setPlacements(placementsData);
+        setTotalPages(result.totalPages);
+        setIsLoading(false);
+      } catch (err) {
+        console.error("Failed to fetch placements:", err);
+        setIsLoading(false);
+      }
+    }
+
+    if (pb.authStore.isValid) {
+      fetchPlacements();
+    }
+  }, [page, perPage, search, statusFilter]);
 
   const placementStatuses = ['Pending', 'Confirmed', 'Started', 'Completed', 'Cancelled'];
 
@@ -73,8 +198,11 @@ export default function Placements() {
     return placements.filter((p) => {
       if (statusFilter && p.status !== statusFilter) return false;
       if (!q) return true;
-      const candidate = candidates.find((c) => String(c.id) === String(p.candidate_id));
-      const job = jobOrders.find((j) => String(j.id) === String(p.job_order_id));
+      
+      // Find candidate and job order for display
+      const candidate = candidates.find((c) => String(c.id) === String(p.candidate));
+      const job = jobOrders.find((j) => String(j.id) === String(p.job_order));
+      
       return (
         String(candidate?.full_name ?? '').toLowerCase().includes(q) ||
         String(job?.title ?? '').toLowerCase().includes(q)
@@ -141,14 +269,41 @@ export default function Placements() {
     setIsSubmitting(true);
     setError('');
     try {
-      if (!form.candidate_id || !form.job_order_id) {
+      if (!form.candidate || !form.job_order) {
         setError('Candidate and Job Order are required');
         return;
       }
-      setPlacements((prev) => [{ ...form, id: Date.now() }, ...prev]);
+      
+      const payload = {
+        candidate: form.candidate,
+        job_order: form.job_order,
+        status: form.status,
+        departure_date: form.departure_date || null,
+        arrival_date: form.arrival_date || null,
+        placement_date: form.placement_date || null,
+        placement_fee_date: form.placement_fee_date || null,
+        placement_fee_amount: form.placement_fee_amount || null,
+      };
+
+      const created = await pb.collection("placements").create(payload);
+      
+      // Add the new placement to the beginning of the list
+      setPlacements(prev => [{
+        id: created.id,
+        candidate: created.candidate,
+        job_order: created.job_order,
+        status: created.status,
+        departure_date: created.departure_date,
+        arrival_date: created.arrival_date,
+        placement_date: created.placement_date,
+        placement_fee_date: created.placement_fee_date,
+        placement_fee_amount: created.placement_fee_amount,
+      }, ...prev]);
+      
       showFeedback('success', 'Placement created');
       setIsModalOpen(false);
-    } catch {
+    } catch (err) {
+      console.error('Failed to create placement:', err);
       setError('Failed to create placement');
       showFeedback('error', 'Failed to create placement');
     } finally {
@@ -162,11 +317,40 @@ export default function Placements() {
     setError('');
     try {
       if (!editPlacement || !editPlacement.id) return;
-      setPlacements((prev) => prev.map((it) => (it.id === editPlacement.id ? { ...it, ...form } : it)));
+      
+      const payload = {
+        candidate: form.candidate,
+        job_order: form.job_order,
+        status: form.status,
+        departure_date: form.departure_date || null,
+        arrival_date: form.arrival_date || null,
+        placement_date: form.placement_date || null,
+        placement_fee_date: form.placement_fee_date || null,
+        placement_fee_amount: form.placement_fee_amount || null,
+      };
+
+      const updated = await pb.collection("placements").update(editPlacement.id, payload);
+      
+      // Update the placement in the list
+      setPlacements(prev => prev.map(it => 
+        it.id === editPlacement.id ? {
+          id: updated.id,
+          candidate: updated.candidate,
+          job_order: updated.job_order,
+          status: updated.status,
+          departure_date: updated.departure_date,
+          arrival_date: updated.arrival_date,
+          placement_date: updated.placement_date,
+          placement_fee_date: updated.placement_fee_date,
+          placement_fee_amount: updated.placement_fee_amount,
+        } : it
+      ));
+      
       showFeedback('success', 'Placement updated');
       setIsEditModalOpen(false);
-    } catch {
-      setError('Failed to update');
+    } catch (err) {
+      console.error('Failed to update placement:', err);
+      setError('Failed to update placement');
       showFeedback('error', 'Failed to update placement');
     } finally {
       setIsSubmitting(false);
@@ -176,12 +360,18 @@ export default function Placements() {
   async function onDeleteSubmit() {
     setIsSubmitting(true);
     try {
-      if (!deletePlacement) return;
-      setPlacements((prev) => prev.filter((it) => it.id !== deletePlacement.id));
+      if (!deletePlacement || !deletePlacement.id) return;
+      
+      await pb.collection("placements").delete(deletePlacement.id);
+      
+      // Remove the placement from the list
+      setPlacements(prev => prev.filter(it => it.id !== deletePlacement.id));
+      
       showFeedback('success', 'Placement deleted');
       setIsDeleteModalOpen(false);
-    } catch {
-      setError('Failed to delete');
+    } catch (err) {
+      console.error('Failed to delete placement:', err);
+      setError('Failed to delete placement');
       showFeedback('error', 'Failed to delete placement');
     } finally {
       setIsSubmitting(false);
@@ -276,8 +466,8 @@ export default function Placements() {
                   </tr>
                 ) : (
                   paged.map((p, idx) => {
-                    const candidate = candidates.find((c) => String(c.id) === String(p.candidate_id));
-                    const job = jobOrders.find((j) => String(j.id) === String(p.job_order_id));
+                    const candidate = candidates.find((c) => String(c.id) === String(p.candidate));
+                    const job = jobOrders.find((j) => String(j.id) === String(p.job_order));
                     return (
                       <tr key={String(p.id)} className="border-b border-(--border) last:border-b-0 hover:bg-(--surface2)/60 transition-colors">
                         <td className="px-4 py-3 text-(--muted)">{(page - 1) * perPage + idx + 1}</td>
@@ -297,24 +487,28 @@ export default function Placements() {
                               <Icon icon="tabler:eye" width="15" height="15" />
                               View
                             </button>
-                            <button
-                              type="button"
-                              title="Edit"
-                              onClick={() => handleEdit(p)}
-                              className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-blue-100 text-blue-700 font-semibold text-xs hover:bg-blue-200 transition-colors"
-                            >
-                              <Icon icon="tabler:edit" width="15" height="15" />
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              title="Delete"
-                              onClick={() => handleDelete(p)}
-                              className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-[var(--accent)]/20 text-[var(--accent)] font-semibold text-xs hover:bg-[var(--accent)]/30 transition-colors"
-                            >
-                              <Icon icon="tabler:trash" width="15" height="15" />
-                              Delete
-                            </button>
+                            {canManage && (
+                              <button
+                                type="button"
+                                title="Edit"
+                                onClick={() => handleEdit(p)}
+                                className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-blue-100 text-blue-700 font-semibold text-xs hover:bg-blue-200 transition-colors"
+                              >
+                                <Icon icon="tabler:edit" width="15" height="15" />
+                                Edit
+                              </button>
+                            )}
+                            {canManage && (
+                              <button
+                                type="button"
+                                title="Delete"
+                                onClick={() => handleDelete(p)}
+                                className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-[var(--accent)]/20 text-[var(--accent)] font-semibold text-xs hover:bg-[var(--accent)]/30 transition-colors"
+                              >
+                                <Icon icon="tabler:trash" width="15" height="15" />
+                                Delete
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -351,8 +545,8 @@ export default function Placements() {
             <span className="text-[12px] text-(--muted) font-bold">Candidate</span>
             <Selection
               required
-              value={String(form.candidate_id ?? "")}
-              onChange={(v) => setForm((prev) => ({ ...prev, candidate_id: v }))}
+              value={String(form.candidate ?? "")}
+              onChange={(v) => setForm((prev) => ({ ...prev, candidate: v }))}
               options={[
                 { value: "", label: "Select candidate..." },
                 ...candidates.map((c) => ({ value: String(c.id), label: c.full_name })),
@@ -365,8 +559,8 @@ export default function Placements() {
             <span className="text-[12px] text-(--muted) font-bold">Job order</span>
             <Selection
               required
-              value={String(form.job_order_id ?? "")}
-              onChange={(v) => setForm((prev) => ({ ...prev, job_order_id: v }))}
+              value={String(form.job_order ?? "")}
+              onChange={(v) => setForm((prev) => ({ ...prev, job_order: v }))}
               options={[
                 { value: "", label: "Select job order..." },
                 ...jobOrders.map((j) => ({ value: String(j.id), label: j.title })),
@@ -436,7 +630,7 @@ export default function Placements() {
             <div>
               <dt className="text-xs text-(--muted) font-bold">Candidate</dt>
               <dd className="mt-1 text-sm font-medium">
-                {(candidates.find((c) => String(c.id) === String(viewPlacement.candidate_id))?.full_name) ?? '-'}
+                {(candidates.find((c) => String(c.id) === String(viewPlacement.candidate))?.full_name) ?? '-'}
               </dd>
             </div>
             <div>
@@ -446,7 +640,7 @@ export default function Placements() {
             <div>
               <dt className="text-xs text-(--muted) font-bold">Job order</dt>
               <dd className="mt-1 text-sm font-medium">
-                {(jobOrders.find((j) => String(j.id) === String(viewPlacement.job_order_id))?.title) ?? '-'}
+                {(jobOrders.find((j) => String(j.id) === String(viewPlacement.job_order))?.title) ?? '-'}
               </dd>
             </div>
             <div>

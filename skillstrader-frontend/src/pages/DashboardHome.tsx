@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Icon } from '@iconify/react';
 import { getPocketBaseUiError, pb } from '../lib/pocketbase/pb';
 import DashboardMetrics from './DashboardMetrics';
-import jobOrdersData from '../data/job-orders.json';
 
 type JobOrderRecord = {
   status?: string;
@@ -24,16 +23,19 @@ export default function DashboardHome({ email, onNavigate }: Props) {
 
     async function loadCounts() {
       try {
-        const openJobs = (jobOrdersData as JobOrderRecord[]).filter(
-          (job) => job.status === 'Open'
-        ).length;
+        // Get count of open job orders from the database
+        const openJobs = await pb.collection('job_orders').getList(1, 1000, {
+          filter: 'status = "open"'
+        });
+        
+        const openJobsCount = openJobs.totalItems;
 
         const result = await pb.collection('candidates').getList(1, 1, {
           filter: 'status = "New Applicant"',
         });
 
         if (!mounted) return;
-        setActiveJobs(openJobs);
+        setActiveJobs(openJobsCount);
         setUnprocessedApplicants(result.totalItems);
       } catch (err) {
         const message = getPocketBaseUiError(err, 'Failed to load dashboard counts.');

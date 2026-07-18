@@ -342,8 +342,8 @@ export default function JobOrders() {
               </div>
 
               {(search || statusFilter) && (
-                <div className="ml-2 flex-shrink-0">
-                  <button type="button" onClick={() => { setSearch(""); setStatusFilter(""); setPage(1); }} className="px-4 py-1.5 flex items-center gap-1 rounded-full bg-[var(--accent)]/20 text-[var(--accent)] font-semibold text-sm hover:bg-[var(--accent)]/30 transition-colors">
+                <div className="ml-2 shrink-0">
+                  <button type="button" onClick={() => { setSearch(""); setStatusFilter(""); setPage(1); }} className="px-4 py-1.5 flex items-center gap-1 rounded-full bg-(--accent)/20 text-(--accent) font-semibold text-sm hover:bg-(--accent)/30 transition-colors">
                     <Icon icon="tabler:x" width="18" height="18" />
                     Clear Filter
                   </button>
@@ -390,7 +390,7 @@ export default function JobOrders() {
                               j.status === 'Open'
                                 ? 'bg-[#e3f6e9] text-[#1d9a4a]'
                                 : j.status === 'Filled'
-                                ? 'bg-[var(--primary)]/20 text-[var(--primary)]'
+                                ? 'bg-(--primary)/20 text-[var(--primary)]'
                                 : 'bg-[var(--surface2)] text-[var(--muted)]'
                             }`}
                           >

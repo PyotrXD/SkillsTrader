@@ -7,28 +7,34 @@ import Searchbar from "../ui/Searchbar";
 import Pagination from "../ui/Pagination";
 import Filter from "../ui/Filter";
 import Selection from "../ui/Selection";
-import employersData from "../../data/employers.json";
-import jobOrdersData from "../../data/job-orders.json";
+import { pb } from "../../lib/pocketbase/pb";
 
 type JobOrder = {
-  id?: number | string;
+  id?: string;
   title: string;
   openings: number;
-  employer_id?: number | string;
+  employer?: string;
   status: "Open" | "Closed" | "Filled";
   location?: string;
   description?: string;
+  created?: string;
+  updated?: string;
+  expand?: {
+    employer?: {
+      company_name?: string;
+    }
+  };
 };
 
 type EmployerOption = {
-  id?: number | string;
+  id?: string;
   company_name?: string;
 };
 
 const initialForm: JobOrder = {
   title: "",
   openings: 1,
-  employer_id: undefined,
+  employer: undefined,
   status: "Open",
   location: "",
   description: "",
@@ -55,19 +61,45 @@ export default function JobOrders() {
   const [totalPages, setTotalPages] = useState(1);
   const [pagedOrders, setPagedOrders] = useState<JobOrder[]>([]);
 
+  const [employers, setEmployers] = useState<EmployerOption[]>([]);
+  
   useEffect(() => {
-    // prefer data file, fallback to empty
-    setJobOrders((jobOrdersData as JobOrder[]) || []);
+    const loadEmployers = async () => {
+      try {
+        const employersList = await pb.collection('employer').getFullList({
+          sort: 'company_name'
+        });
+        setEmployers(employersList);
+      } catch (error) {
+        console.error('Failed to load employers:', error);
+      }
+    };
+    
+    loadEmployers();
   }, []);
-
-  const employers = (employersData as EmployerOption[]) || [];
+  
+  useEffect(() => {
+    const loadJobOrders = async () => {
+      try {
+        const jobOrdersList = await pb.collection('job_orders').getFullList({
+          sort: '-created',
+          expand: 'employer'
+        });
+        setJobOrders(jobOrdersList);
+      } catch (error) {
+        console.error('Failed to load job orders:', error);
+      }
+    };
+    
+    loadJobOrders();
+  }, []);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return jobOrders.filter((j) => {
       if (statusFilter && j.status !== statusFilter) return false;
       if (!q) return true;
-      const employer = employers.find((e) => String(e.id) === String(j.employer_id));
+      const employer = j.expand?.employer;
       return (
         String(j.title ?? "").toLowerCase().includes(q) ||
         String(j.location ?? "").toLowerCase().includes(q) ||
@@ -133,10 +165,27 @@ export default function JobOrders() {
         setError("Job title is required");
         return;
       }
-      setJobOrders((prev) => [{ ...form, id: Date.now() }, ...prev]);
+      
+      // Submit to PocketBase
+      const newJobOrder = await pb.collection('job_orders').create({
+        title: form.title,
+        openings: form.openings,
+        employer: form.employer,
+        status: form.status,
+        location: form.location,
+        description: form.description
+      });
+      
+      // Refresh the list
+      const updatedJobOrders = await pb.collection('job_orders').getFullList({
+        sort: '-created',
+        expand: 'employer'
+      });
+      setJobOrders(updatedJobOrders);
+      
       showFeedback("success", "Job order created");
       setIsModalOpen(false);
-    } catch {
+    } catch (error) {
       setError("Failed to create job order");
       showFeedback("error", "Failed to create job order");
     } finally {
@@ -150,10 +199,27 @@ export default function JobOrders() {
     setError("");
     try {
       if (!form || !form.id) return;
-      setJobOrders((prev) => prev.map((it) => (it.id === form.id ? { ...it, ...form } : it)));
+      
+      // Update in PocketBase
+      await pb.collection('job_orders').update(form.id, {
+        title: form.title,
+        openings: form.openings,
+        employer: form.employer,
+        status: form.status,
+        location: form.location,
+        description: form.description
+      });
+      
+      // Refresh the list
+      const updatedJobOrders = await pb.collection('job_orders').getFullList({
+        sort: '-created',
+        expand: 'employer'
+      });
+      setJobOrders(updatedJobOrders);
+      
       showFeedback("success", "Job order updated");
       setIsEditModalOpen(false);
-    } catch {
+    } catch (error) {
       setError("Failed to update");
       showFeedback("error", "Failed to update job order");
     } finally {
@@ -165,10 +231,20 @@ export default function JobOrders() {
     setIsSubmitting(true);
     try {
       if (!deleteOrder) return;
-      setJobOrders((prev) => prev.filter((it) => it.id !== deleteOrder.id));
+      
+      // Delete from PocketBase
+      await pb.collection('job_orders').delete(deleteOrder.id);
+      
+      // Refresh the list
+      const updatedJobOrders = await pb.collection('job_orders').getFullList({
+        sort: '-created',
+        expand: 'employer'
+      });
+      setJobOrders(updatedJobOrders);
+      
       showFeedback("success", "Job order deleted");
       setIsDeleteModalOpen(false);
-    } catch {
+    } catch (error) {
       showFeedback("error", "Failed to delete job order");
     } finally {
       setIsSubmitting(false);
@@ -233,7 +309,7 @@ export default function JobOrders() {
                   </tr>
                 ) : (
                   pagedOrders.map((j, idx) => {
-                    const employer = employers.find((e) => String(e.id) === String(j.employer_id));
+                    const employer = j.expand?.employer;
                     return (
                       <tr key={String(j.id)} className="border-b border-(--border) last:border-b-0 hover:bg-(--surface2)/60 transition-colors">
                         <td className="px-4 py-3 text-(--muted)">{(page - 1) * perPage + idx + 1}</td>
@@ -290,7 +366,7 @@ export default function JobOrders() {
 
                 <label className="grid gap-1">
                   <span className="text-[12px] text-(--muted) font-bold">Employer</span>
-                  <Selection required value={String(form.employer_id ?? "")} onChange={(v) => setForm((p) => ({ ...p, employer_id: v }))} options={[{ value: "", label: "Select employer" }, ...employers.map((e) => ({ value: String(e.id), label: e.company_name }))]} placeholder="Select employer" />
+                  <Selection required value={String(form.employer ?? "")} onChange={(v) => setForm((p) => ({ ...p, employer: v }))} options={[{ value: "", label: "Select employer" }, ...employers.map((e) => ({ value: e.id, label: e.company_name }))]} placeholder="Select employer" />
                 </label>
 
                 <label className="grid gap-1">
@@ -344,7 +420,7 @@ export default function JobOrders() {
 
                   <div className="md:col-span-2">
                     <dt className="text-[12px] text-(--muted) font-bold mb-1">Employer</dt>
-                    <dd className="m-0 text-(--text)">{(employers.find((e) => String(e.id) === String(viewOrder.employer_id))?.company_name) ?? ''}</dd>
+                    <dd className="m-0 text-(--text)">{(viewOrder.expand?.employer?.company_name) ?? ''}</dd>
                   </div>
 
                   <div className="md:col-span-2">

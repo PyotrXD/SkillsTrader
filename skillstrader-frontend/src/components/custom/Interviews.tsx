@@ -453,7 +453,7 @@ export default function Interviews() {
                                   <button
                                     type="button"
                                     onClick={() => handleSchedule(row.candidate)}
-                                    className="px-3 py-1.5 bg-(--primary)/20 text-[var(--primary)] rounded-md font-semibold flex items-center gap-1 text-sm hover:bg-(--primary)/30 transition-colors"
+                                    className="px-3 py-1.5 bg-(--primary)/20 text-(--primary) rounded-md font-semibold flex items-center gap-1 text-sm hover:bg-(--primary)/30 transition-colors"
                                   >
                                     <Icon icon="tabler:calendar-plus" width="15" height="15" /> Schedule
                                   </button>
@@ -531,7 +531,7 @@ export default function Interviews() {
           >
             <form onSubmit={(e) => handleInterviewSubmit(e, !!editRow)} className="grid gap-4">
               {renderFormFields()}
-              {error && <p className="text-[var(--accent)] text-sm">{error}</p>}
+              {error && <p className="text-(--accent) text-sm">{error}</p>}
               <div className="flex justify-end gap-2">
                 <button
                   type="button"

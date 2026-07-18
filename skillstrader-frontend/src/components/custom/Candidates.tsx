@@ -1843,7 +1843,7 @@ export default function Candidates() {
                                       e.stopPropagation();
                                       handleDelete(c);
                                     }}
-                                    className="px-3 py-1.5 flex items-center gap-1 rounded-md bg-[var(--accent)]/20 text-[var(--accent)] font-semibold text-sm hover:bg-[var(--accent)]/30 transition-colors"
+                                    className="px-3 py-1.5 flex items-center gap-1 rounded-md bg-(--accent)/20 text-(--accent) font-semibold text-sm hover:bg-(--accent)/30 transition-colors"
                                   >
                                     <Icon
                                       icon="tabler:archive"

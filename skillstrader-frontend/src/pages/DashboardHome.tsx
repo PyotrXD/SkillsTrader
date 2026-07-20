@@ -30,9 +30,9 @@ export default function DashboardHome({ email, onNavigate }: Props) {
         
         const openJobsCount = openJobs.totalItems;
 
-        const result = await pb.collection('candidates').getList(1, 1, {
-          filter: 'status = "New Applicant"',
-        });
+         const result = await pb.collection('candidates').getList(1, 1, {
+           filter: 'status = "New Applicant" && is_archived = false',
+         });
 
         if (!mounted) return;
         setActiveJobs(openJobsCount);

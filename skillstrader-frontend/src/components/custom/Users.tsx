@@ -264,6 +264,7 @@ export function UsersPanel() {
         const result = await pb.collection("users").getList(page, perPage, {
           sort: "name",
           requestKey: null,
+          filter: roleFilter ? `role = '${roleFilter}'` : undefined
         });
 
         const users: UserListItem[] = result.items.map((item) => ({
@@ -285,7 +286,7 @@ export function UsersPanel() {
     };
 
     fetchUsers();
-  }, [page, perPage, refreshToken]);
+  }, [page, perPage, refreshToken, roleFilter]);
 
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {

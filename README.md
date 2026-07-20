@@ -68,7 +68,7 @@ Different users have different access levels:
 ## Support
 
 If you need help using the system:
-1. Contact the IT department at SkillsTrader
+1. Contact the IT at SkillsTrader
 2. Refer to the internal help documentation
 3. Reach out to your supervisor or system administrator
 

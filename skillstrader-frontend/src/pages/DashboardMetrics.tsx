@@ -53,7 +53,7 @@ export default function DashboardMetrics() {
 
       try {
         const [candidates, interviews, documents] = await Promise.all([
-          pb.collection('candidates').getFullList<CandidateRecord>({ sort: '-updated' }),
+          pb.collection('candidates').getFullList<CandidateRecord>({ sort: '-updated', filter: 'is_archived = false' }),
           pb.collection('interviews').getFullList<InterviewRecord>({ sort: '-updated' }),
           pb.collection('documents').getFullList<DocumentRecord>({ sort: '-updated' }),
         ]);

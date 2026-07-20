@@ -85,23 +85,31 @@ export default function Navbar({ role, email }: NavbarProps) {
                 <span className="block text-[12px] text-[var(--muted)] truncate">{email}</span>
               </div>
 
-              {role === 'Administrator' && (
-                <button
-                  type="button"
-                  className="px-5 py-2.5 text-[13px] font-medium text-[var(--text)] hover:bg-[var(--surface2)] transition-colors text-left w-full cursor-pointer bg-transparent border-none"
-                  onClick={() => requestAction('pocketbase')}
-                >
-                  PocketBase
-                </button>
-              )}
+               {role === 'Administrator' && (
+                 <button
+                   type="button"
+                   className="px-5 py-2.5 text-[13px] font-medium text-[var(--text)] hover:bg-[var(--surface2)] transition-colors text-left w-full cursor-pointer bg-transparent border-none"
+                   onClick={() => requestAction('pocketbase')}
+                 >
+                   PocketBase
+                 </button>
+               )}
 
-              <button
-                type="button"
-                className="px-5 py-2.5 text-[13px] font-medium text-[var(--primary)] hover:bg-[var(--primary3)] transition-colors text-left w-full cursor-pointer bg-transparent border-none"
-                onClick={() => requestAction('logout')}
-              >
-                Log out
-              </button>
+               <button
+                 type="button"
+                 className="px-5 py-2.5 text-[13px] font-medium text-[var(--text)] hover:bg-[var(--surface2)] transition-colors text-left w-full cursor-pointer bg-transparent border-none"
+                 onClick={() => window.open('https://forms.gle/GyVxPFfmEBKCfinA8', '_blank', 'noreferrer')}
+               >
+                 Feedback Form
+               </button>
+
+               <button
+                 type="button"
+                 className="px-5 py-2.5 text-[13px] font-medium text-[var(--primary)] hover:bg-[var(--primary3)] transition-colors text-left w-full cursor-pointer bg-transparent border-none"
+                 onClick={() => requestAction('logout')}
+               >
+                 Log out
+               </button>
             </div>
           )}
         </div>

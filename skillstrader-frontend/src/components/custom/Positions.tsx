@@ -3,6 +3,7 @@ import Modal from "../ui/Modal";
 import Searchbar from "../ui/Searchbar";
 import Selection from "../ui/Selection";
 import IndustryPositionPicker from "../ui/IndustryPositionPicker";
+import Tooltip from "../ui/Tooltip";
 import { Icon } from "@iconify/react";
 import { pb } from '../../lib/pocketbase/pb';
 
@@ -218,12 +219,17 @@ export default function Positions() {
                 <h1 className="text-2xl text-(--text) font-bold">Positions</h1>
                 <p className="text-(--muted) text-sm font-medium">Manage positions and industries.</p>
               </div>
-              <button
-                className="border-none text-white text-sm bg-linear-to-br from-(--primary) to-(--primary2) rounded-md px-4 py-2 font-bold transition-all duration-150 hover:brightness-110 hover:scale-105"
-                onClick={() => openForm()}
-              >
-                + Add Position
-              </button>
+              <div className="flex items-center gap-2">
+                <Tooltip content="Use industries to categorize positions. Create new industries when needed, or select from existing ones. Positions are specific job titles within an industry.">
+                  <Icon icon="tabler:info-circle" width="20" height="20" className="text-(--muted) hover:text-(--primary) cursor-pointer transition-colors" />
+                </Tooltip>
+                <button
+                  className="border-none text-white text-sm bg-linear-to-br from-(--primary) to-(--primary2) rounded-md px-4 py-2 font-bold transition-all duration-150 hover:brightness-110 hover:scale-105"
+                  onClick={() => openForm()}
+                >
+                  + Add Position
+                </button>
+              </div>
             </div>
 
             {/* Search & Filter */}

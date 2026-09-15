@@ -1,12 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
-import type { FormEvent } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import { Icon } from "@iconify/react";
 import Modal from "../ui/Modal";
 import Toast from "../ui/Toast";
 import Searchbar from "../ui/Searchbar";
 import Filter from "../ui/Filter";
 import Pagination from "../ui/Pagination";
-import Selection from "../ui/Selection";
 import defaultProfile from "../../assets/images/default-profile.png";
 import { generateResumeHtml } from "./resumeTemplate";
 import { getUserRole, pb } from "../../lib/pocketbase/pb";
@@ -79,6 +78,7 @@ export default function Candidates() {
   const [viewTab, setViewTab] = useState<
     "info" | "details" | "documents" | "notes"
   >("info");
+  const [uploadingDocType, setUploadingDocType] = useState<string | null>(null);
   const userRole = useMemo(() => getUserRole() ?? "staff", []);
   const canManageCandidates =
     userRole === "administrator" || userRole === "manager";
@@ -238,6 +238,11 @@ export default function Candidates() {
         prefix: item.prefix ?? "",
         suffix: item.suffix ?? "",
         marital_status: item.marital_status ?? "",
+        birthdate: item.birthdate ? String(item.birthdate).slice(0, 10) : "",
+        gender: item.gender ?? "",
+        religion: item.religion ?? "",
+        height: item.height ?? "",
+        weight: item.weight ?? "",
         home_address: item.home_address ?? "",
         permanent_address: item.permanent_address ?? "",
         pagibig_number: item.pagibig_number ?? "",
@@ -492,6 +497,11 @@ export default function Candidates() {
       "suffix",
       "prefix",
       "marital_status",
+      "birthdate",
+      "gender",
+      "religion",
+      "height",
+      "weight",
       "status",
       "notes",
       "work_history",
@@ -695,6 +705,78 @@ export default function Candidates() {
       a.click();
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+  }
+
+  async function handleViewDocumentUpload(
+    key: string,
+    label: string,
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || !viewCandidate?.id) return;
+
+    const candidateId = String(viewCandidate.id);
+    setUploadingDocType(key);
+
+    try {
+      let currentPage = 1;
+      while (true) {
+        const existingDocs = await pb
+          .collection("documents")
+          .getList<DocumentRecord>(currentPage, 200, {
+            filter: `candidate = "${escapeFilterValue(candidateId)}" && doc_type = "${escapeFilterValue(key)}"`,
+            requestKey: null,
+          });
+
+        for (const doc of existingDocs.items) {
+          await pb.collection("documents").delete(doc.id);
+        }
+
+        if (currentPage >= existingDocs.totalPages) break;
+        currentPage += 1;
+      }
+
+      await pb.collection("documents").create({
+        candidate: candidateId,
+        doc_type: key,
+        file,
+        status: "Submitted",
+      });
+
+      const refreshedDocsByCandidate = await fetchDocumentsByCandidate([
+        candidateId,
+      ]);
+      const refreshedDocuments =
+        refreshedDocsByCandidate[candidateId] ?? createEmptyDocumentsMap();
+
+      setViewCandidate((current) =>
+        current && String(current.id) === candidateId
+          ? { ...current, documents: refreshedDocuments }
+          : current,
+      );
+      setPagedCandidates((current) =>
+        current.map((candidate) =>
+          String(candidate.id) === candidateId
+            ? { ...candidate, documents: refreshedDocuments }
+            : candidate,
+        ),
+      );
+      setArchivedCandidates((current) =>
+        current.map((candidate) =>
+          String(candidate.id) === candidateId
+            ? { ...candidate, documents: refreshedDocuments }
+            : candidate,
+        ),
+      );
+      setRefreshToken((value) => value + 1);
+      showFeedback("success", `${label} uploaded successfully.`);
+    } catch (err) {
+      console.error(`Failed to upload ${label}:`, err);
+      showFeedback("error", `Failed to upload ${label}.`);
+    } finally {
+      setUploadingDocType(null);
     }
   }
 
@@ -1139,6 +1221,26 @@ export default function Candidates() {
                          <dt className="text-sm text-(--muted)">Marital Status</dt>
                          <dd className="text-(--text)">{viewCandidate.marital_status || "N/A"}</dd>
                        </div>
+                       <div>
+                         <dt className="text-sm text-(--muted)">Birthdate</dt>
+                         <dd className="text-(--text)">{viewCandidate.birthdate || "N/A"}</dd>
+                       </div>
+                       <div>
+                         <dt className="text-sm text-(--muted)">Gender</dt>
+                         <dd className="text-(--text)">{viewCandidate.gender || "N/A"}</dd>
+                       </div>
+                       <div>
+                         <dt className="text-sm text-(--muted)">Religion</dt>
+                         <dd className="text-(--text)">{viewCandidate.religion || "N/A"}</dd>
+                       </div>
+                       <div>
+                         <dt className="text-sm text-(--muted)">Height</dt>
+                         <dd className="text-(--text)">{viewCandidate.height || "N/A"}</dd>
+                       </div>
+                       <div>
+                         <dt className="text-sm text-(--muted)">Weight</dt>
+                         <dd className="text-(--text)">{viewCandidate.weight || "N/A"}</dd>
+                       </div>
                      </dl>
                    </div>
                    <div>
@@ -1257,9 +1359,10 @@ export default function Candidates() {
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                      {documentTypes.map(([key, label]) => {
                        const docUrl = viewCandidate.documents?.[key];
+                       const isUploading = uploadingDocType === key;
                        return (
                          <div key={key} className="border border-(--border) rounded-lg p-3">
-                           <div className="flex justify-between items-start">
+                           <div className="flex justify-between items-start gap-3">
                              <div>
                                <h4 className="font-medium text-(--text)">{label}</h4>
                                {docUrl ? (
@@ -1268,15 +1371,49 @@ export default function Candidates() {
                                  <p className="text-sm text-(--muted)">Not uploaded</p>
                                )}
                              </div>
-                             {docUrl && (
-                               <button
-                                 type="button"
-                                 onClick={() => handleDocumentDownload(key, docUrl)}
-                                 className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                               >
-                                 Download
-                               </button>
-                             )}
+                             <div className="flex flex-wrap justify-end gap-2">
+                               {docUrl && (
+                                 <button
+                                   type="button"
+                                   onClick={() => handleDocumentDownload(key, docUrl)}
+                                   className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                                 >
+                                   Download
+                                 </button>
+                               )}
+                               {canManageCandidates && (
+                                 <>
+                                   <input
+                                     id={`view-document-upload-${key}`}
+                                     type="file"
+                                     accept="application/pdf,image/jpeg,image/png,image/webp"
+                                     className="hidden"
+                                     disabled={isUploading}
+                                     onChange={(event) =>
+                                       void handleViewDocumentUpload(
+                                         key,
+                                         label,
+                                         event,
+                                       )
+                                     }
+                                   />
+                                   <label
+                                     htmlFor={`view-document-upload-${key}`}
+                                     className={`text-sm font-medium ${
+                                       isUploading
+                                         ? "cursor-not-allowed text-gray-400"
+                                         : "cursor-pointer text-(--primary) hover:text-(--primary)/80"
+                                     }`}
+                                   >
+                                     {isUploading
+                                       ? "Uploading..."
+                                       : docUrl
+                                         ? "Replace"
+                                         : "Upload"}
+                                   </label>
+                                 </>
+                               )}
+                             </div>
                            </div>
                          </div>
                        );
@@ -1449,6 +1586,57 @@ export default function Candidates() {
                            <option value="Widowed">Widowed</option>
                            <option value="Divorced">Divorced</option>
                          </select>
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Birthdate</label>
+                         <input
+                           type="date"
+                           value={form.birthdate}
+                           onChange={(e) => setForm({...form, birthdate: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Gender</label>
+                         <select
+                           value={form.gender}
+                           onChange={(e) => setForm({...form, gender: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         >
+                           <option value="">Select Gender</option>
+                           <option value="Female">Female</option>
+                           <option value="Male">Male</option>
+                           <option value="Other">Other</option>
+                         </select>
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Religion</label>
+                         <input
+                           type="text"
+                           value={form.religion}
+                           onChange={(e) => setForm({...form, religion: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Height</label>
+                         <input
+                           type="text"
+                           value={form.height}
+                           onChange={(e) => setForm({...form, height: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                           placeholder="e.g. 1.52 m"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Weight</label>
+                         <input
+                           type="text"
+                           value={form.weight}
+                           onChange={(e) => setForm({...form, weight: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                           placeholder="e.g. 47 kg"
+                         />
                        </div>
                        <div>
                          <label className="block text-sm font-medium text-(--muted) mb-1">Status</label>
@@ -1834,6 +2022,57 @@ export default function Candidates() {
                            <option value="Widowed">Widowed</option>
                            <option value="Divorced">Divorced</option>
                          </select>
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Birthdate</label>
+                         <input
+                           type="date"
+                           value={form.birthdate}
+                           onChange={(e) => setForm({...form, birthdate: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Gender</label>
+                         <select
+                           value={form.gender}
+                           onChange={(e) => setForm({...form, gender: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         >
+                           <option value="">Select Gender</option>
+                           <option value="Female">Female</option>
+                           <option value="Male">Male</option>
+                           <option value="Other">Other</option>
+                         </select>
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Religion</label>
+                         <input
+                           type="text"
+                           value={form.religion}
+                           onChange={(e) => setForm({...form, religion: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Height</label>
+                         <input
+                           type="text"
+                           value={form.height}
+                           onChange={(e) => setForm({...form, height: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                           placeholder="e.g. 1.52 m"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Weight</label>
+                         <input
+                           type="text"
+                           value={form.weight}
+                           onChange={(e) => setForm({...form, weight: e.target.value})}
+                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                           placeholder="e.g. 47 kg"
+                         />
                        </div>
                        <div>
                          <label className="block text-sm font-medium text-(--muted) mb-1">Status</label>

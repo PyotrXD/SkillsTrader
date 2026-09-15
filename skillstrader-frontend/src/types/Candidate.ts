@@ -17,6 +17,11 @@ export type CandidateRecord = {
   prefix?: string;
   suffix?: string;
   marital_status?: string;
+  birthdate?: string;
+  gender?: string;
+  religion?: string;
+  height?: string;
+  weight?: string;
   home_address?: string;
   permanent_address?: string;
   pagibig_number?: string;
@@ -83,6 +88,11 @@ export type CandidateForm = {
   suffix: string;
   full_name?: string;
   marital_status: string;
+  birthdate: string;
+  gender: string;
+  religion: string;
+  height: string;
+  weight: string;
 
   // Address
   home_address: string;

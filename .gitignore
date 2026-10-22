@@ -1,6 +1,7 @@
 # PocketBase
-# Commit PocketBase data snapshots for cross-device development.
-# Ignore only runtime temp/lock files.
+# Runtime data is NOT committed. pb_data holds live applicant uploads and the
+# database; only the storage/.gitkeep placeholder is tracked. See
+# docs/system-improvements.md S1 (RA 10173 sensitive personal information).
 pb_data/*.db-shm
 pb_data/*.db-wal
 pb_data/*.db-journal
@@ -9,6 +10,8 @@ pb_data/types.d.ts
 backups/
 
 pb_data/*.db
+pb_data/storage/**
+!pb_data/storage/.gitkeep
 
 # Node / Frontend build artifacts
 node_modules/
@@ -33,11 +36,6 @@ Thumbs.db
 *.log
 pb_data/auxiliary.db
 pb_data/data.db
-docs/developer-guide.md
-pb_data/storage/pbc_1773600001/uvzt0nxbip6p5xa/dmw_6ej7aypizg.png
-pb_data/storage/pbc_1773600001/uvzt0nxbip6p5xa/dmw_6ej7aypizg.png.attrs
 cline_mcp_settings.json
 package-lock.json
 package.json
-pb_data/storage/pbc_3332084752/akwx99c57ylqdam/adrielle_young_resume_qw56st5iss.pdf
-pb_data/storage/pbc_3332084752/akwx99c57ylqdam/adrielle_young_resume_qw56st5iss.pdf.attrs

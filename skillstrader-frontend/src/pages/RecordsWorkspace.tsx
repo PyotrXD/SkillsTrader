@@ -353,6 +353,9 @@ function valueAtPath(record: Record<string, unknown> | undefined, path: string):
 
   for (const part of parts) {
     if (!current || typeof current !== 'object') return undefined;
+    // Own-property check only: blocks `__proto__` / `constructor` from walking onto
+    // Object.prototype and returning inherited values as if they were record data.
+    if (!Object.prototype.hasOwnProperty.call(current, part)) return undefined;
     current = (current as Record<string, unknown>)[part];
   }
 

@@ -40,6 +40,16 @@ export const documentTypes: Array<[string, string]> = [
   ["other", "Other"],
 ];
 
+export const educationLevels: Array<[string, string]> = [
+  ["elementary", "Elementary"],
+  ["junior_high", "Junior High School"],
+  ["senior_high", "Senior High School"],
+  ["college", "College"],
+  ["vocational", "Vocational / TESDA"],
+  ["graduate", "Graduate"],
+  ["other", "Other"],
+];
+
 export const statusBadge: Record<string, string> = {
   "New Applicant": "bg-gray-100 text-gray-700",
   "Lined-Up": "bg-blue-100 text-blue-700",

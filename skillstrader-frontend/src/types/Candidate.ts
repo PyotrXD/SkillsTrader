@@ -33,12 +33,13 @@ export type CandidateRecord = {
   school_senior_high?: string;
   school_college?: string;
   school_other?: string;
-  school_other_name?: string;
   email?: string;
   phone?: string;
   address?: string;
   education?: string;
   work_history?: string;
+  work_experiences?: WorkExperienceEntry[];
+  educations?: EducationEntry[];
   skills?: string;
   certifications?: string;
   desired_salary?: string;
@@ -76,6 +77,39 @@ export type PositionRecord = {
   title?: string;
 };
 
+// ─── Structured history entries (candidate_work_experiences / candidate_educations) ─
+export type WorkExperienceEntry = {
+  id?: string;
+  candidate?: string;
+  position: string;
+  company: string;
+  location: string;
+  start_date: string;
+  end_date: string;
+  is_current: boolean;
+  description: string;
+};
+
+export type EducationLevel =
+  | "elementary"
+  | "junior_high"
+  | "senior_high"
+  | "college"
+  | "vocational"
+  | "graduate"
+  | "other";
+
+export type EducationEntry = {
+  id?: string;
+  candidate?: string;
+  level: EducationLevel | "";
+  school_name: string;
+  course: string;
+  start_year: string;
+  end_year: string;
+  notes: string;
+};
+
 // ─── Main form/state shape used throughout the app ───────────────────────────
 export type CandidateForm = {
   id?: number | string;
@@ -110,7 +144,6 @@ export type CandidateForm = {
   school_senior_high: string;
   school_college: string;
   school_other: string;
-  school_other_name?: string;
 
   // Contact
   email: string;
@@ -118,6 +151,8 @@ export type CandidateForm = {
 
   // Work details
   work_history: string;
+  work_experiences: WorkExperienceEntry[];
+  educations: EducationEntry[];
   skills: string;
   certifications: string;
   desired_salary: string;

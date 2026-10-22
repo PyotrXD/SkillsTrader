@@ -1,4 +1,14 @@
+import type {
+  EducationEntry,
+  WorkExperienceEntry,
+} from "../../types/Candidate";
+import { educationLevelLabel, formatEducationPeriod } from "./candidateHistory";
+
 type ResumeCandidate = Record<string, unknown>;
+
+function readEntries<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
 
 export function generateResumeHtml(candidate: ResumeCandidate, imgSrc: string): string {
   function escapeHtml(value: unknown): string {
@@ -64,13 +74,30 @@ export function generateResumeHtml(candidate: ResumeCandidate, imgSrc: string): 
   const positionScreened = text(candidate.position_screened, "");
   const status = text(candidate.status, "");
 
+  const educationEntries = readEntries<EducationEntry>(candidate.educations);
   const educationRows = [
     ["Highest Educational Attainment", highestEducation],
-    ["Elementary", text(candidate.school_elementary, "")],
-    ["Junior High", text(candidate.school_junior_high, "")],
-    ["Senior High", text(candidate.school_senior_high, "")],
-    ["College", text(candidate.school_college, "")],
-    ["Other", text(candidate.school_other_name || candidate.school_other, "")],
+    ...(educationEntries.length > 0
+      ? educationEntries.map(
+          (entry) =>
+            [
+              educationLevelLabel(entry.level),
+              [
+                text(entry.school_name, ""),
+                text(entry.course, ""),
+                formatEducationPeriod(entry),
+              ]
+                .filter(Boolean)
+                .join(" — "),
+            ] as [string, string],
+        )
+      : ([
+          ["Elementary", text(candidate.school_elementary, "")],
+          ["Junior High", text(candidate.school_junior_high, "")],
+          ["Senior High", text(candidate.school_senior_high, "")],
+          ["College", text(candidate.school_college, "")],
+          ["Other", text(candidate.school_other, "")],
+        ] as [string, string][])),
   ]
     .filter(([, value]) => value)
     .map(
@@ -81,6 +108,38 @@ export function generateResumeHtml(candidate: ResumeCandidate, imgSrc: string): 
         </tr>`,
     )
     .join("");
+
+  const workEntries = readEntries<WorkExperienceEntry>(candidate.work_experiences);
+  const workExperienceRows =
+    workEntries.length > 0
+      ? workEntries
+          .map(
+            (entry) => `
+                <tr>
+                  <td>${text(entry.company, "N/A")}</td>
+                  <td>${text(entry.position, "N/A")}</td>
+                  <td>${text(entry.start_date?.slice(0, 4), "N/A")}</td>
+                  <td>${text(entry.is_current ? "Present" : entry.end_date?.slice(0, 4), "N/A")}</td>
+                  <td>${text(entry.location, "N/A")}</td>
+                </tr>`,
+          )
+          .join("")
+      : `
+                <tr>
+                  <td>${workHistory}</td>
+                  <td>${positionScreened || "N/A"}</td>
+                  <td>N/A</td>
+                  <td>N/A</td>
+                  <td>N/A</td>
+                </tr>`;
+
+  // Older records keep their free-text history; showing it under the table
+  // stops a partially migrated candidate from losing experience on the resume.
+  const legacyWorkNote =
+    workEntries.length > 0 && candidate.work_history
+      ? `
+          <div class="paragraph-block small-gap">${workHistory}</div>`
+      : "";
 
   const idRows = [
     ["PAG-IBIG", pagibigNumber, "N/A"],
@@ -375,15 +434,9 @@ export function generateResumeHtml(candidate: ResumeCandidate, imgSrc: string): 
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td>${workHistory}</td>
-                  <td>${positionScreened || "N/A"}</td>
-                  <td>N/A</td>
-                  <td>N/A</td>
-                  <td>N/A</td>
-                </tr>
+                ${workExperienceRows}
               </tbody>
-            </table>
+            </table>${legacyWorkNote}
           </section>
 
           <section class="section">

@@ -34,6 +34,17 @@ import {
   getCandidateDisplayName,
   initialForm,
 } from "./candidates.utils";
+import {
+  educationLevelLabel,
+  fetchEducationsByCandidates,
+  fetchWorkExperiencesByCandidates,
+  formatEducationPeriod,
+  formatWorkPeriod,
+  getMostRecentRole,
+  syncEducations,
+  syncWorkExperiences,
+} from "./candidateHistory";
+import { EducationFields, WorkExperienceFields } from "./CandidateHistoryFields";
 
 export default function Candidates() {
   const [form, setForm] = useState<CandidateForm>(initialForm);
@@ -213,10 +224,13 @@ export default function Candidates() {
     const candidateIds = items.map((item) => item.id);
     const photoToken = await pb.files.getToken({ requestKey: null });
 
-    const [documentsByCandidate, interviewsByCandidate] = await Promise.all([
-      fetchDocumentsByCandidate(candidateIds),
-      fetchInterviewsByCandidates(candidateIds),
-    ]);
+    const [documentsByCandidate, interviewsByCandidate, workByCandidate, educationsByCandidate] =
+      await Promise.all([
+        fetchDocumentsByCandidate(candidateIds),
+        fetchInterviewsByCandidates(candidateIds),
+        fetchWorkExperiencesByCandidates(candidateIds),
+        fetchEducationsByCandidates(candidateIds),
+      ]);
 
     return items.map((item) => {
       const status = item.status ?? "New Applicant";
@@ -254,12 +268,13 @@ export default function Candidates() {
         school_senior_high: item.school_senior_high ?? "",
         school_college: item.school_college ?? "",
         school_other: item.school_other ?? "",
-        school_other_name: item.school_other_name ?? "",
         email: item.email ?? "",
         phone: item.phone ?? "",
         address: item.address ?? "",
         education: item.education ?? "",
         work_history: item.work_history ?? "",
+        work_experiences: workByCandidate[item.id] ?? [],
+        educations: educationsByCandidate[item.id] ?? [],
         skills: item.skills ?? "",
         certifications: item.certifications ?? "",
         desired_salary: item.desired_salary ?? "",
@@ -442,6 +457,26 @@ export default function Candidates() {
     setViewCandidate(null);
   }
 
+  // The entry rows live in their own collections, so they are synced after the
+  // candidate record itself is written; a failure here must not be reported as
+  // "the candidate was not saved".
+  async function syncHistoryEntries(
+    candidateId: string,
+    previous: CandidateForm | null,
+    next: CandidateForm,
+  ) {
+    await syncWorkExperiences(
+      candidateId,
+      previous?.work_experiences ?? [],
+      next.work_experiences ?? [],
+    );
+    await syncEducations(
+      candidateId,
+      previous?.educations ?? [],
+      next.educations ?? [],
+    );
+  }
+
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setIsSubmitting(true);
@@ -451,6 +486,16 @@ export default function Candidates() {
 
       const record = await pb.collection("candidates").create(payload);
       await createDocumentsForCandidate(record.id, form.documents || {});
+
+      try {
+        await syncHistoryEntries(record.id, null, form);
+      } catch (historyErr: unknown) {
+        const historyLike = historyErr as { message?: string };
+        showFeedback(
+          "error",
+          `Candidate added, but work/school history failed to save. ${historyLike.message ?? ""}`,
+        );
+      }
 
       addAuditLog({
         actor_email: pb.authStore.record?.email ?? "unknown",
@@ -505,6 +550,8 @@ export default function Candidates() {
       "status",
       "notes",
       "work_history",
+      "work_experiences",
+      "educations",
       "certifications",
       "desired_salary",
       "position_screened",
@@ -517,7 +564,7 @@ export default function Candidates() {
       "school_junior_high",
       "school_senior_high",
       "school_college",
-      "school_other_name",
+      "school_other",
       "consent_given",
       "profile_photo",
       "documents",
@@ -539,6 +586,16 @@ export default function Candidates() {
         editCandidate.documents || {},
         form.documents || {},
       );
+
+      try {
+        await syncHistoryEntries(String(editCandidate.id), editCandidate, form);
+      } catch (historyErr: unknown) {
+        const historyLike = historyErr as { message?: string };
+        showFeedback(
+          "error",
+          `Candidate updated, but work/school history failed to save. ${historyLike.message ?? ""}`,
+        );
+      }
 
       addAuditLog({
         actor_email: pb.authStore.record?.email ?? "unknown",
@@ -1313,14 +1370,77 @@ export default function Candidates() {
                          <dt className="text-sm text-(--muted)">Other School</dt>
                          <dd className="text-(--text)">{viewCandidate.school_other || "N/A"}</dd>
                        </div>
-                       <div>
-                         <dt className="text-sm text-(--muted)">Other School Name</dt>
-                         <dd className="text-(--text)">{viewCandidate.school_other_name || "N/A"}</dd>
-                       </div>
                      </dl>
+                     {viewCandidate.educations && viewCandidate.educations.length > 0 && (
+                       <div className="mt-4">
+                         <h4 className="text-sm font-medium text-(--muted) mb-2">
+                           School History Entries
+                         </h4>
+                         <ul className="space-y-2">
+                           {viewCandidate.educations.map((entry, index) => (
+                             <li
+                               key={entry.id ?? `edu-${index}`}
+                               className="border border-(--border) rounded-lg p-3"
+                             >
+                               <div className="flex flex-wrap items-baseline justify-between gap-2">
+                                 <span className="font-medium text-(--text)">
+                                   {entry.school_name || "Unnamed school"}
+                                 </span>
+                                 <span className="text-sm text-(--muted)">
+                                   {educationLevelLabel(entry.level)}
+                                   {formatEducationPeriod(entry) && ` · ${formatEducationPeriod(entry)}`}
+                                 </span>
+                               </div>
+                               {entry.course && (
+                                 <p className="text-sm text-(--muted)">{entry.course}</p>
+                               )}
+                               {entry.notes && (
+                                 <p className="text-sm text-(--text)">{entry.notes}</p>
+                               )}
+                             </li>
+                           ))}
+                         </ul>
+                       </div>
+                     )}
                    </div>
                    <div className="md:col-span-2">
                      <h3 className="text-lg font-medium text-(--text) mb-3">Work Experience</h3>
+                     {getMostRecentRole(viewCandidate.work_experiences) && (
+                       <p className="mb-3">
+                         <span className="text-sm text-(--muted)">Most recent role: </span>
+                         <span className="text-(--text) font-medium">
+                           {getMostRecentRole(viewCandidate.work_experiences)}
+                         </span>
+                       </p>
+                     )}
+                     {viewCandidate.work_experiences &&
+                       viewCandidate.work_experiences.length > 0 && (
+                         <ul className="space-y-2 mb-3">
+                           {viewCandidate.work_experiences.map((entry, index) => (
+                             <li
+                               key={entry.id ?? `work-${index}`}
+                               className="border border-(--border) rounded-lg p-3"
+                             >
+                               <div className="flex flex-wrap items-baseline justify-between gap-2">
+                                 <span className="font-medium text-(--text)">
+                                   {[entry.position, entry.company]
+                                     .filter(Boolean)
+                                     .join(" — ") || "Unnamed role"}
+                                 </span>
+                                 <span className="text-sm text-(--muted)">
+                                   {formatWorkPeriod(entry)}
+                                 </span>
+                               </div>
+                               {entry.location && (
+                                 <p className="text-sm text-(--muted)">{entry.location}</p>
+                               )}
+                               {entry.description && (
+                                 <p className="text-sm text-(--text)">{entry.description}</p>
+                               )}
+                             </li>
+                           ))}
+                         </ul>
+                       )}
                      <div className="text-(--text)">
                        {viewCandidate.work_history || "No work history provided"}
                      </div>
@@ -1767,23 +1887,34 @@ export default function Candidates() {
                            className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
                          />
                        </div>
-                       <div>
-                         <label className="block text-sm font-medium text-(--muted) mb-1">Other School Name</label>
-                         <input
-                           type="text"
-                           value={form.school_other_name}
-                           onChange={(e) => setForm({...form, school_other_name: e.target.value})}
-                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                       <div className="pt-4 border-t border-(--border)">
+                         <h4 className="text-sm font-semibold text-(--text) mb-1">School History</h4>
+                         <p className="text-xs text-(--muted) mb-3">
+                           One row per school attended; every row is saved as its own entry.
+                         </p>
+                         <EducationFields
+                           entries={form.educations}
+                           onChange={(next) => setForm({...form, educations: next})}
                          />
                        </div>
                      </div>
                    </div>
-                   
+
                    <div className="border border-(--border) rounded-xl p-4">
                      <h3 className="text-lg font-semibold text-(--text) mb-4">Work Experience</h3>
                      <div className="space-y-4">
                        <div>
-                         <label className="block text-sm font-medium text-(--muted) mb-1">Work History</label>
+                         <h4 className="text-sm font-semibold text-(--text) mb-1">Work History</h4>
+                         <p className="text-xs text-(--muted) mb-3">
+                           One row per job; the most recent row is used as the latest role.
+                         </p>
+                         <WorkExperienceFields
+                           entries={form.work_experiences}
+                           onChange={(next) => setForm({...form, work_experiences: next})}
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Work History (free text)</label>
                          <textarea
                            value={form.work_history}
                            onChange={(e) => setForm({...form, work_history: e.target.value})}
@@ -2203,23 +2334,34 @@ export default function Candidates() {
                            className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
                          />
                        </div>
-                       <div>
-                         <label className="block text-sm font-medium text-(--muted) mb-1">Other School Name</label>
-                         <input
-                           type="text"
-                           value={form.school_other_name}
-                           onChange={(e) => setForm({...form, school_other_name: e.target.value})}
-                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                       <div className="pt-4 border-t border-(--border)">
+                         <h4 className="text-sm font-semibold text-(--text) mb-1">School History</h4>
+                         <p className="text-xs text-(--muted) mb-3">
+                           One row per school attended; every row is saved as its own entry.
+                         </p>
+                         <EducationFields
+                           entries={form.educations}
+                           onChange={(next) => setForm({...form, educations: next})}
                          />
                        </div>
                      </div>
                    </div>
-                   
+
                    <div className="border border-(--border) rounded-xl p-4">
                      <h3 className="text-lg font-semibold text-(--text) mb-4">Work Experience</h3>
                      <div className="space-y-4">
                        <div>
-                         <label className="block text-sm font-medium text-(--muted) mb-1">Work History</label>
+                         <h4 className="text-sm font-semibold text-(--text) mb-1">Work History</h4>
+                         <p className="text-xs text-(--muted) mb-3">
+                           One row per job; the most recent row is used as the latest role.
+                         </p>
+                         <WorkExperienceFields
+                           entries={form.work_experiences}
+                           onChange={(next) => setForm({...form, work_experiences: next})}
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-sm font-medium text-(--muted) mb-1">Work History (free text)</label>
                          <textarea
                            value={form.work_history}
                            onChange={(e) => setForm({...form, work_history: e.target.value})}

@@ -209,10 +209,12 @@ loadEnvFile(path.join(repoRoot, '.env'));
 loadEnvFile(path.join(repoRoot, 'skillstrader-frontend', '.env'));
 
 const encryptionEnvVar = 'PB_ENCRYPTION_KEY';
-const pocketBaseHttp = process.env.PB_HTTP?.trim() || '0.0.0.0:8091';
+// Bind to loopback unless the operator asks for a wider address, so a normal dev
+// start is not reachable from the LAN (docs/system-improvements.md S6).
+const pocketBaseHttp = process.env.PB_HTTP?.trim() || '127.0.0.1:8091';
 const pocketBasePort = extractPortFromBindAddress(pocketBaseHttp, '8091');
 const pocketBaseHost = extractHostFromBindAddress(pocketBaseHttp);
-const frontendHost = process.env.VITE_DEV_HOST?.trim() || '0.0.0.0';
+const frontendHost = process.env.VITE_DEV_HOST?.trim() || '127.0.0.1';
 const frontendPort = normalizePort(process.env.VITE_DEV_PORT ?? '5173', '5173');
 const frontendEnv = {};
 

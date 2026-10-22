@@ -17,12 +17,12 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     server: {
-      host: env.VITE_DEV_HOST || '0.0.0.0',
+      host: env.VITE_DEV_HOST || '127.0.0.1',
       port: parsePort(env.VITE_DEV_PORT, 5173),
       strictPort: true,
     },
     preview: {
-      host: env.VITE_PREVIEW_HOST || '0.0.0.0',
+      host: env.VITE_PREVIEW_HOST || '127.0.0.1',
       port: parsePort(env.VITE_PREVIEW_PORT, 4173),
       strictPort: true,
     },

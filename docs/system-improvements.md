@@ -298,3 +298,32 @@ accumulate. Dependency version decisions are yours; nothing here was patched by 
 
 Items 1 and 2 are the only ones with an external deadline. Everything else is ordinary engineering
 backlog that this pass happened to make visible.
+
+---
+
+## Remediation status — applied 2026-10-22/23 on `ady/development`
+
+A follow-up pass applied the low-risk items. **No dependency version was changed.**
+
+| Item | State | Change |
+|---|---|---|
+| S2 CI cannot run | Fixed | `.github/workflows/ci.yml` now operates on `skillstrader-frontend` directly (`defaults.run.working-directory`, `npm ci`, Node 22 per the installed vite engines `^20.19.0 \| >=22.12.0`). `cache-dependency-path` points only at the tracked frontend lockfile. Root `package.json` is still absent and still gitignored, so the root steps were dropped rather than recreated. |
+| S6 bind defaults | Fixed | Loopback is now the default in `.env.example` (`PB_HTTP=127.0.0.1:8091`), `skillstrader-frontend/.env.example` (`VITE_DEV_HOST`, `VITE_PREVIEW_HOST`), the `vite.config.ts` fallbacks, and the `scripts/dev.mjs` fallbacks. LAN or container use now needs an explicit override, which is what `docs/operations/pocketbase.md` already told operators to expect. Ports were left as they are (see S9). |
+| S5 `school_other_name` | Resolved by deletion | Removed from `types/Candidate.ts`, `candidates.utils.ts` (initial state and write payload), both candidate forms, the profile view, the change-detection list, and `resumeTemplate.ts`. The column is confirmed absent from the live `candidates` collection, so the control could only ever discard input. |
+| S5 — related bug found mid-pass | Fixed | The change-detection list contained the dead `school_other_name` but **omitted the live `school_other`**. An operator editing only "Other School" was told "No changes detected" and the edit was silently discarded. `school_other` is watched now. |
+| S4 `valueAtPath()` | Hardened | `RecordsWorkspace.tsx` checks `Object.prototype.hasOwnProperty` per path segment, so a `__proto__` or `constructor` segment can no longer read inherited values off the prototype chain. |
+| S3 — new history collections only | Applied | `pb_migrations/1792700000_candidate_history_entry_rules.js` role-gates `candidate_work_experiences` and `candidate_educations`. Read tier matches the parent `candidates` (administrator/manager/staff); write tier matches the UI gate `canManageCandidates` (administrator/manager), so the API never permits an edit the interface already hides. The pre-existing `interviews` / `placements` / `job_orders` / `positions` asymmetry is **not** addressed. |
+| S4 duplicated Candidate sections | Not done | The Education and Work Experience blocks are still duplicated across the view, edit and create modals. The new entry editors are shared components, so history fields no longer need triplicate edits. |
+
+### Corrections to the analysis above
+
+- **S4:** `src/data/candidates.json` is **not** imported anywhere in `src/` (verified by search across `.ts`/`.tsx`). It is an unreferenced tracked file, not a fixture that ships by accident.
+- **S9:** `pb_hooks/` contains no `8090` and no `baseUrl` reference today, so the "default port is 8090 while the project standardises on 8091" item no longer applies as written. The port split is still real elsewhere: `skillstrader-frontend/.env` pins the API to `127.0.0.1:8090` while `dev.mjs` and `.env.example` use `8091`.
+
+### Still open, deliberately
+
+- **S1 is an unresolved incident.** The four applicant PDFs are still tracked at `HEAD` and the repository is still public (re-verified with `git ls-files`, 4 PDFs under `pb_data/storage`). Making the repo private, purging history, and breach notification were **not** performed — they need your go-ahead and coordination across `ady/*`, `ryan_*`, `sky/*` and `develop-pre-merge`.
+- **S7** dependency versions are untouched; findings stay report-only.
+- The **14 pre-existing ESLint errors** remain. CI runs lint and `npm audit` as steps explicitly labelled `(advisory)` with `continue-on-error: true`, so the pipeline reports them without blocking merges. Delete those two `continue-on-error` lines to turn them into gates once the backlog and the highs are cleared.
+- **No CI check yet** asserts the per-collection API rules (S3) or diffs the write payload against the live schema (S5). Both need a PocketBase instance in the job, so neither is a one-liner.
+

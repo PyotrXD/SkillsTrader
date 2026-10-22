@@ -19,8 +19,9 @@ Method: read-only inspection of tracked files and `git ls-files` / `git log` out
   (each filename embeds the applicant's real name).
 - `git log --all --diff-filter=A -- "pb_data/storage/**"` confirms they were added and never
   removed — they exist in every prior revision, not just the current tree.
-- The remote is anonymously readable: `git ls-remote` against
-  `https://github.com/PyotrXD/SkillsTrader.git` succeeds with no credentials, i.e. the repository is public.
+- The repository is **public**. Confirmed by fetching with the credential helper disabled entirely
+  (`git -c credential.helper= ls-remote https://github.com/PyotrXD/SkillsTrader.git`), which returned
+  9 branch refs and `HEAD = a961b58c` — i.e. full read access with no credential of any kind.
 - This is systemic, not accidental. `.gitignore:2-3` states the policy outright:
   *"Commit PocketBase data snapshots for cross-device development."*
   The existing one-off ignore lines for individual files (a second applicant resume and a DMW image)

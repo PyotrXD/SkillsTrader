@@ -335,10 +335,16 @@ accumulate. Dependency version decisions are yours; nothing here was patched by 
 
 **Recommended actions**
 
-- Set `rateLimits.enabled = true` and keep the shipped `*:auth` rule (OWASP ASVS V2.2.1 and V3.2.2
-  put authentication throttling on the server; a product-provided control already tuned at 2 per 3s
-  for `*:auth` is the defensible default). Record the intended threshold in
-  `docs/operations/production-runbook.md` so it survives the next settings export.
+- Enable the shipped rules, in this order, **per environment**: Settings → Trusted proxies → add
+  `X-Forwarded-For` (nginx already sends it via `$proxy_add_x_forwarded_for`; leave "use left-most IP"
+  off, since the left-most value is client-supplied and spoofable), then Settings → Rate limits →
+  enable. Doing rate limits first would key every user behind nginx to the proxy's `127.0.0.1` and
+  lock the admin panel out (OWASP ASVS V2.2.1 and V3.2.2 put authentication throttling on the server;
+  a product-provided control already tuned at 2 per 3s for `*:auth` is the defensible default).
+  **This cannot be a migration** — 0.36.2 exposes no `settings` member on `CoreApp` and a probe
+  migration fails on apply — so it is not tracked by git and will not arrive with a deploy. That is
+  precisely how it stayed switched off. Record the threshold in
+  `docs/operations/production-runbook.md` and re-check it on the monthly cadence.
 - Move `pb_hooks/**/*.pb.js` onto the lint and type-check surface. A `files` glob plus committing
   the generated `types.d.ts` (or generating it in CI) is enough; there is no third option that
   actually catches a typo in a hook today.
@@ -437,7 +443,7 @@ A follow-up pass applied the low-risk items. **No dependency version was changed
 | S5 `school_other_name` | Resolved by deletion | Removed from `types/Candidate.ts`, `candidates.utils.ts` (initial state and write payload), both candidate forms, the profile view, the change-detection list, and `resumeTemplate.ts`. The column is confirmed absent from the live `candidates` collection, so the control could only ever discard input. |
 | S5 — related bug found mid-pass | Fixed | The change-detection list contained the dead `school_other_name` but **omitted the live `school_other`**. An operator editing only "Other School" was told "No changes detected" and the edit was silently discarded. `school_other` is watched now. |
 | S4 `valueAtPath()` | Hardened | `RecordsWorkspace.tsx` checks `Object.prototype.hasOwnProperty` per path segment, so a `__proto__` or `constructor` segment can no longer read inherited values off the prototype chain. |
-| S3 — new history collections only | Applied | `pb_migrations/1792700000_candidate_history_entry_rules.js` role-gates `candidate_work_experiences` and `candidate_educations`. Read tier matches the parent `candidates` (administrator/manager/staff); write tier matches the UI gate `canManageCandidates` (administrator/manager), so the API never permits an edit the interface already hides. The pre-existing `interviews` / `placements` / `job_orders` / `positions` asymmetry is **not** addressed. |
+| S3 — new history collections only | Applied | `pb_migrations/1792700000_candidate_history_entry_rules.js` role-gates `candidate_work_experiences` and `candidate_educations`. Read tier matches the parent `candidates` (administrator/manager/staff); write tier matches the UI gate `canManageCandidates` (administrator/manager), so the API never permits an edit the interface already hides. The `interviews` / `placements` / `job_orders` / `candidates_legacy` / `employer` / `positions` asymmetry was closed in the **third pass** by `1793000000_unify_transactional_record_rules.js`; only the `positions` public *read* remains, deliberately. |
 | S4 duplicated Candidate sections | Not done | The Education and Work Experience blocks are still duplicated across the view, edit and create modals. The new entry editors are shared components, so history fields no longer need triplicate edits. |
 
 ### Second pass — applied 2026-10-23 (verification and containment, `ady/development`)
@@ -451,7 +457,7 @@ and landed three changes. **No dependency version was changed and no frontend so
 | S1 diagnosis | **Reframed** | The committed `data.db` was read directly. The exposure is a **credential** exposure (2 superuser + 6 auth password hashes, all bcrypt `$2a$10$`, plus `tokenKey`s) on the repo **default branch**, not a leak of migrant-worker government documents. Every committed document row is `doc_type = resume`; the four tracked PDFs are two unique files (three share one md5) belonging to a repository administrator. Section rewritten, ordering resequenced to put credential rotation first. |
 | S1 — `candidates_legacy` missed | **Added to S3** | Bare `@request.auth.id != ''` on all five rules; zero rows today, so a latent exposure that a legacy import or restore can repopulate silently. |
 | S3 `employer` delete | **Added** | Read live: staff may delete an employer, while `candidates`/`documents` restrict delete to administrator. |
-| S8 auth throttling | **Reframed, now low effort** | PocketBase's native `rateLimits` already ships four tuned rules (`*:auth` 2 req/3s) in both the local DB and the published snapshot, but `enabled: false`. The fix is a settings flip, not the high-effort hook work the previous ordering assumed. |
+| S8 auth throttling | **Reframed, now low effort** | PocketBase's native `rateLimits` already ships four tuned rules (`*:auth` 2 req/3s) in both the local DB and the published snapshot, but `enabled: false`. The fix is a settings flip, not the high-effort hook work the previous ordering assumed. **Corrected again in the third pass: it cannot be a migration** — see the S8 row there. |
 | S8 audit payload claim | **Disproved** | `details` stores `changed_fields: Object.keys(body)` — field *names*, not values. It never captured government-ID content. What it does leak is `entity_name` (candidate full names) and `actor_email`, visible across the 77 rows in the published snapshot. |
 | S8 `main.pb.js` line refs | **Stale** | The cited `:100`/`:113` `baseUrl ?? 127.0.0.1:8090`, `:124`/`:163` rate-limit logs, `:127` `@request.env`, `:48` `test_smtp` and the `:233` `details` merge are all gone. The file is 574 lines of four hook registrations and no routes. |
 | S9 `debug_employer_creation.js` | **Deleted** | The `@atlassian/atlassian-navigation-mfe` import it was said to carry does not exist in the file; it was 48 lines of `console.log` with no imports. Removed at the root. |
@@ -461,6 +467,37 @@ and landed three changes. **No dependency version was changed and no frontend so
 | S9 docs index | **New** | `docs/README.md` indexes `docs/`, records the two root-level markdown files, and points at the gitignored `incident-private/` worksheet. |
 | S1 root cause in ops | **New** | `docs/operations/maintenance-checklist.md` Weekly section now runs the containment guard, so the S1 class of failure is caught on a cadence and not only in CI. |
 | Incident worksheet | **New, untracked** | `incident-private/s1-exposure-details.md` holds the unredacted data-subject names, record IDs and credential identities read from the published snapshot, so notification can be drafted without putting those names in a publicly readable tracked file. `incident-private/` is now in `.gitignore`; the file is confirmed untracked. |
+
+### Third pass — applied 2026-10-23 (access controls and drift gates landed, `ady/development`)
+
+The implementation pass. **No dependency version was changed, no credential was rotated, no history
+was rewritten, and nothing was pushed.** Every claim below was verified by replaying
+`pb_migrations/` into a throwaway directory against the real PocketBase 0.36.2 binary — the live
+`pb_data/` was only ever read.
+
+| Item | State | Change |
+|---|---|---|
+| S3 authorization tiers | **Applied** | `pb_migrations/1793000000_unify_transactional_record_rules.js`: `interviews` and `placements` move read to the staff tier and create/update/delete to manager+ (matching their `canManage` UI gate); `job_orders` moves delete only (its form has no role gate, so tightening write there would hand staff a 403-ing form); `candidates_legacy` inherits the `candidates` tier including administrator-only delete; `employer` and `positions` move delete to manager+. `audit_logs` create/update/delete become `null` instead of the always-false expression. `positions` public *read* is left alone deliberately — that is the open product decision, not a cleanup. The down path restores the prior rules exactly as read from the live `_collections` table. |
+| S3 API/UI agreement | **Applied** | Delete buttons in `Employers.tsx`, `JobOrders.tsx` and `Positions.tsx` are now `disabled` for staff with an explanatory title, reusing the `canDelete` convention already in `RecordsWorkspace`. Without this the migration would have left three enabled buttons that return 403. |
+| S3 rule assertion | **New script** | `scripts/check-api-rules.mjs` replays the chain into a throwaway dir, asserts the effective rules per collection, then rolls the newest migration back and asserts the prior state is restored, then re-applies. `--live` diffs expectations against the running `pb_data/data.db`. Exits 2 rather than skipping silently when the binary is absent. Currently: apply, rollback and re-apply all PASS. |
+| S5 payload-vs-schema | **New gate** | `scripts/export-schema-snapshot.mjs` replays the chain and generates `src/lib/pocketbase/schema-snapshot.ts` (field names per collection). `schema-snapshot.test.ts` asserts every key `buildCandidatePayload` returns is a real `candidates` column, pins the school columns that replaced the dropped one, and checks the collections the rules govern still exist. Proven by reintroducing `school_other_name` — two assertions failed naming the field — then reverting. |
+| S8 auth throttling | **Cannot be migrated** | The second pass called this "a settings flip". Correct again: in 0.36.2 `types.d.ts` exposes **no `settings` member on `CoreApp`** and no `updateSettings`, and a probe migration failed on apply. Settings live in the per-database `_params` blob — outside git, which is exactly why throttling drifted switched off unnoticed. It is a per-environment admin-UI change, now documented with a rollback. |
+| S8 blocking hazard found | **Documented** | `trustedProxy.headers` is `[]` while nginx sends `X-Forwarded-For`, so PocketBase attributes every request to the proxy at `127.0.0.1`. Enabling rate limits before setting the trusted header would put every user into one shared 2-logins-per-3-seconds bucket and lock the admin panel out. Order is therefore trusted proxy → rate limits, per environment; `docs/operations/verifying-access-controls.md` §4. |
+| Ops runbook | **New** | `docs/operations/verifying-access-controls.md`: exact commands with their real captured output, the role-by-role tier table, how to test the 403 with a staff token, and how to demo each guard failing. The weekly list gains the rules assertion; the monthly list gains snapshot freshness and a throttling check. |
+
+Two traps found while building these, both recorded in the runbook because each produced a wrong
+result once:
+
+- **`migrate down` prompts `(y/N)` and has no `--force`.** A closed stdin reads as "no": it exits 0,
+  says nothing, and reverts **nothing**. The first draft of the rules assertion reported 23 rollback
+  failures for exactly this reason, and a check that silently no-ops its rollback is worse than one
+  that fails.
+- **`src/**` has no Node types.** `tsconfig.app.json` sets `types: ["vite/client"]`, so importing
+  `node:fs` in a browser test fails `tsc -b`. The snapshot is therefore a generated TS module rather
+  than JSON read at test time, and freshness moved into the script that owns the binary.
+
+Suite after this pass: 6 files / 60 tests passing, `tsc -b && vite build` clean, ESLint unchanged at
+14 errors / 22 warnings — all pre-existing, none introduced.
 
 ### Corrections to the analysis above
 
@@ -502,9 +539,13 @@ and landed three changes. **No dependency version was changed and no frontend so
 - The **14 pre-existing ESLint errors** remain. CI runs lint and `npm audit` as steps explicitly labelled
   `(advisory)` with `continue-on-error: true`, so the pipeline reports them without blocking merges.
   Delete those two `continue-on-error` lines to turn them into gates once the backlog and the highs are cleared.
-- **No CI check yet** asserts the per-collection API rules (S3) or diffs the write payload against the
-  live schema (S5). Both can be done without a superuser: replay the whole `pb_migrations/` chain into a
-  throwaway `--dir` and read `_collections` from the resulting DB read-only. Neither is wired up.
+- **The rule and drift assertions exist but are not in CI, on purpose.** `scripts/check-api-rules.mjs`
+  asserts the per-collection API rules (S3) and `scripts/export-schema-snapshot.mjs --verify` plus
+  `schema-snapshot.test.ts` diff the write payload against the schema (S5). Neither can run on a GitHub
+  runner without downloading a PocketBase binary, which would put a second, hard-coded version
+  source-of-truth in the workflow that can drift from the vendored `pocketbase.exe` and report a
+  confidently wrong green. PocketBase automigrates on `serve`, so the enforcement point is pre-deploy;
+  both are wired into the weekly/monthly cadence instead. Run them before merging any migration.
 - `positions` still has `listRule` and `viewRule` both empty, so its rows are anonymous-readable.
   Separate from S1 and bounded by the bind address, but still your call on whether the catalogue is
   meant to be scrapable.

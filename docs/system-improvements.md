@@ -206,6 +206,9 @@ re-read from the live `_collections` table on 2026-10-23 rather than inferred fr
   `JobOrders.tsx:263`, `Placements.tsx:92`, `Users.tsx:395`, `Tooltip.tsx:2`, `DashboardHome.tsx:6`;
   plus a `react-hooks/set-state-in-effect` at `AuditLog.tsx:114` that causes cascading renders.
   Re-measured 2026-10-23: `✖ 36 problems (14 errors, 22 warnings)`. `npm run lint` exits non-zero today.
+  **Update from S10:** three of those 14 were the unused `error` bindings in `JobOrders.tsx`, which were
+  swallowing PocketBase's rejection reason. Fixing them took the baseline to
+  `✖ 33 problems (11 errors, 22 warnings)`; the remaining 11 are unrelated.
 - **`valueAtPath()` (`RecordsWorkspace.tsx:348-359`)** walked a dot-separated path with unchecked
   segments, so `__proto__` or `constructor` in a caller-supplied path traversed off the intended
   object. **Hardened** in `5ece019` with an own-property check per segment.
@@ -402,6 +405,73 @@ accumulate. Dependency version decisions are yours; nothing here was patched by 
 
 ---
 
+## S10. `JobOrders.tsx` wrote a status the schema rejects — HIGH (fixed 2026-10-23)
+
+Found by reading one dead styling condition at `JobOrders.tsx:400`; the line was the visible end of a
+casing mismatch that broke three features at once.
+
+**Evidence**
+
+- `job_orders.status` is a select whose values are **lowercase** — `pb_migrations/1771309281_created_job_orders.js:108-110`
+  declares `open`, `closed`, `filled`, and the live `_collections` row agrees.
+- `JobOrders.tsx` used **`"Open" | "Closed" | "Filled"`** in its local type (line 17), `initialForm`
+  (55), both read mappers (67, 147), the filter options (347), the badge comparisons (396, 398) and the
+  form `Selection` (448).
+- Verified against a real PocketBase 0.36.2 in a throwaway directory, saving records directly:
+  ```
+  open     -> no status error
+  Open     -> status: Invalid value Open
+  Shipped  -> status: Invalid value Shipped
+  ```
+  A select value outside the list is rejected outright, so **creating or updating a job order through
+  this screen could never succeed**. `job_orders` holds zero rows in the live `pb_data` and zero in the
+  published `origin/develop-pre-merge` snapshot — consistent with that, though not proof of it.
+- Because `'open' !== 'Open'`, every comparison above line 400 was always false:
+  - the badge fell through to the muted branch for **every** record, so all job orders looked identical;
+  - `filtered` (`j.status !== statusFilter`) discarded every row for any chosen status, so the status
+    filter always returned an empty table;
+  - the save failed, and the catch block replaced PocketBase's reason with the string
+    `"Failed to create job order"`, so nothing pointed at the cause.
+- The other select-backed screens already agree with the schema — `candidateStatuses` matches all 12
+  `candidates.status` values, `placementStatuses` matches all 5, `doc_type` uses the lowercase keys,
+  `RecordsWorkspace` uses lowercase for `job_orders`, and `DashboardHome.tsx:28` filters
+  `status = "open"`. This was the sole outlier, so the schema was the side to fix.
+
+**Why the lint backlog mattered here**
+
+Three of the 14 "pre-existing, cosmetic" ESLint errors were the unused `error` bindings in these very
+catch blocks (`@typescript-eslint/no-unused-vars`). The rule was pointing straight at the code that
+threw away the diagnostic. Fixing them took the baseline to **11 errors / 22 warnings**, and the three
+blocks now surface PocketBase's message through `getPocketBaseUiError`, the helper `Interviews.tsx:209`
+already uses for exactly this.
+
+**Fix applied**
+
+Status values now come from one literal list, `JOB_ORDER_STATUSES` (stored casing) paired with display
+labels, so the payload, filter and badge cannot drift from the schema or from each other. Display is
+capitalised through `statusLabel()`, so the UI text is unchanged.
+
+**How to test it personally**
+
+1. `npm run dev`, sign in as manager or administrator.
+2. Jobs → Add Job: create one with status Open. Before this fix it failed with "Failed to create job
+   order"; it now succeeds and the badge renders green, not grey.
+3. Set the filter to Open — the row appears. It previously showed an empty table.
+4. Change its status to Closed and confirm the badge goes grey and the value reads back as `closed`.
+5. Regression guard: `npm --prefix skillstrader-frontend run test` includes
+   `schema-snapshot.test.ts › frontend select enums against the schema values`, which asserts the
+   frontend list **equals** `selects.job_orders.status` from the generated schema snapshot. Edit
+   `JOB_ORDER_STATUSES` to `"Open"` and that test fails.
+
+**Generalisation**
+
+This is S5's failure mode one level down. S5 was a payload *key* the schema did not have; this was a
+payload *value* the schema did not accept. Both are silent, both come from the frontend drifting from
+`_collections`, and the drift gate now covers both: `scripts/export-schema-snapshot.mjs` records select
+values as well as field names, and the test asserts against them.
+
+---
+
 ## Suggested ordering
 
 Rewritten 2026-10-23. The previous ordering led with "make repo private, then purge, then notify";
@@ -422,7 +492,7 @@ stays crackable offline after the blob is deleted.
 | 10 | Reconcile the 8090/8091 split in local config and `meta.appURL` (S9) | Low | No |
 | 11 | Move `pb_hooks` onto the lint surface; verify `getToken({ requestKey: null })` scope (S8) | Medium | No |
 | 12 | Payload-vs-schema CI check; tests for `buildCandidatePayload` and `auditLog.ts` (S5, S4) | Medium | No |
-| 13 | Fix the 14 lint errors; error boundary + lazy loading; extract duplicated Candidate sections (S4) | Medium | No |
+| 13 | Fix the 11 remaining lint errors (S10 cleared 3); error boundary + lazy loading; extract duplicated Candidate sections (S4) | Medium | No |
 | 14 | Patch `react-router-dom`, `vite`, `esbuild` (S7 — your call, report-only) | Medium | No |
 | 15 | Remaining low-priority cleanups (S9) | Low | No |
 
@@ -536,9 +606,11 @@ Suite after this pass: 6 files / 60 tests passing, `tsc -b && vite build` clean,
   `gh` and `docker` are all uninstalled here (Python 3.12.3 is present, so `pip install git-filter-repo`
   is the shortest path).
 - **S7** dependency versions are untouched; findings stay report-only.
-- The **14 pre-existing ESLint errors** remain. CI runs lint and `npm audit` as steps explicitly labelled
-  `(advisory)` with `continue-on-error: true`, so the pipeline reports them without blocking merges.
-  Delete those two `continue-on-error` lines to turn them into gates once the backlog and the highs are cleared.
+- The **11 remaining pre-existing ESLint errors** (14 before S10 cleared three unused `error`
+  bindings that were discarding PocketBase's rejection reason) remain. CI runs lint and `npm audit` as
+  steps explicitly labelled `(advisory)` with `continue-on-error: true`, so the pipeline reports them
+  without blocking merges. Delete those two `continue-on-error` lines to turn them into gates once the
+  backlog and the highs are cleared.
 - **The rule and drift assertions exist but are not in CI, on purpose.** `scripts/check-api-rules.mjs`
   asserts the per-collection API rules (S3) and `scripts/export-schema-snapshot.mjs --verify` plus
   `schema-snapshot.test.ts` diff the write payload against the schema (S5). Neither can run on a GitHub

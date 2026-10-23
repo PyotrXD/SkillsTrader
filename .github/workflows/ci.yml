@@ -60,9 +60,10 @@ jobs:
         run: npm ci
 
       - name: Lint (advisory)
-        # Informational: 14 errors pre-date this workflow rewrite and live in modules
-        # unrelated to it. Remove continue-on-error once they are cleared, which also
-        # retires the react-hooks/set-state-in-effect finding. See S4.
+        # Informational: 11 errors pre-date this workflow rewrite and live in modules
+        # unrelated to it (14 before S10 cleared three unused `error` bindings that were
+        # swallowing PocketBase's rejection reason). Remove continue-on-error once they are
+        # cleared, which also retires the react-hooks/set-state-in-effect finding. See S4.
         continue-on-error: true
         run: npm run lint
 

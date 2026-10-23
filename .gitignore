@@ -30,10 +30,18 @@ release/bin/
 .env.*.local
 !.env.example
 
+# Incident worksheet holding real data-subject names and record IDs. The repository is
+# publicly readable until docs/system-improvements.md S1 is closed, so identifying
+# details never go in a tracked file. Notification drafts live here, not in docs/.
+incident-private/
+
 # General
 .DS_Store
 Thumbs.db
 *.log
+# Agent scratch space. Inspecting the live database writes temporary copies here, and a bare
+# `git add .` would stage them — the exact runtime-data failure mode S1 describes.
+.qwen/
 pb_data/auxiliary.db
 pb_data/data.db
 cline_mcp_settings.json

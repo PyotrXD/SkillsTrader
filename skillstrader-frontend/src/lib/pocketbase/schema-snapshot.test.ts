@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { schemaSnapshot } from './schema-snapshot';
 import { buildCandidatePayload, initialForm } from '../../components/custom/candidates.utils';
+import { candidateStatuses } from '../../components/custom/candidates.constants';
+import { JOB_ORDER_STATUSES } from '../../components/custom/JobOrders';
 
 // Guards docs/system-improvements.md S5. PocketBase silently discards any body field that is not a
 // column on the collection, so a form field left behind by a migration looks like it saved and then
@@ -113,5 +115,31 @@ describe('collections the authorization tiers depend on', () => {
   it('records which migration the snapshot was generated from', () => {
     expect(schemaSnapshot.generatedFrom.migrationCount).toBeGreaterThan(0);
     expect(schemaSnapshot.generatedFrom.lastMigration).toMatch(/^17\d{8}_.+\.js$/);
+  });
+});
+
+// A select column only accepts its declared values, and PocketBase rejects a create or update that
+// sends anything else. The key-name assertions above cannot catch a wrong *value*, which is the bug
+// this file was extended for: job_orders.status is stored open/closed/filled while JobOrders.tsx
+// wrote "Open"/"Closed"/"Filled", so the badge, the status filter and the save path all broke at
+// once and none of them raised an error. Asserted as equality, not subset, because a status the UI
+// cannot offer is a job order nobody can set.
+describe('frontend select enums against the schema values', () => {
+  const sorted = (values: readonly string[]) => [...values].sort();
+
+  it('offers exactly the job_orders.status values the schema accepts', () => {
+    expect(sorted(JOB_ORDER_STATUSES)).toEqual(sorted(schemaSnapshot.selects.job_orders.status));
+  });
+
+  it('offers exactly the candidates.status values the schema accepts', () => {
+    expect(sorted(candidateStatuses)).toEqual(sorted(schemaSnapshot.selects.candidates.status));
+  });
+
+  it('does not reintroduce the capitalized job_orders status casing', () => {
+    // The literal that caused the original defect, pinned so a well-meaning "readable" label
+    // cannot be used as a stored value again.
+    expect(JOB_ORDER_STATUSES).not.toContain('Open');
+    expect(JOB_ORDER_STATUSES).not.toContain('Filled');
+    expect(JOB_ORDER_STATUSES).not.toContain('Closed');
   });
 });

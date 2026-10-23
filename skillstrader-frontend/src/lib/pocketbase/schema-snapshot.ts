@@ -277,6 +277,108 @@ export const schemaSnapshot = {
       "updated",
       "verified"
     ]
+  },
+  "selects": {
+    "audit_logs": {
+      "action": [
+        "archive",
+        "create",
+        "restore",
+        "update",
+        "view"
+      ],
+      "actor_role": [
+        "administrator",
+        "manager",
+        "staff",
+        "system",
+        "unknown"
+      ]
+    },
+    "candidate_educations": {
+      "level": [
+        "college",
+        "elementary",
+        "graduate",
+        "junior_high",
+        "other",
+        "senior_high",
+        "vocational"
+      ]
+    },
+    "candidates": {
+      "status": [
+        "Awaiting Visa",
+        "Deployed",
+        "Fit to work",
+        "For deployment",
+        "For final interview",
+        "For medical",
+        "Lined-Up",
+        "New Applicant",
+        "Pending medical",
+        "Rejected",
+        "Unfit to work",
+        "Visa Arrived"
+      ]
+    },
+    "candidates_legacy": {
+      "status": [
+        "Applied",
+        "For Interview",
+        "For Placement",
+        "Interviewed",
+        "Placed",
+        "Rejected",
+        "Screened",
+        "Screening"
+      ]
+    },
+    "documents": {
+      "doc_type": [
+        "dmw_approved_contract",
+        "e_registration_file",
+        "nbi_clearance",
+        "offer_letter",
+        "other",
+        "overseas_employment_certificate",
+        "passport",
+        "peos_certificate",
+        "police_clearance",
+        "resume",
+        "visa"
+      ],
+      "status": [
+        "Draft",
+        "Expired",
+        "Rejected",
+        "Submitted",
+        "Verified"
+      ]
+    },
+    "job_orders": {
+      "status": [
+        "closed",
+        "filled",
+        "open"
+      ]
+    },
+    "placements": {
+      "status": [
+        "Cancelled",
+        "Completed",
+        "Confirmed",
+        "Pending",
+        "Started"
+      ]
+    },
+    "users": {
+      "role": [
+        "administrator",
+        "manager",
+        "staff"
+      ]
+    }
   }
 } as const;
 

@@ -10,6 +10,9 @@ Use this file as the recurring tracker for weekly/monthly maintenance work.
 - [ ] Review backup output and confirm latest backup integrity
 - [ ] Review healthcheck failures and close any unresolved alerts
 - [ ] Update active requirement rows (`Planned` / `In Progress`) last-reviewed dates
+- [ ] Confirm no runtime data is tracked: `node scripts/check-pb-data-tracked.mjs` (exits non-zero if
+      anything under `pb_data/` other than `storage/.gitkeep`, or any `.attrs`/database file, is in
+      the index). This is the S1 root cause — see `docs/system-improvements.md`.
 
 ### Monthly
 

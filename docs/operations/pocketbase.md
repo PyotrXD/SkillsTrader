@@ -22,8 +22,15 @@ powershell -ExecutionPolicy Bypass -File scripts/serve-production.ps1
 Manual start (reference only):
 
 ```powershell
-.\pocketbase.exe serve --dir pb_data --hooksDir pb_hooks --publicDir skillstrader-frontend/dist --encryptionEnv PB_ENCRYPTION_KEY
+.\pocketbase.exe serve --dir pb_data --hooksDir pb_hooks --publicDir skillstrader-frontend/dist --http 127.0.0.1:8091 --encryptionEnv PB_ENCRYPTION_KEY
 ```
+
+`--http` is not optional in practice. PocketBase's own default is `127.0.0.1:8090`, while
+`scripts/dev.mjs`, `.env.example` and `docs/operations/production-runbook.md` all standardise on
+**8091**. A manual start without `--http` therefore silently brings the API up on a different port
+from the one the rest of the project assumes. `skillstrader-frontend/src/lib/pocketbase/pb.ts`
+resolves `VITE_POCKETBASE_URL` first and only auto-detects the port when it is unset, so a stale
+`.env` pinning `8090` wins over the correct default — see `docs/system-improvements.md` S9.
 
 ## Backup and Restore Commands
 

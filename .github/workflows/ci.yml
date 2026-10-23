@@ -7,6 +7,38 @@ on:
   pull_request:
 
 jobs:
+  repo-guards:
+    # Runs at the repository root, where the runtime-data containment check can see the
+    # whole tracked tree. Fast and blocking: this is the control that prevents a repeat of
+    # docs/system-improvements.md S1 (applicant uploads and the database were committed).
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # gitleaks needs the full history to scan revisions, not just the tip.
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Assert no PocketBase runtime data is tracked
+        run: node scripts/check-pb-data-tracked.mjs
+
+      - name: Secret scan (advisory)
+        # Advisory until a GITLEAKS_LICENSE repository secret is configured; the action
+        # refuses to start without it. Remove continue-on-error once the secret exists,
+        # which makes this blocking. See docs/system-improvements.md S2.
+        continue-on-error: true
+        env:
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+        uses: gitleaks/gitleaks-action@v2
+
   frontend-checks:
     runs-on: ubuntu-latest
     defaults:

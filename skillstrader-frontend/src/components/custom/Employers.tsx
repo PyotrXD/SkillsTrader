@@ -5,7 +5,7 @@ import Modal from "../ui/Modal";
 import Toast from "../ui/Toast";
 import Searchbar from "../ui/Searchbar";
 import Pagination from "../ui/Pagination";
-import { pb } from "../../lib/pocketbase/pb";
+import { pb, getUserRole } from "../../lib/pocketbase/pb";
 
 type Employer = {
   id?: string;
@@ -39,6 +39,12 @@ const initialForm: Employer = {
 };
 
 export default function Employers() {
+  // Employer delete is administrator/manager in the API
+  // (pb_migrations/1793000000_unify_transactional_record_rules.js); a staff-visible button
+  // would only produce a 403. Matches the `canDelete` convention in RecordsWorkspace.
+  const userRole = useMemo(() => getUserRole() ?? "staff", []);
+  const canDelete = userRole === "administrator" || userRole === "manager";
+
   const [employers, setEmployers] = useState<Employer[]>([]);
   
   async function fetchEmployers(page = 1, perPage = 50) {
@@ -355,7 +361,7 @@ function handleOpenModal() {
                             <Icon icon="tabler:edit" width="15" height="15" />
                             Edit
                           </button>
-                          <button type="button" title="Delete" onClick={() => handleDelete(emp)} className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-(--accent)/20 text-(--accent) font-semibold text-xs hover:bg-(--accent)/30 transition-colors">
+                          <button type="button" title={canDelete ? 'Delete' : 'Staff cannot delete employers'} disabled={!canDelete} onClick={() => handleDelete(emp)} className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-(--accent)/20 text-(--accent) font-semibold text-xs hover:bg-(--accent)/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-(--accent)/20">
                             <Icon icon="tabler:trash" width="15" height="15" />
                             Delete
                           </button>

@@ -7,7 +7,7 @@ import Searchbar from "../ui/Searchbar";
 import Pagination from "../ui/Pagination";
 import Filter from "../ui/Filter";
 import Selection from "../ui/Selection";
-import { pb } from "../../lib/pocketbase/pb";
+import { pb, getUserRole } from "../../lib/pocketbase/pb";
 
 type JobOrder = {
   id?: string;
@@ -80,6 +80,12 @@ function mapJobOrderRecordToJobOrder(item: JobOrderRecord): JobOrder {
 }
 
 export default function JobOrders() {
+  // Job order delete is administrator/manager in the API
+  // (pb_migrations/1793000000_unify_transactional_record_rules.js); create and edit stay open to
+  // staff, so only the delete control is gated here.
+  const userRole = useMemo(() => getUserRole() ?? "staff", []);
+  const canDelete = userRole === "administrator" || userRole === "manager";
+
   const [jobOrders, setJobOrders] = useState<JobOrder[]>([]);
   const [form, setForm] = useState<JobOrder>(initialForm);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -405,7 +411,7 @@ export default function JobOrders() {
                             <button type="button" title="Edit" aria-label="Edit" onClick={() => handleEdit(j)} className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--navy2)] text-white hover:brightness-110 transition-all">
                               <Icon icon="tabler:edit" width="15" height="15" />
                             </button>
-                            <button type="button" title="Delete" aria-label="Delete" onClick={() => handleDelete(j)} className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--accent)]/20 text-[var(--accent)] hover:bg-[var(--accent)]/30 transition-colors">
+                            <button type="button" title={canDelete ? 'Delete' : 'Staff cannot delete job orders'} aria-label="Delete" disabled={!canDelete} onClick={() => handleDelete(j)} className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--accent)]/20 text-[var(--accent)] hover:bg-[var(--accent)]/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[var(--accent)]/20">
                               <Icon icon="tabler:trash" width="15" height="15" />
                             </button>
                           </div>

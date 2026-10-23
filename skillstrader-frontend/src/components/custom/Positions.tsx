@@ -5,7 +5,7 @@ import Selection from "../ui/Selection";
 import IndustryPositionPicker from "../ui/IndustryPositionPicker";
 import Tooltip from "../ui/Tooltip";
 import { Icon } from "@iconify/react";
-import { pb } from '../../lib/pocketbase/pb';
+import { pb, getUserRole } from '../../lib/pocketbase/pb';
 
 interface Position {
   id: number | string;
@@ -30,6 +30,12 @@ const initialForm: Omit<Position, "id"> = {
 const NEW_INDUSTRY_VALUE = "__new__";
 
 export default function Positions() {
+  // Position delete is administrator/manager in the API
+  // (pb_migrations/1793000000_unify_transactional_record_rules.js). Create and edit are not
+  // tightened by that migration, so they stay available to every signed-in role.
+  const userRole = useMemo(() => getUserRole() ?? "staff", []);
+  const canDelete = userRole === "administrator" || userRole === "manager";
+
   const [positions, setPositions] = useState<Position[]>([]);
   const [form, setForm] = useState(initialForm);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -317,7 +323,9 @@ export default function Positions() {
                                 </button>
                                 <button
                                   type="button"
-                                  className="px-3 py-1.5 flex items-center gap-1 rounded-md bg-[var(--accent)]/20 text-[var(--accent)] font-semibold text-sm hover:bg-[var(--accent)]/30 transition-colors"
+                                  title={canDelete ? 'Delete' : 'Staff cannot delete positions'}
+                                  disabled={!canDelete}
+                                  className="px-3 py-1.5 flex items-center gap-1 rounded-md bg-[var(--accent)]/20 text-[var(--accent)] font-semibold text-sm hover:bg-[var(--accent)]/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[var(--accent)]/20"
                                   onClick={() => openDeleteModal(p)}
                                 >
                                   <Icon icon="tabler:trash" width="15" height="15" />

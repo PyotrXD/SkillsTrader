@@ -16,6 +16,7 @@ do not know which directory it lives in.
 |---|---|
 | [production-runbook.md](operations/production-runbook.md) | Deploy, systemd unit, reverse proxy, `PB_ENCRYPTION_KEY` |
 | [pocketbase.md](operations/pocketbase.md) | PocketBase bind addresses, admin UI access, backup and restore commands |
+| [verifying-access-controls.md](operations/verifying-access-controls.md) | Runbook for the S1 containment guard, the S3 API-rule assertions, the S5 payload/schema drift gate and enabling auth throttling |
 | [maintenance-checklist.md](operations/maintenance-checklist.md) | The recurring weekly/monthly tracker and its open follow-ups |
 | [restore-drill-log.md](operations/restore-drill-log.md) | Evidence log for each restore drill |
 

@@ -13,6 +13,10 @@ Use this file as the recurring tracker for weekly/monthly maintenance work.
 - [ ] Confirm no runtime data is tracked: `node scripts/check-pb-data-tracked.mjs` (exits non-zero if
       anything under `pb_data/` other than `storage/.gitkeep`, or any `.attrs`/database file, is in
       the index). This is the S1 root cause — see `docs/system-improvements.md`.
+- [ ] Assert the API authorization tiers still match the migrations:
+      `node --experimental-sqlite scripts/check-api-rules.mjs` — it replays `pb_migrations/` into a
+      throwaway directory, checks the effective rules, and proves the rollback path does not widen
+      access. See `docs/operations/verifying-access-controls.md`.
 
 ### Monthly
 
@@ -20,6 +24,12 @@ Use this file as the recurring tracker for weekly/monthly maintenance work.
 - [ ] Review command reference accuracy (`docs/operations/pocketbase.md`)
 - [ ] Review requirements priority/order (`docs/requirements/requirements.md`)
 - [ ] Confirm role terminology consistency across docs (`administrator`, `manager`, `staff`)
+- [ ] Confirm the schema snapshot is not stale: `node --experimental-sqlite scripts/export-schema-snapshot.mjs --verify`.
+      Regenerate it in the same change as any migration that adds or drops a column, otherwise the S5
+      payload-drift test passes against an outdated schema.
+- [ ] Confirm auth throttling is still enabled per environment (Settings → Rate limits). It lives in
+      each database, not in git, and cannot be applied by a migration — see
+      `docs/operations/verifying-access-controls.md` §4 for the trusted-proxy ordering this depends on.
 
 ## Maintenance Log
 

@@ -7,14 +7,33 @@ import Searchbar from "../ui/Searchbar";
 import Pagination from "../ui/Pagination";
 import Filter from "../ui/Filter";
 import Selection from "../ui/Selection";
-import { pb, getUserRole } from "../../lib/pocketbase/pb";
+import { pb, getUserRole, getPocketBaseUiError } from "../../lib/pocketbase/pb";
+
+// The stored casing, not a display casing: job_orders.status is a select whose values are
+// open/closed/filled (pb_migrations/1771309281_created_job_orders.js, confirmed against the live
+// _collections). PocketBase rejects a create or update whose select value is not in that list, so
+// writing "Open" here silently made job orders unsavable.
+export const JOB_ORDER_STATUSES = ["open", "closed", "filled"] as const;
+export type JobOrderStatus = (typeof JOB_ORDER_STATUSES)[number];
+
+// One literal list holding both the stored value and its display label, so the write payload, the
+// filter and the badge can no longer disagree with the schema or with each other.
+const STATUS_OPTIONS: { value: JobOrderStatus; label: string }[] = [
+  { value: "open", label: "Open" },
+  { value: "closed", label: "Closed" },
+  { value: "filled", label: "Filled" },
+];
+
+function statusLabel(status: string) {
+  return STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
+}
 
 type JobOrder = {
   id?: string;
   title: string;
   openings: number;
   employer?: string;
-  status: "Open" | "Closed" | "Filled";
+  status: JobOrderStatus;
   location?: string;
   description?: string;
   created?: string;
@@ -52,7 +71,7 @@ const initialForm: JobOrder = {
   title: "",
   openings: 1,
   employer: undefined,
-  status: "Open",
+  status: "open",
   location: "",
   description: "",
 };
@@ -64,7 +83,7 @@ function mapJobOrderRecordToJobOrder(item: JobOrderRecord): JobOrder {
     title: String(item.title ?? ''),
     openings: Number(item.openings ?? 0),
     employer: item.employer ? String(item.employer) : undefined,
-    status: item.status ?? 'Open',
+    status: item.status ?? 'open',
     location: String(item.location ?? ''),
     description: String(item.description ?? ''),
     created: item.created,
@@ -144,7 +163,7 @@ export default function JobOrders() {
             title: String(item.title ?? ''),
             openings: Number(item.openings ?? 0),
             employer: item.employer ? String(item.employer) : undefined,
-            status: item.status ?? 'Open',
+            status: item.status ?? 'open',
             location: String(item.location ?? ''),
             description: String(item.description ?? ''),
             created: item.created,
@@ -266,9 +285,12 @@ export default function JobOrders() {
       
       showFeedback("success", "Job order created");
       setIsModalOpen(false);
-    } catch (error) {
-      setError("Failed to create job order");
-      showFeedback("error", "Failed to create job order");
+    } catch (err) {
+      // Surface PocketBase's own reason. A generic string here is what let a rejected select value
+      // look like a vague failure instead of `status: Invalid value Open`.
+      const message = getPocketBaseUiError(err, "Failed to create job order") ?? "Failed to create job order";
+      setError(message);
+      showFeedback("error", message);
     } finally {
       setIsSubmitting(false);
     }
@@ -296,9 +318,10 @@ export default function JobOrders() {
       
       showFeedback("success", "Job order updated");
       setIsEditModalOpen(false);
-    } catch (error) {
-      setError("Failed to update");
-      showFeedback("error", "Failed to update job order");
+    } catch (err) {
+      const message = getPocketBaseUiError(err, "Failed to update job order") ?? "Failed to update job order";
+      setError(message);
+      showFeedback("error", message);
     } finally {
       setIsSubmitting(false);
     }
@@ -318,8 +341,10 @@ export default function JobOrders() {
       
       showFeedback("success", "Job order deleted");
       setIsDeleteModalOpen(false);
-    } catch (error) {
-      showFeedback("error", "Failed to delete job order");
+    } catch (err) {
+      const message = getPocketBaseUiError(err, "Failed to delete job order") ?? "Failed to delete job order";
+      setError(message);
+      showFeedback("error", message);
     } finally {
       setIsSubmitting(false);
     }
@@ -344,7 +369,7 @@ export default function JobOrders() {
               </div>
 
               <div className="w-44 ml-2 shrink-0">
-                <Filter value={statusFilter} onChange={(v) => { setStatusFilter(v); setPage(1); }} options={[{ value: "", label: "All statuses" }, { value: "Open", label: "Open" }, { value: "Closed", label: "Closed" }, { value: "Filled", label: "Filled" }]} placeholder="Filter by status" />
+                <Filter value={statusFilter} onChange={(v) => { setStatusFilter(v); setPage(1); }} options={[{ value: "", label: "All statuses" }, ...STATUS_OPTIONS]} placeholder="Filter by status" />
               </div>
 
               {(search || statusFilter) && (
@@ -393,14 +418,14 @@ export default function JobOrders() {
                         <td className="px-4 py-3">
                           <span
                             className={`inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold ${
-                              j.status === 'Open'
+                              j.status === 'open'
                                 ? 'bg-[#e3f6e9] text-[#1d9a4a]'
-                                : j.status === 'Filled'
+                                : j.status === 'filled'
                                 ? 'bg-(--primary)/20 text-[var(--primary)]'
                                 : 'bg-[var(--surface2)] text-[var(--muted)]'
                             }`}
                           >
-                            {j.status}
+                            {statusLabel(j.status)}
                           </span>
                         </td>
                         <td className="px-4 py-3">
@@ -445,7 +470,7 @@ export default function JobOrders() {
 
                 <label className="grid gap-1">
                   <span className="text-[12px] text-(--muted) font-bold">Status</span>
-                  <Selection required value={form.status} onChange={(v) => setForm((p) => ({ ...p, status: v as JobOrder['status'] }))} options={[{ value: "Open", label: "Open" }, { value: "Closed", label: "Closed" }, { value: "Filled", label: "Filled" }]} placeholder="Select status" />
+                  <Selection required value={form.status} onChange={(v) => setForm((p) => ({ ...p, status: v as JobOrder['status'] }))} options={STATUS_OPTIONS} placeholder="Select status" />
                 </label>
               </div>
 
@@ -484,7 +509,7 @@ export default function JobOrders() {
 
                   <div>
                     <dt className="text-[12px] text-(--muted) font-bold mb-1">Status</dt>
-                    <dd className="m-0 text-(--text)">{viewOrder.status || ''}</dd>
+                    <dd className="m-0 text-(--text)">{statusLabel(viewOrder.status) || ''}</dd>
                   </div>
 
                   <div>

@@ -93,6 +93,11 @@ strength of the original analysis. Confirm against the production database first
 3. Make the repository private (org settings). Stops new anonymous access; does not undo exposure.
 4. Push the containment commit, then verify with `git ls-remote` — a non-TTY push can hang and still
    succeed, so check the remote ref rather than the exit code.
+   **Status 2026-10-23: done on `ady/development` only.** That push was confirmed by re-fetching and
+   listing the tracked tree at the remote tip (`pb_data/storage/.gitkeep`, nothing else), not by the
+   push exit code. Applying the same commit to `ady/live` and the other stale tips is still pending,
+   and note it deletes those four tracked PDFs from the VPS working tree on pull — check the
+   production `documents` rows first (step 7).
 5. Purge the blobs from all history with `git filter-repo` or BFG, force-push, then ask GitHub to run
    a network GC so the orphaned objects and their commit SHAs stop resolving. Two blockers today:
    `git filter-repo`, `gh` and `docker` are all absent on this machine (Python 3.12.3 is present, so
@@ -607,10 +612,18 @@ Suite after this pass: 6 files / 60 tests passing, `tsc -b && vite build` clean,
   blob but not the crackability of an already-downloaded bcrypt hash. Then decide, from the production
   database, whether this is a breach requiring notification or a hygiene task; on the committed
   evidence it reads as developer test data, which is **not** grounds for notifying applicants.
-- **The containment commit is still unpushed.** `HEAD` tracks only `pb_data/storage/.gitkeep`, but all
-  eight non-`main` remote branch tips still publish the four PDFs and five of them still publish
-  `data.db`/`auxiliary.db` — including `develop-pre-merge`, the default branch. The repository is still
-  public (re-verified 2026-10-23, `ls-remote` with the credential helper disabled returned 10 refs).
+- **The containment commit is pushed on `ady/development` and nowhere else.** Re-scanned
+  2026-10-23 after that branch was pushed: `origin/ady/development` now tracks only
+  `pb_data/storage/.gitkeep`, so the blobs are gone from its tip. The other **seven** non-`main`
+  branch tips still publish the four PDFs — `ady/live` (**the production ref**),
+  `develop-pre-merge`, `deployment/linux`, `ady_updates_m3d23y26`, `ryan_updates_m3d23y26`,
+  `sky/custom-frontend`, `sky_newupdate` — and five still publish `data.db`/`auxiliary.db`
+  (`develop-pre-merge`, `deployment/linux`, `ady_updates_m3d23y26`, `ryan_updates_m3d23y26`,
+  `sky_newupdate`). Only `main` is clean. This is tip-level, not history-level: the files are
+  fetchable by path without knowing any SHA.
+- **Rotation is done on this machine only** (see step 1). Production credentials are unchanged.
+- **The repository is still public** — re-verified 2026-10-23, `ls-remote` with the credential
+  helper disabled returned 10 refs.
 - **No verified backup exists.** `backups/` is still absent, so the precondition for the history purge
   is unprovable, and `pb-backup.ps1` zips a live WAL database while `pb-restore-drill.ps1` only checks
   that expected filenames exist inside the zip. Both need fixing before any rewrite; `git filter-repo`,

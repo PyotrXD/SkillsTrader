@@ -632,6 +632,49 @@ review.
 3. **No loading indicator** on `Placements` (the flag exists and is unwired), and the
    document-expiry surfacing gap from S11's neighbours — both features, not fixes.
 
+### Fifth pass — applied 2026-10-24 (Tier B: the pagination defect, test-guarded)
+
+Item 1 of the Tier B list above is now **fixed**. `AuditLog`, `Placements` and `Employers` each fetched
+one page from PocketBase and then re-paginated *that page* locally, so page 2 rendered an empty table
+while the pager insisted one page was all there was, and `Employers` search matched only rows already
+in memory. Recruiters read this as lost data.
+
+**House rule chosen: server-side paging** — `getList(page, perPage, { filter })`, the filter carrying
+search alongside the existing predicates, and `result.totalPages` driving the pager; the local
+`useMemo`+`slice` re-pagination is deleted rather than corrected. Justified against
+**ISO/IEC 25010 performance-efficiency** (rows over the wire stay bounded no matter how large the
+collection grows) and **OWASP ASVS V3.1 data-minimisation** (the audit trail and candidate rows are
+personal data, so the browser holds the displayed page, not the whole table). The other coherent option
+— `getFullList` plus client paging, which `JobOrders`/`Interviews` use — was rejected for these three
+because `audit_logs` grows without limit.
+
+| Screen | Change |
+|---|---|
+| `AuditLog.tsx` | Stores `result.totalPages`; renders the fetched page directly. The client-side `filtered` block was pure duplication — `buildFilter()` already sends search, action, entity and both dates to the server. |
+| `Placements.tsx` | Deleted the `filtered` memo and the effect that overwrote `result.totalPages` with `ceil(filtered.length / perPage)` and sliced again. The fetch already pushes search and status into the filter, so nothing was lost. |
+| `Employers.tsx` | `fetchEmployers(page, perPage, q)` now fetches at the pager's own `perPage` (it was `50` while slicing by `5`) and builds a server filter over `company_name`/`contact_person`/`contact_email`/`contact_phone`/`country`/`industry` — all confirmed present in `schema-snapshot.ts`, since PocketBase drops unknown filter fields silently. Fetching is driven by one effect on `[page, perPage, search]`, so the pager and the searchbar no longer issue competing requests. |
+
+**Guard:** `src/components/custom/listPaging.test.tsx`, 6 tests, written **before** the fetch changes and
+confirmed red for the right reason first (it asserted `getList(1, 50)` and an empty `filter`, and that no
+page-2 button existed). It asserts against a mocked `pb` that clicking page 2 calls `getList(2, perPage, …)`
+and renders page-2 rows — the exact claim that was previously only static reading.
+
+**Verification:** suite 63 → **69 passing** (7 files); ESLint unchanged at **1 error / 22 warnings** (the
+held `AuditLog.tsx` `set-state-in-effect` error moved 112 → 115 because comments were added above it);
+`tsc -b && vite build` clean.
+
+**What this does NOT prove.** The tests mock PocketBase, so they verify the wiring, not the visual result
+and not that `~` (contains, case-insensitive) matches the old client `.toLowerCase().includes()` semantics
+at the boundary. Two things still need your click-through: page 2 on each screen against a real database
+with more than one page of rows, and an `Employers` search whose term matches a record **outside** the
+first page — the case that used to return "no results". Search now issues one request per keystroke, with
+no debounce; `AuditLog` and `Placements` already behaved that way, so this is consistency, not a new
+regression, but it is the obvious next tuning knob. Untouched and still worth a follow-up: the
+`AuditLog` entity dropdown is still built from the current page only, so its options change as you page.
+
+**Reversal:** restore the deleted `filtered`/`slice` blocks in the three files — the server calls are
+additive, so reverting is per-screen and the guard test tells you which one still double-pages.
+
 ### Corrections to the analysis above
 
 - **S1 (was: four applicants' NBI/police/medical/DMW-OEC paperwork).** Wrong on the facts and on the

@@ -76,6 +76,17 @@ strength of the original analysis. Confirm against the production database first
    `users` passwords, and `PB_ENCRYPTION_KEY` if a real value was ever committed (see C1). Rotation
    is what closes the crackable-hash window; a purge does not, because the hashes stay crackable
    offline after the blobs are deleted.
+   **Status 2026-10-23: done for this machine, not for production.** The local `_superusers`
+   account and the local `users` administrator were rotated and verified (`scripts/rotate-superuser.mjs`,
+   `scripts/rotate-user-password.mjs`, `scripts/verify-superuser-login.mjs`; see
+   `docs/operations/credential-rotation.md`). New values are in git-ignored
+   `incident-private/credentials.local.md` and `scripts/check-pb-data-tracked.mjs` now fails the build
+   if that path, a real `.env`, or any `pb_data` runtime file reaches the index. **The production
+   admin credentials are unchanged** — rotation there is the step that closes the exposure, and it
+   has to happen on the VPS, ideally from the admin UI. Two verification notes that cost a wrong
+   result each: `pocketbase superuser update` defaults `--automigrate` to **true**, so omitting
+   `=false` applies pending migrations to the live database as a side effect of a password change;
+   and a `users` password PATCH without `passwordConfirm` returns 400 and changes nothing.
 2. Determine whether production shares any of these credentials, and whether the real applicant
    database was ever committed to any branch. This decides whether steps 5 and 6 are an incident or
    a hygiene task.

@@ -4,8 +4,6 @@ import {
   type AuditAction,
   type AuditLogEntry,
   clearAuditLogs,
-  getAuditLogs,
-  subscribeAuditLog,
 } from '../../utils/auditLog';
 import Searchbar from '../ui/Searchbar';
 import Filter from '../ui/Filter';
@@ -114,14 +112,8 @@ export default function AuditLog() {
     fetchAuditLogs();
   }, [page, perPage, search, actionFilter, entityFilter, dateFrom, dateTo]);
 
-  // Keep local storage subscription for compatibility
-  useEffect(() => {
-    return subscribeAuditLog(() => {
-      // This is for backward compatibility - local storage logs
-      // but we'll primarily rely on PocketBase data
-    });
-  }, []);
-
+  // The audit list is read straight from PocketBase; the localStorage audit store is a separate
+  // legacy mechanism whose change events this view never consumed, so no subscription is made.
   // Get unique entities for filter dropdown
   const entities = Array.from(new Set(logs.map((l) => l.entity))).sort();
 
@@ -352,9 +344,13 @@ export default function AuditLog() {
               <Icon icon="tabler:trash" width="38" height="38" className="text-[var(--accent)]" />
             </div>
             <p className="text-base font-semibold text-(--text) mb-1">
-              Are you sure you want to <span className="text-[var(--accent)] font-bold">clear all</span> audit logs?
+              Are you sure you want to <span className="text-[var(--accent)] font-bold">clear this view</span>?
             </p>
-            <p className="text-sm text-(--muted)">This action cannot be undone.</p>
+            <p className="text-sm text-(--muted)">
+              This empties the list on screen and clears this browser's local audit cache. It does not
+              delete the trail stored in PocketBase — the entries reappear on the next search, page
+              change, or reload.
+            </p>
           </div>
           <div className="flex justify-end gap-2">
             <button

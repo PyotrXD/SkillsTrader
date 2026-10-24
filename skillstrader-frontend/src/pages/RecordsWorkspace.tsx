@@ -7,6 +7,13 @@ import JobOrders from "../components/custom/JobOrders";
 import Placements from "../components/custom/Placements";
 import Positions from "../components/custom/Positions";
 import Interviews from "../components/custom/Interviews";
+import {
+  EXPIRY_FILTER_OPTIONS,
+  expiryInfo,
+  expiryLabel,
+  matchesExpiryFilter,
+  type ExpiryFilter,
+} from '../utils/documentExpiry';
 
 type Option = {
   id: string;
@@ -41,6 +48,12 @@ type FieldConfig = {
 type ColumnConfig = {
   label: string;
   path: string;
+  /**
+   * 'expiry' renders the value through documentExpiry: a normalised date plus a
+   * badge for a lapsed or lapsing document. Declared here so the filter control is
+   * derived from config rather than hardcoded to one entity key.
+   */
+  format?: 'expiry';
 };
 
 type DateField = {
@@ -284,6 +297,7 @@ const ENTITIES: EntityConfig[] = [
       { label: 'Candidate', path: 'expand.candidate.full_name' },
       { label: 'Employer', path: 'expand.employer.company_name' },
       { label: 'Status', path: 'status' },
+      { label: 'Expiry', path: 'expiry_date', format: 'expiry' },
       { label: 'Verified by', path: 'expand.verified_by.email' },
     ],
   },
@@ -411,6 +425,7 @@ export default function RecordsWorkspace({ role, activeKey, onNavigate }: Props)
 
   const [query, setQuery] = useState('');
   const [statusValue, setStatusValue] = useState('');
+  const [expiryValue, setExpiryValue] = useState<ExpiryFilter>('');
   const [dateField, setDateField] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -458,6 +473,7 @@ export default function RecordsWorkspace({ role, activeKey, onNavigate }: Props)
     setFiles({});
     setFormError(null);
     setStatusValue('');
+    setExpiryValue('');
 
     if (activeConfig.dateFields && activeConfig.dateFields.length > 0) {
       setDateField(activeConfig.dateFields[0].field);
@@ -528,17 +544,37 @@ export default function RecordsWorkspace({ role, activeKey, onNavigate }: Props)
     void loadRecords();
   }, [loadRecords, activeConfig.key]);
 
-  const filteredRecords = useMemo(() => {
-    if (!query.trim()) return records;
+  const hasExpiryColumn = useMemo(
+    () => activeConfig.columns.some((column) => column.format === 'expiry'),
+    [activeConfig.columns],
+  );
 
-    const lowerQuery = query.trim().toLowerCase();
-    return records.filter((record) => {
+  const filteredRecords = useMemo(() => {
+    let visible = records;
+
+    // Expiry is narrowed client-side: this screen already holds the whole collection
+    // (getFullList, no pager), so a second server round-trip would only add a way for
+    // the two filter models to disagree about what is on screen.
+    if (expiryValue) {
+      const expiryColumn = activeConfig.columns.find((column) => column.format === 'expiry');
+      if (expiryColumn) {
+        visible = visible.filter((record) =>
+          matchesExpiryFilter(expiryInfo(valueAtPath(record, expiryColumn.path)), expiryValue),
+        );
+      }
+    }
+
+    const trimmed = query.trim();
+    if (!trimmed) return visible;
+
+    const lowerQuery = trimmed.toLowerCase();
+    return visible.filter((record) => {
       const values = activeConfig.columns
         .map((column) => renderValue(valueAtPath(record, column.path)).toLowerCase())
         .join(' ');
       return values.includes(lowerQuery);
     });
-  }, [activeConfig.columns, query, records]);
+  }, [activeConfig.columns, expiryValue, query, records]);
 
   function startCreate() {
     setIsCreating(true);
@@ -717,6 +753,21 @@ export default function RecordsWorkspace({ role, activeKey, onNavigate }: Props)
                   {activeConfig.statusOptions.map((status) => (
                     <option key={status} value={status}>
                       {status}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
+
+              {hasExpiryColumn ? (
+                <select
+                  aria-label="Filter by document expiry"
+                  className="w-full border border-(--border) bg-white text-(--text) rounded-xl px-2.75 py-2.5 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-(--primary)"
+                  value={expiryValue}
+                  onChange={(event) => setExpiryValue(event.target.value as ExpiryFilter)}
+                >
+                  {EXPIRY_FILTER_OPTIONS.map((option) => (
+                    <option key={option.value || 'any'} value={option.value}>
+                      {option.label}
                     </option>
                   ))}
                 </select>
@@ -933,10 +984,25 @@ export default function RecordsWorkspace({ role, activeKey, onNavigate }: Props)
                         {activeConfig.columns.map((column) => {
                           const raw = valueAtPath(record, column.path);
                           const rendered = renderValue(raw);
+                          const expiry = column.format === 'expiry' ? expiryInfo(raw) : null;
+                          const badge = expiry ? expiryLabel(expiry) : '';
                           return (
                             <div key={`${record.id}-${column.path}`} className="grid gap-0.75">
                               <dt className="text-[11px] text-(--muted) font-bold">{column.label}</dt>
-                              <dd className="m-0 text-[13px]">{rendered}</dd>
+                              <dd className="m-0 text-[13px]">
+                                {expiry ? expiry.dateText : rendered}
+                                {badge ? (
+                                  <span
+                                    className={`ml-1.5 inline-block rounded-full border px-1.5 py-0.5 text-[11px] font-bold ${
+                                      expiry?.state === 'expired'
+                                        ? 'border-[#f0c2bd] bg-[#fdecea] text-[#9f2d20]'
+                                        : 'border-[#f2ddb0] bg-[#fff6e5] text-[#8a5a1c]'
+                                    }`}
+                                  >
+                                    {badge}
+                                  </span>
+                                ) : null}
+                              </dd>
                             </div>
                           );
                         })}

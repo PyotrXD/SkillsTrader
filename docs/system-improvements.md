@@ -675,6 +675,66 @@ regression, but it is the obvious next tuning knob. Untouched and still worth a 
 **Reversal:** restore the deleted `filtered`/`slice` blocks in the three files — the server calls are
 additive, so reverting is per-screen and the guard test tells you which one still double-pages.
 
+### Sixth pass — applied 2026-10-24 (product: document expiry surfaced, read-only)
+
+Item 1 of the user-facing backlog is now **shipped**. `documents.expiry_date` has been captured since the
+collection was created (`1772779007_created_documents.js`) and nothing in the running app ever read it:
+the only consumers were the printed resume template and the `RecordsWorkspace` field definitions. For an
+overseas manpower agency a lapsed NBI clearance, police clearance or OEC is precisely what blocks
+deployment, while `candidates.status` already carries `For medical` / `Pending medical` / `For
+deployment` — so the system tracked the pipeline stage and was blind to the condition that stops it.
+Justified against **ISO/IEC 25010 functional suitability**: the capability was already in the data, it
+was simply never exposed to the person who needed it.
+
+**Design choice: classify, never mutate.** `src/utils/documentExpiry.ts` reads the date a record already
+carries and assigns one of `unset | expired | expiring | valid` against a horizon of
+`EXPIRY_WARNING_DAYS = 30`. It deliberately does **not** write `documents.status = 'Expired'`, even though
+that select value exists in the schema: `status` is set by staff, and an automatic write from a display
+helper could re-open a `Rejected` document or silently overwrite a manual decision. All maths is UTC
+calendar-day arithmetic on the `YYYY-MM-DD` prefix, because PocketBase returns date fields as
+`"2027-03-15 00:00:00.000Z"` — an instant comparison would shift the badge by a day either side of
+midnight. `today` is injectable, which is what makes the counts testable at all.
+
+| Surface | Change |
+|---|---|
+| `RecordsWorkspace.tsx` Documents screen | New `Expiry` column (`ColumnConfig.format: 'expiry'`) rendering the normalised date plus a badge — red when lapsed, amber when lapsing. An unparseable or absent date renders the dash and **no badge**: an unknown expiry must not read as "valid". |
+| Same screen, filter row | A fourth control (`Any expiry / Expired only / Expiring in 30 days / Still valid`), applied client-side over the rows already in state. That is the model this screen uses — `getFullList`, no pager — and per the fifth-pass house rule, adding a second server round-trip here is how the two models start disagreeing about what is on screen. A document with no expiry date is hidden from every named filter, including "Still valid", because it is unknown rather than valid. |
+| `DashboardMetrics.tsx` | Fourth tile, "Documents needing expiry action", with the split stated underneath (`N lapsed · M due within 30 days`). It reuses the `documents` list the component already fetches, so no new request. Counted over **all** document rows, not only candidate-linked ones: `documents` also carries employer-level paperwork, and filtering to live candidates would drop those rows from the count. The grid went `md:grid-cols-3` → `sm:grid-cols-2 lg:grid-cols-4` to hold four tiles. |
+
+**Guard:** `src/utils/documentExpiry.test.ts`, 27 tests, written **before** the UI wiring. Two of them
+failed first for the right reason — my own expectations had the window edge backwards (exactly 30 days out
+is *inside* the window, and 2026-10-29 is five days out, not three), which is the boundary a recruiter
+would notice as a wrong badge. They cover the PocketBase date form, the T-separated form, rejection of
+`2027-02-31`-style impossible dates, the expiry-today case, custom horizons, and the counts.
+
+**Verification:** suite 69 → **96 passing** (7 → 8 files); ESLint unchanged at **1 error / 22 warnings**,
+none introduced by these files; `tsc -b && vite build` clean (only the known chunk-size warning). The
+paging guard from the fifth pass still passes untouched — this screen was not converted to server paging,
+so the house rule was not disturbed.
+
+**What this does NOT prove.** No browser was available, so: the badge styling and the new column's fit in
+the row grid (`lg:grid-cols-5` now holds six columns on the Documents screen, which wraps — a layout call
+for you, not a defect), the tile against real data, and every filter combination are unverified. All 27
+tests inject `today`; the browser path calls `new Date()` and is therefore exercised only in the
+sense that it is the same code with a different argument. One deliberate consequence to check you agree
+with: adding the `Expiry` column also adds the raw date to the client-side text search over rendered
+columns, so searching a Documents list for `2027` now matches expiry dates too. The server-side
+`searchFields` (`doc_type`, `status`, `notes`) were left alone.
+
+**Two inconsistencies found while wiring, reported not fixed** — both change numbers a recruiter already
+trusts, so they are your call:
+- "Missing documents" has two definitions. `candidateFlags.ts` requires 3 types read off `candidates`
+  file fields; `DashboardMetrics.tsx` requires 5 types read off the `documents` collection with status
+  `Submitted`/`Verified`. The candidate list and the dashboard tile can therefore disagree about the same
+  person, on the same day.
+- Nothing ever sets `documents.status = 'Expired'`, so a clearance can display `Verified` next to an
+  "Expired 12 days ago" badge. The badge is date-driven and honest about it, but the pair reads as a bug
+  until either a reviewed write path or a derived status exists.
+
+**Reversal:** delete `documentExpiry.ts` + its test and remove the three wiring points (the `format:
+'expiry'` column, the `hasExpiryColumn` control, the fourth tile); nothing else depends on them and no
+data was touched.
+
 ### Corrections to the analysis above
 
 - **S1 (was: four applicants' NBI/police/medical/DMW-OEC paperwork).** Wrong on the facts and on the

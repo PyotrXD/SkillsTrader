@@ -5,7 +5,7 @@ import Modal from "../ui/Modal";
 import Toast from "../ui/Toast";
 import Searchbar from "../ui/Searchbar";
 import Pagination from "../ui/Pagination";
-import { pb, getUserRole } from "../../lib/pocketbase/pb";
+import { pb, getUserRole, getPocketBaseUiError } from "../../lib/pocketbase/pb";
 
 type Employer = {
   id?: string;
@@ -200,18 +200,21 @@ function handleOpenModal() {
       setEmployers(prev => [employer, ...prev]);
       showFeedback("success", "Employer created");
       setIsModalOpen(false);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error creating employer:", err);
       // Enhanced error handling to provide more specific feedback
+      const status = typeof err === 'object' && err !== null && 'status' in err
+        ? Number((err as { status: unknown }).status)
+        : 0;
       let errorMessage = "Failed to create employer";
-      if (err.status === 400) {
+      if (status === 400) {
         errorMessage = "Validation failed. Please check all required fields.";
-      } else if (err.status === 401) {
+      } else if (status === 401) {
         errorMessage = "Authentication required. Please log in.";
-      } else if (err.status === 403) {
+      } else if (status === 403) {
         errorMessage = "Access denied. Insufficient permissions.";
-      } else if (err.message) {
-        errorMessage = err.message;
+      } else {
+        errorMessage = getPocketBaseUiError(err, errorMessage) ?? errorMessage;
       }
       setError(errorMessage);
       showFeedback("error", errorMessage);
@@ -248,8 +251,9 @@ function handleOpenModal() {
       showFeedback("success", "Employer updated");
       setIsEditModalOpen(false);
     } catch (err) {
-      setError("Failed to update");
-      showFeedback("error", "Failed to update");
+      const message = getPocketBaseUiError(err, "Failed to update employer") ?? "Failed to update employer";
+      setError(message);
+      showFeedback("error", message);
     } finally {
       setIsSubmitting(false);
     }
@@ -265,7 +269,9 @@ function handleOpenModal() {
       showFeedback("success", "Employer deleted");
       setIsDeleteModalOpen(false);
     } catch (err) {
-      showFeedback("error", "Failed to delete employer");
+      const message = getPocketBaseUiError(err, "Failed to delete employer") ?? "Failed to delete employer";
+      setError(message);
+      showFeedback("error", message);
     } finally {
       setIsSubmitting(false);
     }

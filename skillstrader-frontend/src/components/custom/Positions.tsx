@@ -5,7 +5,7 @@ import Selection from "../ui/Selection";
 import IndustryPositionPicker from "../ui/IndustryPositionPicker";
 import Tooltip from "../ui/Tooltip";
 import { Icon } from "@iconify/react";
-import { pb, getUserRole } from '../../lib/pocketbase/pb';
+import { pb, getUserRole, getPocketBaseUiError } from '../../lib/pocketbase/pb';
 
 interface Position {
   id: number | string;
@@ -182,7 +182,7 @@ export default function Positions() {
       setForm(initialForm);
     } catch (err) {
       console.error('Failed to save position', err);
-      setError('Failed to save position. Please try again.');
+      setError(getPocketBaseUiError(err, 'Failed to save position. Please try again.') ?? 'Failed to save position. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -202,7 +202,7 @@ export default function Positions() {
       closeDeleteModal();
     } catch (err) {
       console.error('Failed to delete position', err);
-      setError("Failed to delete position.");
+      setError(getPocketBaseUiError(err, "Failed to delete position.") ?? "Failed to delete position.");
     } finally {
       setIsSubmitting(false);
     }

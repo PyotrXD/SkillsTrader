@@ -6,7 +6,7 @@ import Searchbar from '../ui/Searchbar';
 import Pagination from '../ui/Pagination';
 import Filter from '../ui/Filter';
 import Selection from '../ui/Selection';
-import { pb, getUserRole } from '../../lib/pocketbase/pb';
+import { pb, getUserRole, getPocketBaseUiError } from '../../lib/pocketbase/pb';
 
 type Placement = {
   id?: string;
@@ -89,7 +89,9 @@ export default function Placements() {
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('success');
   const [candidates, setCandidates] = useState<CandidateOption[]>([]);
   const [jobOrders, setJobOrders] = useState<JobOrderOption[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  // The setter is kept so the fetch lifecycle is untouched; nothing reads the flag yet, so no
+  // loading indicator is rendered (tracked as a follow-up in docs/system-improvements.md).
+  const [, setIsLoading] = useState(false);
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -304,8 +306,9 @@ export default function Placements() {
       setIsModalOpen(false);
     } catch (err) {
       console.error('Failed to create placement:', err);
-      setError('Failed to create placement');
-      showFeedback('error', 'Failed to create placement');
+      const message = getPocketBaseUiError(err, 'Failed to create placement') ?? 'Failed to create placement';
+      setError(message);
+      showFeedback('error', message);
     } finally {
       setIsSubmitting(false);
     }
@@ -350,8 +353,9 @@ export default function Placements() {
       setIsEditModalOpen(false);
     } catch (err) {
       console.error('Failed to update placement:', err);
-      setError('Failed to update placement');
-      showFeedback('error', 'Failed to update placement');
+      const message = getPocketBaseUiError(err, 'Failed to update placement') ?? 'Failed to update placement';
+      setError(message);
+      showFeedback('error', message);
     } finally {
       setIsSubmitting(false);
     }
@@ -371,8 +375,9 @@ export default function Placements() {
       setIsDeleteModalOpen(false);
     } catch (err) {
       console.error('Failed to delete placement:', err);
-      setError('Failed to delete placement');
-      showFeedback('error', 'Failed to delete placement');
+      const message = getPocketBaseUiError(err, 'Failed to delete placement') ?? 'Failed to delete placement';
+      setError(message);
+      showFeedback('error', message);
     } finally {
       setIsSubmitting(false);
     }

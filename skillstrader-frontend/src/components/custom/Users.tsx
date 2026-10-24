@@ -393,7 +393,7 @@ export function UsersPanel() {
       setRefreshToken((v) => v + 1);
 
     } catch (err) {
-      setError("Failed to delete user.");
+      setError(getPocketBaseUiError(err, "Failed to delete user.") ?? "Failed to delete user.");
     } finally {
       setIsSubmitting(false);
     }

@@ -60,10 +60,10 @@ jobs:
         run: npm ci
 
       - name: Lint (advisory)
-        # Informational: 11 errors pre-date this workflow rewrite and live in modules
-        # unrelated to it (14 before S10 cleared three unused `error` bindings that were
-        # swallowing PocketBase's rejection reason). Remove continue-on-error once they are
-        # cleared, which also retires the react-hooks/set-state-in-effect finding. See S4.
+        # Informational: 1 error remains after the 2026-10-24 pass cleared 13 of the original 14
+        # (unused bindings, one `any`, and the swallowed `error` variables that were hiding S10).
+        # The survivor is AuditLog.tsx's react-hooks/set-state-in-effect, a render-timing change held
+        # for review. Delete continue-on-error once that is fixed to make lint a gate. See S4.
         continue-on-error: true
         run: npm run lint
 

@@ -224,7 +224,12 @@ re-read from the live `_collections` table on 2026-10-23 rather than inferred fr
   Re-measured 2026-10-23: `✖ 36 problems (14 errors, 22 warnings)`. `npm run lint` exits non-zero today.
   **Update from S10:** three of those 14 were the unused `error` bindings in `JobOrders.tsx`, which were
   swallowing PocketBase's rejection reason. Fixing them took the baseline to
-  `✖ 33 problems (11 errors, 22 warnings)`; the remaining 11 are unrelated.
+  `✖ 33 problems (11 errors, 22 warnings)`.
+  **Update from the fourth pass (2026-10-24):** the remaining 10 mechanical errors are gone —
+  `✖ 23 problems (1 error, 22 warnings)`. The one survivor is `AuditLog.tsx:112`
+  `react-hooks/set-state-in-effect` (line shifted up when two dead imports were removed), left on
+  purpose because it is a render-timing change, not a deletion. Warnings stayed at 22 throughout; no
+  new ones were introduced.
 - **`valueAtPath()` (`RecordsWorkspace.tsx:348-359`)** walked a dot-separated path with unchecked
   segments, so `__proto__` or `constructor` in a caller-supplied path traversed off the intended
   object. **Hardened** in `5ece019` with an own-property check per segment.
@@ -508,7 +513,7 @@ stays crackable offline after the blob is deleted.
 | 10 | Reconcile the 8090/8091 split in local config and `meta.appURL` (S9) | Low | No |
 | 11 | Move `pb_hooks` onto the lint surface; verify `getToken({ requestKey: null })` scope (S8) | Medium | No |
 | 12 | Payload-vs-schema CI check; tests for `buildCandidatePayload` and `auditLog.ts` (S5, S4) | Medium | No |
-| 13 | Fix the 11 remaining lint errors (S10 cleared 3); error boundary + lazy loading; extract duplicated Candidate sections (S4) | Medium | No |
+| 13 | Fix the last lint error (`AuditLog.tsx:112` set-state-in-effect) + retire the now-unread localStorage audit store; error boundary + lazy loading; extract duplicated Candidate sections (S4) | Medium | No |
 | 14 | Patch `react-router-dom`, `vite`, `esbuild` (S7 — your call, report-only) | Medium | No |
 | 15 | Remaining low-priority cleanups (S9) | Low | No |
 
@@ -585,6 +590,48 @@ result once:
 Suite after this pass: 6 files / 60 tests passing, `tsc -b && vite build` clean, ESLint unchanged at
 14 errors / 22 warnings — all pre-existing, none introduced.
 
+- **`audit_logs` has two implementations and the UI's "Clear Logs" deletes nothing — MEDIUM (found 2026-10-24)**
+  - Server side: `pb_hooks/main.pb.js` writes real `audit_logs` rows on every create/update/delete,
+    and `AuditLog.tsx:67` reads them with `getList`.
+  - Client side: a separate `src/utils/auditLog.ts` keeps its own array in `localStorage` under
+    `skillstrader:audit_logs`, capped at 500 entries, with `addAuditLog` called from `Candidates.tsx`.
+  - The bug: `AuditLog.tsx`'s confirm modal asked *"Are you sure you want to clear all audit logs?
+    This action cannot be undone."* and its `confirmClear()` called `clearAuditLogs()` — which clears
+    **only the localStorage store** the table never reads — plus `setLogs([])`. The server trail was
+    untouched and reappeared on the next search, page change or reload. For a compliance screen, the
+    copy asserted a destruction that never happened.
+  - It also **cannot** be made to work through the API: `audit_logs.deleteRule` is `null`
+    (S3 third pass), deliberately, because the log is append-only from hooks. So the fix is honest
+    copy, not a delete button. An actual purge would need an explicit superuser-only design with its
+    own audit entry — say so if you want that.
+  - Also removed here: a no-op `subscribeAuditLog` effect in the same component, whose callback body
+    was only a comment. The localStorage module stays, because `Candidates.tsx` still writes to it.
+  - To check: audit log as an administrator, press Clear, confirm, then change the page size — the
+    rows come back, which is correct behaviour and now matches what the dialog promises.
+
+### Fourth pass — applied 2026-10-24 (Tier A: provable-only fixes)
+
+Scoped to changes I could **prove without a browser**, since I cannot log into the UI: each was
+verified by `tsc -b && vite build`, ESLint, the 63-test Vitest suite, and the real-DB rule/schema
+guards. No data-fetching or pagination semantics were touched — the Tier B items below are held for
+review.
+
+| Item | State | Change |
+|---|---|---|
+| Swallowed API errors | **Fixed** | `Employers`, `Placements`, `Positions` and `Users` replaced the reason with a hardcoded string in 8 catch blocks (`setError("Failed to update")`), the same defect that hid S10. All now route through `getPocketBaseUiError`, the helper `RecordsWorkspace`/`Interviews`/`JobOrders` already used. Matters directly after S3: a staff delete is now a 403, and "Failed to delete placement" gave no way to tell that apart from an outage. |
+| `Employers` `catch (err: any)` | **Typed** | Status branches read a narrowed `status`; the `err.message` branch became `getPocketBaseUiError`. One deliberate delta: an **auto-cancelled** request now shows the fallback instead of the raw abort text, matching `JobOrders`. |
+| Audit-log Clear dialog | **Made honest** | See the S11 finding above — it claimed an undoable destruction it never performed. Copy now states that the list and this browser's cache are cleared and the PocketBase trail returns on the next fetch. Behaviour untouched. |
+| Dead declarations | **Removed** | `AuditLog.tsx`: unused `getAuditLogs`/`subscribeAuditLog` imports plus a subscription effect whose callback was only a comment. `Tooltip.tsx`: unused `Icon` import. `DashboardHome.tsx`: unused `JobOrderRecord` type and a `bannerDismissed` state that was never read or written. `Placements.tsx`: the `isLoading` binding was never read, so it is elided and all three `setIsLoading` calls are left wired. |
+| ESLint baseline | **14 → 11 → 1 error** | 22 warnings unchanged, none introduced. The single survivor is `AuditLog.tsx:112` `react-hooks/set-state-in-effect`, deliberately left: it is a render-timing change, not a mechanical one, so it belongs to the review tier. |
+
+**Tier B, deliberately not done — these change behaviour and need a click-through I cannot perform**
+1. **The pagination defect** (three screens fetch a server page and re-paginate it locally, so page 2
+   can render empty and search only sees the current page). Highest user value, but it rewrites fetch
+   semantics on `AuditLog`, `Placements` and `Employers`.
+2. `AuditLog.tsx:112` set-state-in-effect.
+3. **No loading indicator** on `Placements` (the flag exists and is unwired), and the
+   document-expiry surfacing gap from S11's neighbours — both features, not fixes.
+
 ### Corrections to the analysis above
 
 - **S1 (was: four applicants' NBI/police/medical/DMW-OEC paperwork).** Wrong on the facts and on the
@@ -630,11 +677,13 @@ Suite after this pass: 6 files / 60 tests passing, `tsc -b && vite build` clean,
   `gh` and `docker` are all uninstalled here (Python 3.12.3 is present, so `pip install git-filter-repo`
   is the shortest path).
 - **S7** dependency versions are untouched; findings stay report-only.
-- The **11 remaining pre-existing ESLint errors** (14 before S10 cleared three unused `error`
-  bindings that were discarding PocketBase's rejection reason) remain. CI runs lint and `npm audit` as
-  steps explicitly labelled `(advisory)` with `continue-on-error: true`, so the pipeline reports them
-  without blocking merges. Delete those two `continue-on-error` lines to turn them into gates once the
-  backlog and the highs are cleared.
+- **One pre-existing ESLint error remains** (14 → 11 after S10 cleared three unused `error` bindings
+  that were discarding PocketBase's rejection reason; 11 → 1 in the fourth pass). The survivor is
+  `AuditLog.tsx:112` `react-hooks/set-state-in-effect`, held back deliberately: fixing it changes render
+  timing, which is the one class of change I cannot verify without a browser. CI still runs lint and
+  `npm audit` as steps labelled `(advisory)` with `continue-on-error: true`, so neither blocks merges.
+  Delete those two `continue-on-error` lines to turn them into gates once this error and the audit
+  highs are cleared.
 - **The rule and drift assertions exist but are not in CI, on purpose.** `scripts/check-api-rules.mjs`
   asserts the per-collection API rules (S3) and `scripts/export-schema-snapshot.mjs --verify` plus
   `schema-snapshot.test.ts` diff the write payload against the schema (S5). Neither can run on a GitHub

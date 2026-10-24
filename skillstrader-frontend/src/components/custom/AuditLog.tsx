@@ -51,6 +51,7 @@ export default function AuditLog() {
   const [dateTo, setDateTo] = useState('');
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(5);
+  const [totalPages, setTotalPages] = useState(1);
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
 
   // Fetch audit logs from PocketBase
@@ -69,10 +70,12 @@ export default function AuditLog() {
       });
       
       setLogs(result.items);
+      setTotalPages(result.totalPages);
       setLoading(false);
     } catch (err) {
       console.error('Failed to fetch audit logs:', err);
       setLogs([]);
+      setTotalPages(1);
       setLoading(false);
     }
   }
@@ -117,21 +120,9 @@ export default function AuditLog() {
   // Get unique entities for filter dropdown
   const entities = Array.from(new Set(logs.map((l) => l.entity))).sort();
 
-  const filtered = logs.filter((l) => {
-    const matchSearch =
-      !search ||
-      l.actor_email.toLowerCase().includes(search.toLowerCase()) ||
-      l.entity_name.toLowerCase().includes(search.toLowerCase()) ||
-      l.entity.toLowerCase().includes(search.toLowerCase());
-    const matchAction = !actionFilter || l.action === actionFilter;
-    const matchEntity = !entityFilter || l.entity === entityFilter;
-    const matchFrom = !dateFrom || l.timestamp >= dateFrom;
-    const matchTo = !dateTo || l.timestamp <= dateTo + 'T23:59:59';
-    return matchSearch && matchAction && matchEntity && matchFrom && matchTo;
-  });
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
-  const paged = filtered.slice((page - 1) * perPage, page * perPage);
+  // buildFilter() applies search/action/entity/date server-side and PocketBase returns exactly one
+  // page of matches, so `logs` is the page to render. Re-slicing it here is what made page 2 render
+  // empty and pinned the pager to one page forever.
 
   function handleClear() {
     setIsClearModalOpen(true);
@@ -271,7 +262,7 @@ export default function AuditLog() {
                         </div>
                       </td>
                     </tr>
-                  ) : paged.length === 0 ? (
+                  ) : logs.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="py-14 text-center text-(--muted)">
                         <div className="flex flex-col items-center gap-2">
@@ -282,7 +273,7 @@ export default function AuditLog() {
                       </td>
                     </tr>
                   ) : (
-                    paged.map((entry, idx) => (
+                    logs.map((entry, idx) => (
                       <tr
                         key={entry.id}
                         className="border-b border-(--border) last:border-b-0 hover:bg-(--surface2)/60 transition-colors"

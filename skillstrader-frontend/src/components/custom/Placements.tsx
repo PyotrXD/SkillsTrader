@@ -98,7 +98,6 @@ export default function Placements() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(5);
   const [totalPages, setTotalPages] = useState(1);
-  const [paged, setPaged] = useState<Placement[]>([]);
 
   const userRole = useMemo(() => getUserRole() ?? "staff", []);
   const canManage = userRole === "administrator" || userRole === "manager";
@@ -195,27 +194,10 @@ export default function Placements() {
 
   const placementStatuses = ['Pending', 'Confirmed', 'Started', 'Completed', 'Cancelled'];
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return placements.filter((p) => {
-      if (statusFilter && p.status !== statusFilter) return false;
-      if (!q) return true;
-      
-      // Find candidate and job order for display
-      const candidate = candidates.find((c) => String(c.id) === String(p.candidate));
-      const job = jobOrders.find((j) => String(j.id) === String(p.job_order));
-      
-      return (
-        String(candidate?.full_name ?? '').toLowerCase().includes(q) ||
-        String(job?.title ?? '').toLowerCase().includes(q)
-      );
-    });
-  }, [placements, search, statusFilter, candidates, jobOrders]);
-
-  useEffect(() => {
-    setTotalPages(Math.ceil(filtered.length / perPage) || 1);
-    setPaged(filtered.slice((page - 1) * perPage, page * perPage));
-  }, [filtered, page, perPage]);
+  // The fetch above already pushes search and status into the PocketBase filter and returns exactly
+  // one page, so `placements` IS the current page. The useMemo/effect pair that used to live here
+  // re-filtered and re-sliced that page and overwrote result.totalPages with a count derived from
+  // <=perPage rows, which is what pinned the pager to one page and made page 2 render empty.
 
   function showFeedback(type: 'success' | 'error' | 'info', message: string) {
     setToastType(type);
@@ -459,7 +441,7 @@ export default function Placements() {
                 </tr>
               </thead>
               <tbody>
-                {paged.length === 0 ? (
+                {placements.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="py-14 text-center text-(--muted)">
                       <div className="flex flex-col items-center gap-2">
@@ -470,7 +452,7 @@ export default function Placements() {
                     </td>
                   </tr>
                 ) : (
-                  paged.map((p, idx) => {
+                  placements.map((p, idx) => {
                     const candidate = candidates.find((c) => String(c.id) === String(p.candidate));
                     const job = jobOrders.find((j) => String(j.id) === String(p.job_order));
                     return (

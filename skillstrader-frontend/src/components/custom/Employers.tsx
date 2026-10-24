@@ -47,10 +47,17 @@ export default function Employers() {
 
   const [employers, setEmployers] = useState<Employer[]>([]);
   
-  async function fetchEmployers(page = 1, perPage = 50) {
+  async function fetchEmployers(page = 1, perPage = 5, q = '') {
     try {
+      // PocketBase's `~` is a case-insensitive contains, matching the client-side filter this
+      // replaces. Quotes are escaped so a search term cannot break out of the filter string.
+      const needle = String(q).trim().replace(/"/g, '\\"');
+      const filter = needle
+        ? `(company_name ~ "${needle}" || contact_person ~ "${needle}" || contact_email ~ "${needle}" || contact_phone ~ "${needle}" || country ~ "${needle}" || industry ~ "${needle}")`
+        : undefined;
       const result = await pb.collection('employer').getList(page, perPage, {
-        sort: '-created'
+        sort: '-created',
+        filter,
       });
       // Convert RecordModel[] to Employer[]
       const employersList = result.items.map(item => ({
@@ -91,32 +98,13 @@ export default function Employers() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(5);
   const [totalPages, setTotalPages] = useState(1);
-  const [pagedEmployers, setPagedEmployers] = useState<Employer[]>([]);
 
+  // Server-side paging is the single house rule here: PocketBase returns exactly the page that
+  // page/perPage/search describe, so the rows are rendered as fetched. The client-side filter plus
+  // slice this replaces re-paginated one page, which emptied page 2 and hid matches on other pages.
   useEffect(() => {
-    fetchEmployers();
-  }, []);
-
-  const filtered = useMemo(
-    () =>
-      employers.filter((e) => {
-        const q = search.trim().toLowerCase();
-        if (!q) return true;
-        return (
-          String(e.company_name ?? "").toLowerCase().includes(q) ||
-          String(e.contact_person ?? "").toLowerCase().includes(q) ||
-          String(e.contact_email ?? "").toLowerCase().includes(q) ||
-          String(e.contact_phone ?? "").toLowerCase().includes(q) ||
-          String(e.country ?? "").toLowerCase().includes(q) ||
-          String(e.industry ?? "").toLowerCase().includes(q)
-        );
-      }),
-    [employers, search],
-  );
-
-  useEffect(() => {
-    setPagedEmployers(filtered.slice((page - 1) * perPage, page * perPage));
-  }, [filtered, page, perPage]);
+    fetchEmployers(page, perPage, search);
+  }, [page, perPage, search]);
 
   function showFeedback(type: "success" | "error" | "info", message: string) {
     setToastType(type);
@@ -298,7 +286,7 @@ function handleOpenModal() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-2.5 items-center" aria-label="Search and actions">
               <div className="flex items-center gap-2 w-full">
                 <div className="max-w-sm flex-1">
-                  <Searchbar value={search} onChange={(v) => { setSearch(v); setPage(1); fetchEmployers(1, perPage); }} placeholder="Search employers..." />
+                  <Searchbar value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search employers..." />
                 </div>
 
               {search && (
@@ -337,7 +325,7 @@ function handleOpenModal() {
                 </tr>
               </thead>
               <tbody>
-                {pagedEmployers.length === 0 ? (
+                {employers.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="py-14 text-center text-(--muted)">
                       <div className="flex flex-col items-center gap-2">
@@ -348,7 +336,7 @@ function handleOpenModal() {
                     </td>
                   </tr>
                 ) : (
-                  pagedEmployers.map((emp, idx) => (
+                  employers.map((emp, idx) => (
                     <tr key={emp.id} className="border-b border-(--border) last:border-b-0 hover:bg-(--surface2)/60 transition-colors">
                       <td className="px-4 py-3 text-(--muted)">{(page - 1) * perPage + idx + 1}</td>
                       <td className="px-4 py-3 font-semibold text-(--text)">{emp.company_name || ""}</td>
@@ -475,13 +463,11 @@ function handleOpenModal() {
           totalPages={totalPages}
           onPageChange={(newPage) => {
             setPage(newPage);
-            fetchEmployers(newPage, perPage);
           }}
           perPage={perPage}
-          onPerPageChange={(v) => { 
-            setPerPage(v); 
+          onPerPageChange={(v) => {
+            setPerPage(v);
             setPage(1);
-            fetchEmployers(1, v);
           }}
         />
       </div>

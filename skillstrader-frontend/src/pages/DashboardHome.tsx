@@ -3,17 +3,12 @@ import { Icon } from '@iconify/react';
 import { getPocketBaseUiError, pb } from '../lib/pocketbase/pb';
 import DashboardMetrics from './DashboardMetrics';
 
-type JobOrderRecord = {
-  status?: string;
-};
-
 type Props = {
   email: string;
   onNavigate?: (key: string) => void;
 };
 
 export default function DashboardHome({ email, onNavigate }: Props) {
-  const [bannerDismissed, setBannerDismissed] = useState(false);
   const [activeJobs, setActiveJobs] = useState<number | null>(null);
   const [unprocessedApplicants, setUnprocessedApplicants] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);

@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import Modal from "../ui/Modal";
 import Searchbar from "../ui/Searchbar";
+import ListFeedback from "../ui/ListFeedback";
 import Selection from "../ui/Selection";
 import IndustryPositionPicker from "../ui/IndustryPositionPicker";
 import Tooltip from "../ui/Tooltip";
@@ -48,6 +49,11 @@ export default function Positions() {
   // Filter by position title via the picker (empty = show all)
   const [filterPosition, setFilterPosition] = useState("");
   const [error, setError] = useState("");
+  // The list read gets its own state: `error` above belongs to the add/edit form, and a failed
+  // fetch must not be reported as "No positions found".
+  const [loading, setLoading] = useState(true);
+  const [listError, setListError] = useState("");
+  const [refreshToken, setRefreshToken] = useState(0);
   const [isNewIndustry, setIsNewIndustry] = useState(false);
   const isEditing = editId !== null;
 
@@ -65,15 +71,29 @@ export default function Positions() {
           description: it.description ?? '',
         }))
       );
+      setListError('');
     } catch (err) {
       console.error('Failed to load positions', err);
       setPositions([]);
+      setListError('Could not load positions.');
     }
   }
 
   useEffect(() => {
-    fetchPositions();
-  }, []);
+    // The loading flip lives here, in a function declared inside the effect, rather than at the
+    // top of fetchPositions: a component-scope fetch that setStates synchronously before its first
+    // await is the shape react-hooks/set-state-in-effect flags in AuditLog.tsx.
+    async function load() {
+      setLoading(true);
+      try {
+        await fetchPositions();
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    load();
+  }, [refreshToken]);
 
   const existingIndustries = useMemo(
     () =>
@@ -271,8 +291,15 @@ export default function Positions() {
             </div>
 
             {/* Grouped positions list */}
+            <ListFeedback
+              error={listError}
+              loading={loading}
+              subject="positions"
+              onRetry={() => setRefreshToken((v) => v + 1)}
+            />
+
             <div className="mt-2 grid gap-3">
-              {grouped.size === 0 ? (
+              {!loading && !listError && grouped.size === 0 ? (
                 <div className="p-10 text-center">
                   <div className="mx-auto mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full bg-[rgba(58,77,117,0.08)] text-(--muted)">
                     <Icon icon="fluent:briefcase-off-16-regular" width="28" height="28" />

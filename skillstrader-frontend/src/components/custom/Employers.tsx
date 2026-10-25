@@ -4,6 +4,7 @@ import { Icon } from "@iconify/react";
 import Modal from "../ui/Modal";
 import Toast from "../ui/Toast";
 import Searchbar from "../ui/Searchbar";
+import ListFeedback from "../ui/ListFeedback";
 import Pagination from "../ui/Pagination";
 import { pb, getUserRole, getPocketBaseUiError } from "../../lib/pocketbase/pb";
 
@@ -46,8 +47,19 @@ export default function Employers() {
   const canDelete = userRole === "administrator" || userRole === "manager";
 
   const [employers, setEmployers] = useState<Employer[]>([]);
-  
-  async function fetchEmployers(page = 1, perPage = 5, q = '') {
+  // A failed list fetch is not the same fact as an empty list, and `error` below is already this
+  // screen's form error -- reusing it would put "could not load" inside the add/edit modal.
+  const [loading, setLoading] = useState(true);
+  const [listError, setListError] = useState("");
+  // Bumping this re-runs the list effect. It is the only way a reader can recover from a failed
+  // fetch without navigating away and back.
+  const [refreshToken, setRefreshToken] = useState(0);
+
+  // Reads one page of employers. The loading flips live in the effect that calls this, not here:
+  // a component-scope function that sets state synchronously before its first await is exactly the
+  // shape react-hooks/set-state-in-effect flags in AuditLog.tsx, while the same call made from a
+  // function declared inside the effect is the shape Users.tsx already uses without being flagged.
+  async function loadEmployers(page = 1, perPage = 5, q = '') {
     try {
       // PocketBase's `~` is a case-insensitive contains, matching the client-side filter this
       // replaces. Quotes are escaped so a search term cannot break out of the filter string.
@@ -78,7 +90,12 @@ export default function Employers() {
       setEmployers(employersList);
       setTotalPages(result.totalPages);
     } catch (err) {
+      // A failed fetch is not an empty table. Say which one it is, and clear the rows so nothing
+      // is left on screen that reads as data while the request that would have produced it failed.
       console.error('Failed to fetch employers:', err);
+      setEmployers([]);
+      setTotalPages(1);
+      setListError('Could not load employers.');
     }
   }
   const [form, setForm] = useState<Employer>(initialForm);
@@ -103,8 +120,18 @@ export default function Employers() {
   // page/perPage/search describe, so the rows are rendered as fetched. The client-side filter plus
   // slice this replaces re-paginated one page, which emptied page 2 and hid matches on other pages.
   useEffect(() => {
-    fetchEmployers(page, perPage, search);
-  }, [page, perPage, search]);
+    async function load() {
+      setLoading(true);
+      setListError("");
+      try {
+        await loadEmployers(page, perPage, search);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    load();
+  }, [page, perPage, search, refreshToken]);
 
   function showFeedback(type: "success" | "error" | "info", message: string) {
     setToastType(type);
@@ -310,6 +337,13 @@ function handleOpenModal() {
             <div />
           </div>
 
+          <ListFeedback
+            error={listError}
+            loading={loading}
+            subject="employers"
+            onRetry={() => setRefreshToken((v) => v + 1)}
+          />
+
           <div className="overflow-x-auto mt-5">
             <table className="min-w-full text-sm text-left">
               <thead>
@@ -325,7 +359,10 @@ function handleOpenModal() {
                 </tr>
               </thead>
               <tbody>
-                {employers.length === 0 ? (
+                {/* "No employers found" is only honest when the request actually succeeded and
+                    returned nothing; while loading or after a failure the table is empty for a
+                    different reason, which ListFeedback above already states. */}
+                {!loading && !listError && employers.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="py-14 text-center text-(--muted)">
                       <div className="flex flex-col items-center gap-2">

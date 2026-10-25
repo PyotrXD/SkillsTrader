@@ -4,6 +4,7 @@ import { Icon } from "@iconify/react";
 import Modal from "../ui/Modal";
 import Toast from "../ui/Toast";
 import Searchbar from "../ui/Searchbar";
+import ListFeedback from "../ui/ListFeedback";
 import Pagination from "../ui/Pagination";
 import Filter from "../ui/Filter";
 import Selection from "../ui/Selection";
@@ -124,6 +125,10 @@ export default function JobOrders() {
   const [perPage, setPerPage] = useState(5);
   const [totalPages, setTotalPages] = useState(1);
   const [pagedOrders, setPagedOrders] = useState<JobOrder[]>([]);
+  // A failed read is not an empty list, and `error` above already belongs to the form modal.
+  const [loading, setLoading] = useState(true);
+  const [listError, setListError] = useState("");
+  const [refreshToken, setRefreshToken] = useState(0);
 
   const [employers, setEmployers] = useState<EmployerOption[]>([]);
   
@@ -152,6 +157,8 @@ export default function JobOrders() {
   
   useEffect(() => {
     const loadJobOrders = async () => {
+      setLoading(true);
+      setListError("");
       try {
         const jobOrdersList = await pb.collection('job_orders').getFullList<JobOrderRecord>({
           sort: '-created',
@@ -179,11 +186,15 @@ export default function JobOrders() {
         );
       } catch (error) {
         console.error('Failed to load job orders:', error);
+        setJobOrders([]);
+        setListError('Could not load job orders.');
+      } finally {
+        setLoading(false);
       }
     };
-    
+
     loadJobOrders();
-  }, []);
+  }, [refreshToken]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -383,6 +394,13 @@ export default function JobOrders() {
             </div>
           </div>
 
+          <ListFeedback
+            error={listError}
+            loading={loading}
+            subject="job orders"
+            onRetry={() => setRefreshToken((v) => v + 1)}
+          />
+
           <div className="overflow-x-auto mt-5">
             <table className="min-w-full text-sm text-left">
               <thead>
@@ -396,7 +414,7 @@ export default function JobOrders() {
                 </tr>
               </thead>
               <tbody>
-                {pagedOrders.length === 0 ? (
+                {!loading && !listError && pagedOrders.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="py-14 text-center text-(--muted)">
                       <div className="flex flex-col items-center gap-2">

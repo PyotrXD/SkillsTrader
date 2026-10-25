@@ -6,6 +6,7 @@ import Searchbar from '../ui/Searchbar';
 import Pagination from '../ui/Pagination';
 import Filter from '../ui/Filter';
 import Selection from '../ui/Selection';
+import ListFeedback from '../ui/ListFeedback';
 import { pb, getUserRole, getPocketBaseUiError } from '../../lib/pocketbase/pb';
 
 type Placement = {
@@ -89,9 +90,12 @@ export default function Placements() {
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('success');
   const [candidates, setCandidates] = useState<CandidateOption[]>([]);
   const [jobOrders, setJobOrders] = useState<JobOrderOption[]>([]);
-  // The setter is kept so the fetch lifecycle is untouched; nothing reads the flag yet, so no
-  // loading indicator is rendered (tracked as a follow-up in docs/system-improvements.md).
-  const [, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  // Separate from `error`, which is this screen's form error: a failed list fetch must not
+  // appear inside the add/edit modal, and a validation message must not replace the table.
+  const [listError, setListError] = useState('');
+  // Bumping this re-runs the list effect: the only in-page recovery from a failed fetch.
+  const [refreshToken, setRefreshToken] = useState(0);
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -144,6 +148,7 @@ export default function Placements() {
   useEffect(() => {
     async function fetchPlacements() {
       setIsLoading(true);
+      setListError('');
       try {
         const filter = [];
         
@@ -182,7 +187,12 @@ export default function Placements() {
         setTotalPages(result.totalPages);
         setIsLoading(false);
       } catch (err) {
+        // Distinguish "this page has no placements" from "this page could not be read": the old
+        // handler logged and left the table showing the previous page's rows as if they were fresh.
         console.error("Failed to fetch placements:", err);
+        setPlacements([]);
+        setTotalPages(1);
+        setListError('Could not load placements.');
         setIsLoading(false);
       }
     }
@@ -190,7 +200,7 @@ export default function Placements() {
     if (pb.authStore.isValid) {
       fetchPlacements();
     }
-  }, [page, perPage, search, statusFilter]);
+  }, [page, perPage, search, statusFilter, refreshToken]);
 
   const placementStatuses = ['Pending', 'Confirmed', 'Started', 'Completed', 'Cancelled'];
 
@@ -427,6 +437,13 @@ export default function Placements() {
             </div>
           </div>
 
+          <ListFeedback
+            error={listError}
+            loading={isLoading}
+            subject="placements"
+            onRetry={() => setRefreshToken((v) => v + 1)}
+          />
+
           <div className="overflow-x-auto mt-5">
             <table className="min-w-full text-xs text-left">
               <thead>
@@ -441,7 +458,8 @@ export default function Placements() {
                 </tr>
               </thead>
               <tbody>
-                {placements.length === 0 ? (
+                {/* Empty only means empty when the read actually succeeded and returned nothing. */}
+                {!isLoading && !listError && placements.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="py-14 text-center text-(--muted)">
                       <div className="flex flex-col items-center gap-2">

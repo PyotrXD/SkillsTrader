@@ -6,6 +6,7 @@ import {
   clearAuditLogs,
 } from '../../utils/auditLog';
 import Searchbar from '../ui/Searchbar';
+import ListFeedback from '../ui/ListFeedback';
 import Filter from '../ui/Filter';
 import Pagination from '../ui/Pagination';
 import Modal from '../ui/Modal';
@@ -44,6 +45,12 @@ function formatDate(iso: string): string {
 export default function AuditLog() {
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  // Set only after the request settles, never synchronously: this screen's fetch is already the
+  // one react-hooks/set-state-in-effect flags, and adding a sync flip here would be a second one.
+  const [listError, setListError] = useState('');
+  // Bumping this re-runs the read. Without it a failed fetch has no in-page recovery: every other
+  // dependency is a filter the user would have to change to force a refetch.
+  const [refreshToken, setRefreshToken] = useState(0);
   const [search, setSearch] = useState('');
   const [actionFilter, setActionFilter] = useState('');
   const [entityFilter, setEntityFilter] = useState('');
@@ -71,11 +78,13 @@ export default function AuditLog() {
       
       setLogs(result.items);
       setTotalPages(result.totalPages);
+      setListError('');
       setLoading(false);
     } catch (err) {
       console.error('Failed to fetch audit logs:', err);
       setLogs([]);
       setTotalPages(1);
+      setListError('Could not load the audit trail.');
       setLoading(false);
     }
   }
@@ -113,7 +122,7 @@ export default function AuditLog() {
   // Refresh logs when filters change
   useEffect(() => {
     fetchAuditLogs();
-  }, [page, perPage, search, actionFilter, entityFilter, dateFrom, dateTo]);
+  }, [page, perPage, search, actionFilter, entityFilter, dateFrom, dateTo, refreshToken]);
 
   // The audit list is read straight from PocketBase; the localStorage audit store is a separate
   // legacy mechanism whose change events this view never consumed, so no subscription is made.
@@ -239,6 +248,13 @@ export default function AuditLog() {
             </div>
 
             {/* Table */}
+            {/* Error only: the table already renders its own loading row below. */}
+            <ListFeedback
+              error={listError}
+              subject="the audit trail"
+              onRetry={() => setRefreshToken((v) => v + 1)}
+            />
+
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm text-left">
                 <thead>
@@ -262,7 +278,7 @@ export default function AuditLog() {
                         </div>
                       </td>
                     </tr>
-                  ) : logs.length === 0 ? (
+                  ) : !listError && logs.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="py-14 text-center text-(--muted)">
                         <div className="flex flex-col items-center gap-2">

@@ -4,6 +4,7 @@ import { Icon } from "@iconify/react";
 import Modal from "../ui/Modal";
 import Toast from "../ui/Toast";
 import Searchbar from "../ui/Searchbar";
+import ListFeedback from "../ui/ListFeedback";
 import Filter from "../ui/Filter";
 import Pagination from "../ui/Pagination";
 import defaultProfile from "../../assets/images/default-profile.png";
@@ -78,6 +79,9 @@ export default function Candidates() {
   const [totalPages, setTotalPages] = useState(1);
   const [pagedCandidates, setPagedCandidates] = useState<CandidateForm[]>([]);
   const [isListLoading, setIsListLoading] = useState(false);
+  // Distinct from the form's own error: a failed read of the page must not be reported as
+  // "No candidates found", which is what it did while this only reached console.error.
+  const [listError, setListError] = useState("");
   const [refreshToken, setRefreshToken] = useState(0);
   const [archivedCandidates, setArchivedCandidates] = useState<
     ArchivedCandidate[]
@@ -327,11 +331,13 @@ export default function Candidates() {
 
       setPagedCandidates(mapped);
       setTotalPages(Math.max(1, result.totalPages));
+      setListError("");
       if (result.page !== targetPage) setPage(result.page);
     } catch (err) {
       console.error("Failed to fetch candidates:", err);
       setPagedCandidates([]);
       setTotalPages(1);
+      setListError("Could not load candidates.");
     } finally {
       setIsListLoading(false);
     }
@@ -979,6 +985,13 @@ export default function Candidates() {
               )}
             </div>
 
+            {/* Error only: this table already renders its own "Loading candidates..." row. */}
+            <ListFeedback
+              error={listError}
+              subject="candidates"
+              onRetry={() => setRefreshToken((v) => v + 1)}
+            />
+
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm text-left">
                 <thead>
@@ -1013,7 +1026,7 @@ export default function Candidates() {
                         Loading candidates...
                       </td>
                     </tr>
-                  ) : pagedCandidates.length === 0 ? (
+                  ) : !listError && pagedCandidates.length === 0 ? (
                     <tr>
                       <td
                         colSpan={6}

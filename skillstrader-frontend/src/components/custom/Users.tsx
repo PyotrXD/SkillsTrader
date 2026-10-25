@@ -13,6 +13,7 @@ import Navbar from "../ui/Navbar";
 import Sidebar from "./Sidebar";
 import Modal from "../ui/Modal";
 import Searchbar from "../ui/Searchbar";
+import ListFeedback from "../ui/ListFeedback";
 import Filter from "../ui/Filter";
 import Pagination from "../ui/Pagination";
 import Selection from "../ui/Selection";
@@ -267,6 +268,9 @@ export function UsersPanel() {
   const [totalPages, setTotalPages] = useState(1);
   const [pagedUsers, setPagedUsers] = useState<UserListItem[]>([]);
   const [loading, setLoading] = useState(false);
+  // Kept apart from `error`, which the add/edit/delete modals already use: a failed read of the
+  // roster must not appear inside a form, and a validation message must not replace the table.
+  const [listError, setListError] = useState("");
 
   const [refreshToken, setRefreshToken] = useState(0);
 
@@ -302,10 +306,12 @@ export function UsersPanel() {
 
         setPagedUsers(users);
         setTotalPages(Math.max(1, result.totalPages));
+        setListError("");
       } catch (err) {
         console.error("Failed to fetch users:", err);
         setPagedUsers([]);
         setTotalPages(1);
+        setListError("Could not load the user roster.");
       } finally {
         setLoading(false);
       }
@@ -529,6 +535,14 @@ export function UsersPanel() {
                   </div>
                 )}
               </div>
+              {/* Only the error is passed: this panel already renders its own "Loading users..."
+                  spinner below, so a second loading line would say the same thing twice. */}
+              <ListFeedback
+                error={listError}
+                subject="users"
+                onRetry={() => setRefreshToken((v) => v + 1)}
+              />
+
               <div className="overflow-x-auto mt-5">
                 {loading ? (
                   <div className="py-12 text-center">
@@ -537,7 +551,7 @@ export function UsersPanel() {
                     </div>
                     <p className="mt-2 text-(--muted)">Loading users...</p>
                   </div>
-                ) : pagedUsers.length === 0 ? (
+                ) : !listError && pagedUsers.length === 0 ? (
                   <div className="py-12 text-center">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <Icon icon="tabler:user-off" width="48" height="48" className="text-(--muted) mb-2" />

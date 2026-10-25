@@ -735,13 +735,16 @@ export default function Candidates() {
     w.document.write(html);
     w.document.close();
     w.focus();
+    // The generated document prints itself once its pages are laid out. This is the fallback for a
+    // popup where that script never ran: an unpaged resume still beats a button that does nothing.
     setTimeout(() => {
+      if ((w as Window & { __resumePrinted?: boolean }).__resumePrinted) return;
       try {
         w.print();
       } catch {
         /* ignore */
       }
-    }, 500);
+    }, 2000);
   }
 
   async function handleDocumentDownload(_key: string, doc: File | string) {

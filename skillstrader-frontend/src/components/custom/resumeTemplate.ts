@@ -3,6 +3,10 @@ import type {
   WorkExperienceEntry,
 } from "../../types/Candidate";
 import { educationLevelLabel, formatEducationPeriod } from "./candidateHistory";
+import { resumePaginationScript } from "./resumePagination";
+
+/** Printed on every page of the resume, left of the page stamp. */
+const FOOTER_BRAND = "SkillsTrader";
 
 type ResumeCandidate = Record<string, unknown>;
 
@@ -43,11 +47,14 @@ export function generateResumeHtml(candidate: ResumeCandidate, imgSrc: string): 
   }
 
   function compactParagraph(value: unknown): string {
+    // One element per source line, not <br /> siblings: a block of inline breaks is a single
+    // unsplittable node, and the pacer cannot break inside it without cutting applicant text.
     return text(value)
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter(Boolean)
-      .join("<br />");
+      .map((line) => `<div class="para-line">${line}</div>`)
+      .join("");
   }
 
   const name = fullName();
@@ -109,11 +116,9 @@ export function generateResumeHtml(candidate: ResumeCandidate, imgSrc: string): 
     .join("");
 
   const workEntries = readEntries<WorkExperienceEntry>(candidate.work_experiences);
-  const workExperienceRows =
-    workEntries.length > 0
-      ? workEntries
-          .map(
-            (entry) => `
+  const workExperienceRows = workEntries
+    .map(
+      (entry) => `
                 <tr>
                   <td>${text(entry.company, "N/A")}</td>
                   <td>${text(entry.position, "N/A")}</td>
@@ -307,6 +312,50 @@ export function generateResumeHtml(candidate: ResumeCandidate, imgSrc: string): 
             font-size: 10px;
           }
 
+          /*
+           * Sheets are exactly one A4 page each and are produced by the inline pacer. With the page
+           * margin switched off, the sheet's own padding is the only margin, so a sheet cannot drift
+           * across a page boundary and the footer inside it sits where it is stamped.
+           */
+          @page {
+            size: A4;
+            margin: 0;
+          }
+
+          .sheet {
+            width: 210mm;
+            height: 297mm;
+            margin: 0 auto;
+            padding: 18mm 14mm 16mm;
+            background: #fff;
+            position: relative;
+            overflow: visible;
+          }
+
+          .sheet .footer {
+            left: 14mm;
+            right: 14mm;
+            bottom: 6mm;
+          }
+
+          #resume-book {
+            display: none;
+          }
+
+          #resume-book .sheet + .sheet {
+            margin-top: 6mm;
+          }
+
+          /* Off-screen rig the pacer measures candidate sheets in; never a printed surface. */
+          #resume-measure {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 210mm;
+            visibility: hidden;
+            pointer-events: none;
+          }
+
           @media print {
             body {
               background: #fff;
@@ -316,13 +365,24 @@ export function generateResumeHtml(candidate: ResumeCandidate, imgSrc: string): 
               width: auto;
               min-height: auto;
               margin: 0;
-              padding: 18mm 14mm 13mm;
+              padding: 18mm 14mm 16mm;
+            }
+
+            .sheet {
+              margin-top: 0;
+              break-after: page;
+              page-break-after: always;
+            }
+
+            .sheet:last-child {
+              break-after: auto;
+              page-break-after: auto;
             }
           }
         </style>
       </head>
       <body>
-        <main class="page">
+        <main class="page" id="resume-flow">
           <header class="header">
             <div>
               <div class="candidate-id">${applicantId}</div>
@@ -469,10 +529,15 @@ export function generateResumeHtml(candidate: ResumeCandidate, imgSrc: string): 
           </section>
 
           <footer class="footer">
-            <span>SkillsTrader Resume</span>
-            <span>1/1</span>
+            <span>${FOOTER_BRAND}</span>
           </footer>
         </main>
+
+        <div id="resume-book"></div>
+        <div id="resume-measure"></div>
+        <script>
+          ${resumePaginationScript({ brand: FOOTER_BRAND })}
+        </script>
       </body>
     </html>`;
 }

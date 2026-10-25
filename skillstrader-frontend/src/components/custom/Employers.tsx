@@ -70,6 +70,11 @@ export default function Employers() {
       const result = await pb.collection('employer').getList(page, perPage, {
         sort: '-created',
         filter,
+        // Opt out of the JS SDK's auto-cancellation, as every other list screen already does.
+        // StrictMode's dev double-invoke sends two byte-identical requests; the SDK aborts the
+        // first and that abort used to be reported below as a failed read on a screen that had
+        // actually just loaded its data.
+        requestKey: null,
       });
       // Convert RecordModel[] to Employer[]
       const employersList = result.items.map(item => ({
@@ -89,6 +94,10 @@ export default function Employers() {
       }));
       setEmployers(employersList);
       setTotalPages(result.totalPages);
+      // A successful read is the one moment that proves the banner's claim false, so it is also
+      // the only place that can retract it. The effect above clears the error before the request
+      // and cannot see a rejection that lands after this resolve.
+      setListError('');
     } catch (err) {
       // A failed fetch is not an empty table. Say which one it is, and clear the rows so nothing
       // is left on screen that reads as data while the request that would have produced it failed.

@@ -139,7 +139,10 @@ export default function JobOrders() {
           id: string;
           company_name?: string;
         }>({
-          sort: 'company_name'
+          sort: 'company_name',
+          // See Employers.tsx: the SDK aborts the first of two byte-identical requests, and
+          // StrictMode's dev double-invoke always produces that pair.
+          requestKey: null,
         });
         setEmployers(
           employersList.map((employer) => ({
@@ -162,7 +165,8 @@ export default function JobOrders() {
       try {
         const jobOrdersList = await pb.collection('job_orders').getFullList<JobOrderRecord>({
           sort: '-created',
-          expand: 'employer'
+          expand: 'employer',
+          requestKey: null,
         });
         setJobOrders(
           jobOrdersList.map((item) => ({
@@ -184,6 +188,8 @@ export default function JobOrders() {
             },
           }))
         );
+        // A successful read is the only moment that can disprove the banner below. See Employers.tsx.
+        setListError('');
       } catch (error) {
         console.error('Failed to load job orders:', error);
         setJobOrders([]);
@@ -220,7 +226,10 @@ export default function JobOrders() {
     try {
       const jobOrdersList = await pb.collection('job_orders').getFullList<JobOrderRecord>({
         sort: '-created',
-        expand: 'employer'
+        expand: 'employer',
+        // This runs after every create/update/delete and its catch only logs, so an abort here
+        // would leave the table showing pre-save rows with nothing said about it.
+        requestKey: null,
       });
       setJobOrders(jobOrdersList.map(mapJobOrderRecordToJobOrder));
     } catch (error) {

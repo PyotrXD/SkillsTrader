@@ -342,8 +342,12 @@ export function generateResumeHtml(candidate: ResumeCandidate, imgSrc: string): 
             display: none;
           }
 
-          #resume-book .sheet + .sheet {
-            margin-top: 6mm;
+          /* Screen-only preview gap between stacked sheets. Scoped to @media screen so it cannot leak
+             into print: a 6mm margin on a 297mm sheet on a 297mm page overflows onto a blank page. */
+          @media screen {
+            #resume-book .sheet + .sheet {
+              margin-top: 6mm;
+            }
           }
 
           /* Off-screen rig the pacer measures candidate sheets in; never a printed surface. */
@@ -369,7 +373,6 @@ export function generateResumeHtml(candidate: ResumeCandidate, imgSrc: string): 
             }
 
             .sheet {
-              margin-top: 0;
               break-after: page;
               page-break-after: always;
             }

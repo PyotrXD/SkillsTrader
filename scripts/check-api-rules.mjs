@@ -45,6 +45,10 @@ const MANAGER =
 const ADMIN = "@request.auth.id != '' && @request.auth.role = 'administrator'";
 const BARE = "@request.auth.id != ''";
 const SELF_OR_ADMIN = "@request.auth.id != '' && (@request.auth.role = 'administrator' || id = @request.auth.id)";
+// The users roster is readable by administrator and manager (1794000000), plus each record's own
+// row. Distinct from READ above, which is the staff-wider rule on the transactional collections.
+const ROSTER_READ =
+  "@request.auth.id != '' && (@request.auth.role = 'administrator' || @request.auth.role = 'manager' || id = @request.auth.id)";
 
 // What the rules MUST be after the full chain has been applied. Anything not listed here is
 // not asserted, so this is a floor rather than a complete map.
@@ -62,7 +66,13 @@ const EXPECTED = {
   documents: { listRule: READ, viewRule: READ, deleteRule: ADMIN },
   candidate_work_experiences: { listRule: READ, viewRule: READ, createRule: MANAGER, updateRule: MANAGER, deleteRule: MANAGER },
   candidate_educations: { listRule: READ, viewRule: READ, createRule: MANAGER, updateRule: MANAGER, deleteRule: MANAGER },
-  users: { createRule: ADMIN, deleteRule: ADMIN },
+  users: {
+    listRule: ROSTER_READ,
+    viewRule: ROSTER_READ,
+    updateRule: SELF_OR_ADMIN,
+    createRule: ADMIN,
+    deleteRule: ADMIN,
+  },
 };
 
 // The state the migration under review recorded as "before", so a rollback can be proven not
@@ -139,13 +149,30 @@ assertMap('up', applied, EXPECTED);
 console.log(failures === 0 ? '  OK  applied rules match the expected tiers' : `  ${failures} mismatch(es) on apply`);
 
 const beforeRollback = failures;
-console.log('rolling back one migration and re-checking...');
+// Two rollback steps, not one. This script assumed 1793000000 was the tip of the chain and reverted
+// a single migration to reach its "before" state; 1794000000 sits after it now, so one step only
+// undoes the newest file. Stepping twice proves each migration's down path on its own terms:
+// rolling back 1794000000 must narrow the users roster read without touching anything else.
+console.log('rolling back 1794000000 (users read rules) and re-checking...');
 runMigrate(['migrate', 'down', '1']);
-assertMap('down', readRules(path.join(throwaway, 'data.db')), PRIOR);
+assertMap('down-users', readRules(path.join(throwaway, 'data.db')), {
+  ...EXPECTED,
+  users: { listRule: SELF_OR_ADMIN, viewRule: SELF_OR_ADMIN, createRule: ADMIN, updateRule: SELF_OR_ADMIN, deleteRule: ADMIN },
+});
 console.log(
   failures === beforeRollback
+    ? '  OK  users read rules restored, nothing else moved'
+    : `  ${failures - beforeRollback} mismatch(es) rolling back the users read rules`,
+);
+
+const beforeTransactionalRollback = failures;
+console.log('rolling back 1793000000 (transactional tiers) and re-checking...');
+runMigrate(['migrate', 'down', '1']);
+assertMap('down-tiers', readRules(path.join(throwaway, 'data.db')), PRIOR);
+console.log(
+  failures === beforeTransactionalRollback
     ? '  OK  rollback restores the recorded prior state exactly'
-    : `  ${failures - beforeRollback} mismatch(es) on rollback`,
+    : `  ${failures - beforeTransactionalRollback} mismatch(es) on rollback`,
 );
 
 const beforeReapply = failures;

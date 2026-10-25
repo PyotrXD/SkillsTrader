@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
 import Toast from "../ui/Toast";
 import { Icon } from "@iconify/react";
 import type { FormEvent } from "react";
 import {
   getPocketBaseUiError,
+  getUserRole,
   pb,
   type UserRole,
 } from "../../lib/pocketbase/pb";
@@ -54,6 +55,7 @@ function UserModal({
   setShowConfirmPassword,
   title,
   submitLabel,
+  mode,
 }: {
   open: boolean;
   onClose: () => void;
@@ -68,7 +70,13 @@ function UserModal({
   setShowConfirmPassword: React.Dispatch<React.SetStateAction<boolean>>;
   title: string;
   submitLabel: string;
+  mode: "create" | "edit";
 }) {
+  // PocketBase accepts a blank password on update to mean "keep the current one", but rejects
+  // `password: ""` on create. The field was marked required in both modes, which contradicted the
+  // "Leave blank to keep password" placeholder and made it impossible to change a role without
+  // also changing the password.
+  const passwordRequired = mode === "create";
   return (
     <Modal open={open} onClose={onClose} title={title}>
       <form
@@ -111,11 +119,11 @@ function UserModal({
                 setForm((p) => ({ ...p, password: e.target.value }))
               }
               placeholder={
-                title === "Edit User"
-                  ? "Leave blank to keep password"
-                  : "Enter your password"
+                passwordRequired
+                  ? "Enter your password"
+                  : "Leave blank to keep password"
               }
-              required
+              required={passwordRequired}
             />
             <button
               type="button"
@@ -145,11 +153,11 @@ function UserModal({
                 setForm((p) => ({ ...p, passwordConfirm: e.target.value }))
               }
               placeholder={
-                title === "Edit User"
-                  ? "Leave blank to keep password"
-                  : "Confirm your password"
+                passwordRequired
+                  ? "Confirm your password"
+                  : "Leave blank to keep password"
               }
-              required
+              required={passwordRequired}
             />
             <button
               type="button"
@@ -224,6 +232,15 @@ function getErrorMessage(err: unknown): string {
 }
 
 export function UsersPanel() {
+  // createRule and deleteRule stay administrator-only server-side
+  // (pb_migrations/1778000000_users_admin_list_rules.js); 1794000000 widened only the two read
+  // rules. A manager who could see the roster would otherwise be shown a button that always 403s.
+  // Matches the `canDelete` convention in Employers.tsx and RecordsWorkspace.tsx.
+  const canManageUsers = useMemo(() => getUserRole() === "administrator", []);
+  const currentUserId = pb.authStore.record?.id
+    ? String(pb.authStore.record.id)
+    : undefined;
+
   // Search and filter state
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
@@ -259,12 +276,21 @@ export function UsersPanel() {
       try {
         // Fetch users from PocketBase with pagination.
         // Note: PocketBase listRule must allow the caller to see other users
-        // (administrators). Default auth rule "id = @request.auth.id" only
-        // returns the currently logged-in user.
+        // (administrators, and managers since 1794000000). Default auth rule
+        // "id = @request.auth.id" only returns the currently logged-in user.
+        //
+        // The search term belongs in the server filter, not in a client-side pass over
+        // result.items: the rows below are exactly one page, so filtering them locally can
+        // only ever match the page it already holds (see the listPaging.test.tsx guard).
+        const needle = search.trim().replace(/"/g, '\\"');
+        const conditions: string[] = [];
+        if (roleFilter) conditions.push(`role = '${roleFilter}'`);
+        if (needle) conditions.push(`(name ~ "${needle}" || email ~ "${needle}")`);
+
         const result = await pb.collection("users").getList(page, perPage, {
           sort: "name",
           requestKey: null,
-          filter: roleFilter ? `role = '${roleFilter}'` : undefined
+          filter: conditions.length ? conditions.join(" && ") : undefined
         });
 
         const users: UserListItem[] = result.items.map((item) => ({
@@ -286,7 +312,7 @@ export function UsersPanel() {
     };
 
     fetchUsers();
-  }, [page, perPage, refreshToken, roleFilter]);
+  }, [page, perPage, refreshToken, roleFilter, search]);
 
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -301,6 +327,13 @@ export function UsersPanel() {
         passwordConfirm: form.passwordConfirm,
         name: form.name.trim(),
         role: form.role,
+        // PocketBase hides an auth record's email behind emailVisibility from every viewer who is
+        // not that record or a superuser, and this app's administrators are users, not superusers
+        // (Login.tsx authenticates against `users` first). A provisioned account left at the
+        // default would therefore appear in the roster with a blank Email cell -- unidentifiable
+        // to the very person who just created it. Scoped to admin provisioning only; the audience
+        // is already limited to administrator/manager by listRule (OWASP ASVS V3.1, V3.3).
+        emailVisibility: true,
       });
       setSuccess(`User ${form.email.trim()} created with role ${form.role}.`);
       setForm((previous) => ({ ...initialForm, role: previous.role }));
@@ -346,8 +379,20 @@ export function UsersPanel() {
         setError("No user selected for update.");
         return;
       }
-      // Update user in PocketBase
-      await pb.collection("users").update(editUserId, { ...editForm });
+      // PocketBase stores the hash and refuses `password: ""` outright, so the two blank fields
+      // left by handleEdit must be dropped, not sent. The placeholder already promised "Leave blank
+      // to keep password"; sending the empty pair made every role or name edit a 400.
+      const { password, passwordConfirm, ...profile } = editForm;
+      const payload: Record<string, unknown> = {
+        ...profile,
+        email: editForm.email.trim(),
+        name: editForm.name.trim(),
+      };
+      if (password !== "" || passwordConfirm !== "") {
+        payload.password = password;
+        payload.passwordConfirm = passwordConfirm;
+      }
+      await pb.collection("users").update(editUserId, payload);
       setSuccess(`User ${editForm.email.trim()} updated.`);
       setIsEditModalOpen(false);
       setShowToast(true);
@@ -431,25 +476,33 @@ export function UsersPanel() {
                     Create users directly and assign a role.
                   </p>
                 </div>
-                <button
-                  className="ml-auto border-none text-white bg-linear-to-br from-(--primary) to-(--primary2) rounded-full px-4 py-2 font-bold transition-all duration-150 hover:brightness-110 hover:scale-105"
-                  onClick={handleOpenModal}
-                >
-                  Create User
-                </button>
+                {canManageUsers && (
+                  <button
+                    className="ml-auto border-none text-white bg-linear-to-br from-(--primary) to-(--primary2) rounded-full px-4 py-2 font-bold transition-all duration-150 hover:brightness-110 hover:scale-105"
+                    onClick={handleOpenModal}
+                  >
+                    Create User
+                  </button>
+                )}
               </div>
               <div className="flex flex-col md:flex-row gap-3 md:items-center mt-5">
                 <div className="flex-1 max-w-xs">
                   <Searchbar
                     value={search}
-                    onChange={setSearch}
+                    onChange={(v) => {
+                      setSearch(v);
+                      setPage(1);
+                    }}
                     placeholder="Search by name or email"
                   />
                 </div>
                 <div className="w-48">
                   <Filter
                     value={roleFilter}
-                    onChange={setRoleFilter}
+                    onChange={(v) => {
+                      setRoleFilter(v);
+                      setPage(1);
+                    }}
                     options={[
                       { value: "", label: "All Roles" },
                       { value: "administrator", label: "Administrator" },
@@ -529,7 +582,7 @@ export function UsersPanel() {
                               </span>
                             </td>
                             <td className="px-4 py-2 flex gap-2">
-                              {user.role !== "administrator" && (
+                              {canManageUsers && (
                                 <>
                                   <button
                                     className="px-3 py-1.5 flex items-center gap-1 rounded-full bg-blue-100 text-blue-700 font-bold text-sm hover:bg-blue-200 transition-colors"
@@ -544,19 +597,27 @@ export function UsersPanel() {
                                     />
                                     Edit
                                   </button>
-                                  <button
-                                    className="px-3 py-1 flex items-center gap-1 rounded-full bg-[var(--accent)]/20 text-[var(--accent)] font-semibold text-sm hover:bg-[var(--accent)]/30 transition-colors"
-                                    title="Delete"
-                                    type="button"
-                                    onClick={() => handleDelete(user)}
-                                  >
-                                    <Icon
-                                      icon="tabler:trash"
-                                      width="20"
-                                      height="20"
-                                    />
-                                    Delete
-                                  </button>
+                                  {/* Delete is the one action this screen cannot offer safely when the
+                                      row is the signed-in user: the live database holds a single
+                                      `users` row and it is this session's, and deleteRule has no self
+                                      arm to fall through to, so it would end the session with no
+                                      in-app way back. */}
+                                  {user.id !== undefined &&
+                                    String(user.id) !== currentUserId && (
+                                      <button
+                                        className="px-3 py-1 flex items-center gap-1 rounded-full bg-[var(--accent)]/20 text-[var(--accent)] font-semibold text-sm hover:bg-[var(--accent)]/30 transition-colors"
+                                        title="Delete"
+                                        type="button"
+                                        onClick={() => handleDelete(user)}
+                                      >
+                                        <Icon
+                                          icon="tabler:trash"
+                                          width="20"
+                                          height="20"
+                                        />
+                                        Delete
+                                      </button>
+                                    )}
                                 </>
                               )}
                             </td>
@@ -594,6 +655,7 @@ export function UsersPanel() {
               setShowConfirmPassword={setShowEditConfirmPassword}
               title="Edit User"
               submitLabel="Save Changes"
+              mode="edit"
             />
 
             <UserModal
@@ -610,6 +672,7 @@ export function UsersPanel() {
               setShowConfirmPassword={setShowConfirmPassword}
               title="Add User"
               submitLabel="Create User"
+              mode="create"
             />
 
             {/* Delete User Modal */}

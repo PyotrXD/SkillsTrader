@@ -67,7 +67,6 @@ export function generateResumeHtml(candidate: ResumeCandidate, imgSrc: string): 
   const sssNumber = text(candidate.sss_number, "");
   const philhealthNumber = text(candidate.philhealth, "");
   const highestEducation = text(candidate.highest_educ_attainment, "");
-  const workHistory = compactParagraph(candidate.work_history);
   const skills = compactParagraph(candidate.skills);
   const certifications = compactParagraph(candidate.certifications);
   const desiredSalary = text(candidate.desired_salary, "");
@@ -122,24 +121,8 @@ export function generateResumeHtml(candidate: ResumeCandidate, imgSrc: string): 
                   <td>${text(entry.is_current ? "Present" : entry.end_date?.slice(0, 4), "N/A")}</td>
                   <td>${text(entry.location, "N/A")}</td>
                 </tr>`,
-          )
-          .join("")
-      : `
-                <tr>
-                  <td>${workHistory}</td>
-                  <td>${positionScreened || "N/A"}</td>
-                  <td>N/A</td>
-                  <td>N/A</td>
-                  <td>N/A</td>
-                </tr>`;
-
-  // Older records keep their free-text history; showing it under the table
-  // stops a partially migrated candidate from losing experience on the resume.
-  const legacyWorkNote =
-    workEntries.length > 0 && candidate.work_history
-      ? `
-          <div class="paragraph-block small-gap">${workHistory}</div>`
-      : "";
+    )
+    .join("");
 
   const idRows = [
     ["PAG-IBIG", pagibigNumber, "N/A"],
@@ -434,9 +417,12 @@ export function generateResumeHtml(candidate: ResumeCandidate, imgSrc: string): 
                 </tr>
               </thead>
               <tbody>
-                ${workExperienceRows}
+                ${
+                  workExperienceRows ||
+                  `<tr><td colspan="5" class="muted-empty">No work experience information provided</td></tr>`
+                }
               </tbody>
-            </table>${legacyWorkNote}
+            </table>
           </section>
 
           <section class="section">

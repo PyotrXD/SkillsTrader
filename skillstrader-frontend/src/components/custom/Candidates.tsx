@@ -1441,9 +1441,6 @@ export default function Candidates() {
                            ))}
                          </ul>
                        )}
-                     <div className="text-(--text)">
-                       {viewCandidate.work_history || "No work history provided"}
-                     </div>
                    </div>
                    <div className="md:col-span-2">
                      <h3 className="text-lg font-medium text-(--text) mb-3">Skills</h3>
@@ -1914,15 +1911,6 @@ export default function Candidates() {
                          />
                        </div>
                        <div>
-                         <label className="block text-sm font-medium text-(--muted) mb-1">Work History (free text)</label>
-                         <textarea
-                           value={form.work_history}
-                           onChange={(e) => setForm({...form, work_history: e.target.value})}
-                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                           rows={3}
-                         />
-                       </div>
-                       <div>
                          <label className="block text-sm font-medium text-(--muted) mb-1">Skills</label>
                          <textarea
                            value={form.skills}
@@ -2358,15 +2346,6 @@ export default function Candidates() {
                          <WorkExperienceFields
                            entries={form.work_experiences}
                            onChange={(next) => setForm({...form, work_experiences: next})}
-                         />
-                       </div>
-                       <div>
-                         <label className="block text-sm font-medium text-(--muted) mb-1">Work History (free text)</label>
-                         <textarea
-                           value={form.work_history}
-                           onChange={(e) => setForm({...form, work_history: e.target.value})}
-                           className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-                           rows={3}
                          />
                        </div>
                        <div>

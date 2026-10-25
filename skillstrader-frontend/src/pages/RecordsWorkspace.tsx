@@ -129,7 +129,6 @@ const ENTITIES: EntityConfig[] = [
       { name: 'phone', label: 'Phone', type: 'text' },
       { name: 'address', label: 'Address', type: 'text' },
       { name: 'education', label: 'Education', type: 'textarea' },
-      { name: 'work_history', label: 'Work history', type: 'textarea' },
       { name: 'skills', label: 'Skills (comma separated)', type: 'tags' },
       { name: 'certifications', label: 'Certifications / licenses', type: 'textarea' },
       { name: 'desired_salary', label: 'Desired salary', type: 'text' },

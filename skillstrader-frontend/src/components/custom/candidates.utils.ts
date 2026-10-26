@@ -44,6 +44,19 @@ export const initialForm: CandidateForm = {
   documents: {},
 };
 
+// A field on an inactive tab is unmounted, so the browser cannot enforce its `required`.
+// The candidate submit handlers ask this instead, then jump to the tab holding the blank.
+export const REQUIRED_FIELDS: Array<{ field: keyof CandidateForm; label: string }> = [
+  { field: "last_name", label: "Last Name" },
+  { field: "first_name", label: "First Name" },
+  { field: "email", label: "Email" },
+  { field: "phone", label: "Phone" },
+];
+
+export function firstMissingRequired(form: CandidateForm) {
+  return REQUIRED_FIELDS.find((entry) => !String(form[entry.field] ?? "").trim()) ?? null;
+}
+
 export function escapeFilterValue(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }

@@ -208,7 +208,7 @@ Open a maintenance window. Stop the service before touching `pb_data` — a copy
 file is not a backup.
 
 ```bash
-cd /opt/skillstrader
+cd /home/skillstrader/htdocs/103.167.151.139.sslip.io
 git fetch origin
 git rev-parse --abbrev-ref HEAD   # confirm ady/live, not deployment/linux (see below)
 git status --porcelain            # any local edit here is yours to reconcile first
@@ -217,7 +217,7 @@ git status --porcelain            # any local edit here is yours to reconcile fi
 1. Back up, including `.env`:
 
 ```bash
-sudo systemctl stop skillstrader
+sudo systemctl stop pocketbase
 OLD=$(git rev-parse HEAD)
 mkdir -p backups
 tar czf "backups/pre-deploy-$(date +%Y%m%d-%H%M%S).tar.gz" pb_data .env
@@ -235,9 +235,12 @@ git show origin/ady/development:scripts/check-live-db.mjs > /tmp/c.mjs
 node /tmp/c.mjs --db "$PWD/pb_data" --base "$OLD" --head origin/ady/development
 ```
 
-Add `--experimental-sqlite` after `node` on Node below 24; if `node:sqlite` is absent the script says
-so and prints the equivalent `sqlite3` statements. It exits 1 on any FAIL. A FAIL for "a collection a
-pending migration touches" means the restart in step 5 dies, so fix the chain before pulling.
+Add `--experimental-sqlite` after `node` on Node below 24. **On the production VPS this script cannot run
+at all**: it needs `node:sqlite`, which is Node 22.5+, and that box is on Node 20.20.2, so it prints
+equivalent `sqlite3` statements and exits 1 without checking anything. Copy `data.db` down instead and run
+it here against the copy, or run the three `sqlite3` queries and read them yourself. It exits 1 on any FAIL.
+A FAIL for "a collection a pending migration touches" means the restart in step 5 dies, so fix the chain
+before pulling.
 
 3. Snapshot the storage directory, since step 4 deletes it:
 
@@ -262,9 +265,9 @@ merge refuses instead of inventing one.
 5. Rebuild and start:
 
 ```bash
-(cd skillstrader-frontend && npm ci && npm run build)   # Node 22; vite 7 needs >=22.12
-sudo systemctl start skillstrader
-journalctl -u skillstrader -f
+(cd skillstrader-frontend && npm ci && npm run build)   # Node 20.20.2 is fine: vite 7 accepts ^20.19.0
+sudo systemctl start pocketbase
+journalctl -u pocketbase -f
 ```
 
 Read the journal for the migration lines and for a `panic:` naming a collection. On a panic go
@@ -277,8 +280,8 @@ straight to rollback; the service is not serving.
       migrations tighten delete to manager+, so a staff user who could delete yesterday cannot today.
       That is the intended change — say so before it surprises anyone.
 - [ ] An existing candidate resume and CV still download (what step 3 protects)
-- [ ] `node scripts/check-api-rules.mjs --live` passes; on Linux it needs
-      `POCKETBASE_BIN=/opt/skillstrader/pocketbase`
+- [ ] `node scripts/check-api-rules.mjs --live` passes. It cannot run on the VPS (needs `node:sqlite`,
+      22.5+); run it on a Node 22.5+ machine with `POCKETBASE_BIN` pointed at a pocketbase executable
 
 7. Only now advance the production ref:
 
@@ -294,11 +297,11 @@ No `--force`; it is a fast-forward by construction.
 `data.db`. Restore the snapshot instead:
 
 ```bash
-sudo systemctl stop skillstrader
+sudo systemctl stop pocketbase
 rm -rf pb_data && tar xzf backups/pre-deploy-<stamp>.tar.gz
 git checkout "$OLD"
 (cd skillstrader-frontend && npm ci && npm run build)
-sudo systemctl start skillstrader
+sudo systemctl start pocketbase
 ```
 
 If step 7 was already pushed, move the ref back with
@@ -313,3 +316,52 @@ several migrations `ady/live` has already applied; and it replaces the frontend 
 "custom version". Checking the server onto it, or merging it forward, overwrites live schema state
 with stale files. It is slated for deletion under remediation 6 in docs/system-improvements.md and is
 not a deploy source until then.
+
+## 12) Migration filename drift
+
+PocketBase records applied migrations in `data.db._migrations` keyed by **filename**. Renaming a
+`pb_migrations/*.js` file after it has been applied therefore makes the new name look never-applied, and
+`serve` re-runs its `up()` on the next restart — with no code change and no deploy involved.
+
+`scripts/check-live-db.mjs` catches this: it reports `pending` (on disk, not in `_migrations`) and
+`orphans` (recorded, not on disk), reading the chain from `--head` rather than the working tree. A file
+listed in BOTH directions is a rename. On Node below 22.5 the script exits 1 without checking, so the
+comparison must be done by hand:
+
+```bash
+sqlite3 pb_data/data.db "select file from _migrations where file like '%.js' order by 1;" > /tmp/applied.txt
+ls pb_migrations/*.js | xargs -n1 basename | sort > /tmp/onDisk.txt
+comm -13 /tmp/applied.txt /tmp/onDisk.txt   # on disk, not applied: will run on restart
+comm -23 /tmp/applied.txt /tmp/onDisk.txt   # applied, no file: a rename or a deleted migration
+```
+
+A re-run is only safe if the migration's `up()` is idempotent. Do not assume it is:
+`1773600000_update_audit_logs_alignment.js` reads `collection_name`, `record_id` and `actor` off every
+`audit_logs` row, but its own `up()` drops those three columns at the end of its first run. Re-running it
+rewrites every historical row with `entity_key`, `entity_name` and `actor_email` set to `"unknown"`, which
+destroys the audit trail's attribution irrecoverably except from a backup. The repo history shows the file
+was renamed rather than edited (`git log --follow --diff-filter=RA --find-renames`), so the correct action
+is to record the applied name, not to run it:
+
+```bash
+sqlite3 pb_data/data.db "create table audit_logs_pre_fix as select * from audit_logs;"
+sqlite3 pb_data/data.db "insert into _migrations (file, applied) values \
+ ('1773600000_update_audit_logs_alignment.js', cast(strftime('%s','now') as integer) * 1000000);"
+```
+
+`applied` is microseconds. Revert with
+`delete from _migrations where file='1773600000_update_audit_logs_alignment.js';`.
+
+### The VPS is not the laptop
+
+Production differs from §1 and §5 in ways that matter to every command above. Read from the box
+2026-10-26: the working tree is `/home/skillstrader/htdocs/103.167.151.139.sslip.io` (not
+`/opt/skillstrader`), the unit is `pocketbase.service` (not `skillstrader.service`), the API is on
+`127.0.0.1:8090` (not 8091), nginx serves `root skillstrader-frontend/dist` so `pb_data` is not web-facing
+but the site is down from stop until the build finishes, and Node is v20.20.2 — which builds the frontend
+fine (`vite@7.3.1` accepts `^20.19.0`) but cannot run `check-live-db.mjs` or `check-api-rules.mjs`, both of
+which need `node:sqlite`.
+
+The VPS cannot reach the current default branch by HTTPS anonymously: it now requires credentials, and
+password authentication is refused. Set up a fine-grained token or an SSH deploy key before attempting a
+fetch. See §11 step 2.

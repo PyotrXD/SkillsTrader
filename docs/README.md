@@ -8,6 +8,7 @@ do not know which directory it lives in.
 | Document | What it covers |
 |---|---|
 | [developer-guide.md](developer-guide.md) | Setting up the repo, running the frontend and PocketBase together, project layout |
+| [update-log-live-to-development.md](update-log-live-to-development.md) | Non-technical update log covering everything between the live `ady/live` version and `ady/development`, including the pre-deploy warnings |
 | [system-improvements.md](system-improvements.md) | Security and architecture findings S1–S9, with the remediation status for what has been applied and what is deliberately open |
 
 ## Operations (`operations/`)

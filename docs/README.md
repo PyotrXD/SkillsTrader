@@ -14,7 +14,7 @@ do not know which directory it lives in.
 
 | Document | What it covers |
 |---|---|
-| [production-runbook.md](operations/production-runbook.md) | Deploy, systemd unit, reverse proxy, `PB_ENCRYPTION_KEY` |
+| [production-runbook.md](operations/production-runbook.md) | Deploy, systemd unit, reverse proxy, `PB_ENCRYPTION_KEY`, the `ady/live` VPS cutover and its rollback |
 | [pocketbase.md](operations/pocketbase.md) | PocketBase bind addresses, admin UI access, backup and restore commands |
 | [verifying-access-controls.md](operations/verifying-access-controls.md) | Runbook for the S1 containment guard, the S3 API-rule assertions, the S5 payload/schema drift gate and enabling auth throttling |
 | [credential-rotation.md](operations/credential-rotation.md) | Where credentials live, local rotation scripts, the `--automigrate` trap, and the production procedure that actually closes S1 step 1 |

@@ -1,0 +1,13 @@
+const fs = require('fs');
+const path = require('path');
+const root = path.resolve(__dirname, '../../..');
+const esbuild = require(path.join(root, 'skillstrader-frontend/node_modules/esbuild'));
+esbuild.buildSync({entryPoints:[path.join(root,'skillstrader-frontend/src/components/custom/resumeTemplate.ts')],outfile:path.join(__dirname,'resume-renderer.js'),bundle:true,format:'iife',globalName:'ResumeRenderer',minify:true,define:{'import.meta.env':'{}'}});
+const work = (company, position, start_date, end_date, is_current=false) => ({company,position,start_date,end_date,is_current,location:'Singapore',description:'Supported daily operations and trained team members.'});
+const edu=(level,school_name,course,start_year,end_year)=>({level,school_name,course,start_year,end_year,notes:''});
+const base = {id:'SAMPLE-PRINT-CHECK',full_name:'Sample Applicant - Print Check',email:'sample@example.test',phone:'000-000-0000',highest_educ_attainment:'Bachelor of Science',home_address:'Sample Address',skills:'Customer service\nTeam supervision',certifications:'Sample certification',educations:[edu('college','Sample University','BS Hospitality Management','2010','2014'),edu('senior_high','Sample High School','Senior High','2008','2010')],work_experiences:[work('Sample Hotel Group','Operations Supervisor','2020-06-12','',true),work('Sample Resort','Guest Services Officer','2015-01-01','2019-12-31')]};
+const cases={structured:base,legacy:{...base,full_name:'Legacy Applicant - Print Check',educations:[],work_experiences:[],school_elementary:'Legacy Primary School',school_college:'Legacy College',education:'<p>Diploma in Hotel Management, 2006 - 2008</p>',work_history:'<p>Legacy Hotel - Receptionist (2009 - 2014)</p><p>Legacy Resort - Supervisor (2015 - Present)</p>'},long:{...base,full_name:'Long History Applicant - Print Check',work_experiences:Array.from({length:24},(_,i)=>work('Sample Employer '+(i+1),'Operations Role '+(i+1),String(2025-i)+'-01-01',String(2026-i)+'-01-01')),educations:[...base.educations,edu('vocational','Sample Training Institute','Hospitality Training','2014','2015')]}};
+for (const [name,sample] of Object.entries(cases)) {
+ fs.writeFileSync(path.join(__dirname,name+'.html'),'<!doctype html><html><head><meta charset="utf-8"></head><body><script src="resume-renderer.js"></script><script>window.print=function(){window.__printRequested=true;};var html=ResumeRenderer.generateResumeHtml('+JSON.stringify(sample)+', "");document.open();document.write(html);document.close();</script></body></html>');
+}
+console.log('Built minified resume generator and 3 sample print fixtures.');

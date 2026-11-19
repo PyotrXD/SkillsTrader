@@ -1,4 +1,4 @@
-import type { WorkExperienceEntry } from "../../types/Candidate";
+import type { CandidateLanguage, WorkExperienceEntry } from "../../types/Candidate";
 import { educationLevelLabel, formatEducationPeriod, getEducationHistory, isEducationBlank, isWorkExperienceBlank } from "./candidateHistory";
 import { resumePaginationScript } from "./resumePagination";
 import watermarkLogo from "../../assets/images/skillstrader-logo.jpeg?inline";
@@ -102,6 +102,11 @@ export function generateResumeHtml(candidate: ResumeCandidate, imgSrc: string): 
     .filter(([, value]) => value)
     .map(([label, value]) => `
         <tr><td>${label}</td><td>${value}</td></tr>`)
+    .join("");
+
+  const languageRows = readEntries<CandidateLanguage>(candidate.languages)
+    .filter((entry) => entry && typeof entry.language === "string" && entry.language.trim())
+    .map((entry) => `<tr><td>${text(entry.language)}</td><td>${text(entry.proficiency)}</td></tr>`)
     .join("");
 
   const workEntries = readEntries<WorkExperienceEntry>(candidate.work_experiences)
@@ -521,14 +526,10 @@ export function generateResumeHtml(candidate: ResumeCandidate, imgSrc: string): 
                 <tr>
                   <th>Language</th>
                   <th>Competency</th>
-                  <th>Spoken</th>
-                  <th>Written</th>
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td class="muted-empty" colspan="4">No language information provided</td>
-                </tr>
+                ${languageRows || '<tr><td class="muted-empty" colspan="2">No language information provided</td></tr>'}
               </tbody>
             </table>
           </section>

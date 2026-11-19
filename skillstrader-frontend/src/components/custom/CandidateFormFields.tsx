@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
+import { LANGUAGE_PROFICIENCIES, type CandidateLanguage } from "../../types/Candidate";
 import type { CandidateForm, PositionRecord } from "../../types/Candidate";
 import { EducationFields, WorkExperienceFields } from "./CandidateHistoryFields";
 import { educationLegacyFields, getEducationHistory } from "./candidateHistory";
@@ -214,6 +215,64 @@ export default function CandidateFormFields({ form, setForm, positions, tab, onT
               />
             </div>
           </div>
+
+          <fieldset className="mt-6">
+            <legend className="text-lg font-semibold text-(--text) mb-4">Languages</legend>
+            <div className="space-y-3">
+              {(form.languages ?? []).map((entry, index) => (
+                <div key={index} className="flex flex-wrap items-end gap-2">
+                  <label className="flex-1 min-w-32 text-sm text-(--muted)">
+                    Language {index + 1}
+                    <input
+                      type="text"
+                      value={entry.language}
+                      placeholder="e.g. English"
+                      onChange={(e) => setForm((current) => ({ ...current, languages: current.languages.map(
+                        (language, i) => i === index ? { ...language, language: e.target.value } : language,
+                      ) }))}
+                      className="mt-1 w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                    />
+                  </label>
+                  <label className="flex-1 min-w-32 text-sm text-(--muted)">
+                    Competency {index + 1}
+                    <select
+                      value={entry.proficiency}
+                      onChange={(e) => setForm((current) => ({ ...current, languages: current.languages.map(
+                        (language, i) => i === index ? { ...language, proficiency: e.target.value as CandidateLanguage["proficiency"] } : language,
+                      ) }))}
+                      className="mt-1 w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                    >
+                      {LANGUAGE_PROFICIENCIES.map((level) => <option key={level} value={level}>{level}</option>)}
+                    </select>
+                  </label>
+                  {(["spoken", "written"] as const).map((field) => (
+                    <label key={field} className="flex-1 min-w-32 text-sm text-(--muted)">
+                      {field === "spoken" ? "Spoken" : "Written"} {index + 1}
+                      <select
+                        value={entry[field] ?? ""}
+                        onChange={(e) => setForm((current) => ({ ...current, languages: current.languages.map(
+                          (language, i) => i === index ? { ...language, [field]: e.target.value as CandidateLanguage[typeof field] } : language,
+                        ) }))}
+                        className="mt-1 w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
+                      >
+                        <option value="">Not specified</option>
+                        {LANGUAGE_PROFICIENCIES.map((level) => <option key={level} value={level}>{level}</option>)}
+                      </select>
+                    </label>
+                  ))}
+                  <button type="button" aria-label={`Remove language ${index + 1}`}
+                    onClick={() => setForm((current) => ({ ...current, languages: current.languages.filter((_, i) => i !== index) }))}
+                    className="px-3 py-2 text-sm text-red-600 hover:text-red-700">Remove</button>
+                </div>
+              ))}
+              <p className="text-xs text-(--muted)">Add each language and its competency. Spoken and written levels are optional. Blank languages are not saved.</p>
+              <button type="button"
+                onClick={() => setForm((current) => ({ ...current, languages: [...(current.languages ?? []), { language: "", proficiency: "Beginner" }] }))}
+                className="px-3 py-2 text-sm border border-(--border) rounded-md text-(--primary)">
+                Add language
+              </button>
+            </div>
+          </fieldset>
 
           <h3 className="text-lg font-semibold text-(--text) mb-4 mt-6">Government IDs</h3>
           <div className="space-y-4">

@@ -12,6 +12,7 @@ export const initialForm: CandidateForm = {
   birthdate: "",
   gender: "",
   religion: "",
+  languages: [],
   height: "",
   weight: "",
   home_address: "",
@@ -106,6 +107,13 @@ export function buildCandidatePayload(form: CandidateForm): Record<string, unkno
     birthdate: form.birthdate || null,
     gender: form.gender || null,
     religion: form.religion || null,
+    languages: (form.languages ?? [])
+      .filter((entry) => entry.language.trim())
+      .map((entry) => ({
+        language: entry.language.trim(), proficiency: entry.proficiency,
+        ...(entry.spoken ? { spoken: entry.spoken } : {}),
+        ...(entry.written ? { written: entry.written } : {}),
+      })),
     height: form.height || null,
     weight: form.weight || null,
     home_address: form.home_address || null,

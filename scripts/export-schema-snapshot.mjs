@@ -34,7 +34,7 @@ if (!existsSync(BINARY)) {
   process.exit(2);
 }
 
-const migrations = execFileSync('git', ['ls-files', 'pb_migrations'], { cwd: repoRoot, encoding: 'utf8' })
+const migrations = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', 'pb_migrations'], { cwd: repoRoot, encoding: 'utf8' })
   .split(/\r?\n/)
   .filter((f) => f.endsWith('.js'))
   .map((f) => path.basename(f))

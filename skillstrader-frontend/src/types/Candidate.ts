@@ -8,6 +8,14 @@ export type StatusRule = {
 };
 
 // ─── PocketBase raw record shape (from API) ───────────────────────────────────
+export const LANGUAGE_PROFICIENCIES = ["Beginner", "Intermediate", "Fluent", "Native"] as const;
+export type CandidateLanguage = {
+  language: string;
+  proficiency: (typeof LANGUAGE_PROFICIENCIES)[number];
+  spoken?: (typeof LANGUAGE_PROFICIENCIES)[number] | "";
+  written?: (typeof LANGUAGE_PROFICIENCIES)[number] | "";
+};
+
 export type CandidateRecord = {
   id: string;
   full_name?: string;
@@ -20,6 +28,7 @@ export type CandidateRecord = {
   birthdate?: string;
   gender?: string;
   religion?: string;
+  languages?: CandidateLanguage[];
   height?: string;
   weight?: string;
   home_address?: string;
@@ -128,6 +137,7 @@ export type CandidateForm = {
   birthdate: string;
   gender: string;
   religion: string;
+  languages: CandidateLanguage[];
   height: string;
   weight: string;
 

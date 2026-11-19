@@ -372,3 +372,37 @@ describe("candidate history save and load failures", () => {
     } finally { log.mockRestore(); }
   });
 });
+
+
+describe("candidate language persistence", () => {
+  it("saves a language-only edit, reloads it, and clears the last language", async () => {
+    const candidate = { id: "candidate1", first_name: "Test", last_name: "Sample",
+      email: "sample@example.test", phone: "123456789", languages: [] };
+    h.candidateList.mockImplementation(async () => ({ items: [{ ...candidate }], totalPages: 1, page: 1 }));
+    h.candidateUpdate.mockImplementation(async (_id, payload) => { Object.assign(candidate, payload); return { ...candidate }; });
+    const view = render(<Candidates />);
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add language" }));
+    fireEvent.change(screen.getByLabelText("Language 1"), { target: { value: "English" } });
+    fireEvent.change(screen.getByLabelText("Competency 1"), { target: { value: "Fluent" } });
+    fireEvent.change(screen.getByLabelText("Spoken 1"), { target: { value: "Native" } });
+    fireEvent.change(screen.getByLabelText("Written 1"), { target: { value: "Intermediate" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(h.candidateUpdate).toHaveBeenCalledWith("candidate1", expect.objectContaining({ languages: [{ language: "English", proficiency: "Fluent", spoken: "Native", written: "Intermediate" }] }));
+    view.unmount();
+    render(<Candidates />);
+    fireEvent.click(await screen.findByRole("button", { name: "View" }));
+    expect(screen.getByText("English - Fluent")).toBeVisible();
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Close" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    expect(screen.getByLabelText("Language 1")).toHaveValue("English");
+    expect(screen.getByLabelText("Competency 1")).toHaveValue("Fluent");
+    expect(screen.getByLabelText("Spoken 1")).toHaveValue("Native");
+    expect(screen.getByLabelText("Written 1")).toHaveValue("Intermediate");
+    fireEvent.click(screen.getByRole("button", { name: "Remove language 1" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(candidate.languages).toEqual([]);
+  });
+});

@@ -268,6 +268,7 @@ export default function Candidates() {
         birthdate: item.birthdate ? String(item.birthdate).slice(0, 10) : "",
         gender: item.gender ?? "",
         religion: item.religion ?? "",
+        languages: item.languages ?? [],
         height: item.height ?? "",
         weight: item.weight ?? "",
         home_address: item.home_address ?? "",
@@ -652,6 +653,7 @@ export default function Candidates() {
       "birthdate",
       "gender",
       "religion",
+      "languages",
       "height",
       "weight",
       "status",
@@ -1414,6 +1416,25 @@ export default function Candidates() {
                        <div>
                          <dt className="text-sm text-(--muted)">Religion</dt>
                          <dd className="text-(--text)">{viewCandidate.religion || "N/A"}</dd>
+                       </div>
+                       <div>
+                         <dt className="text-sm text-(--muted)">Languages</dt>
+                         <dd className="text-(--text)">
+                           {viewCandidate.languages?.length ? (
+                             <ul className="space-y-1">
+                               {viewCandidate.languages.map((entry, index) => (
+                                 <li key={index}>
+                                   <span>{entry.language} - {entry.proficiency}</span>
+                                   {(entry.spoken || entry.written) && (
+                                     <span className="block text-sm text-(--muted)">
+                                       Spoken: {entry.spoken || "Not specified"} | Written: {entry.written || "Not specified"}
+                                     </span>
+                                   )}
+                                 </li>
+                               ))}
+                             </ul>
+                           ) : "N/A"}
+                         </dd>
                        </div>
                        <div>
                          <dt className="text-sm text-(--muted)">Height</dt>

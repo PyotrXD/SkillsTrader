@@ -115,3 +115,35 @@ describe("resume history content", () => {
       .toContain("No education information provided");
   });
 });
+
+
+describe("resume languages", () => {
+  function languageTable(languages?: unknown) {
+    const doc = new DOMParser().parseFromString(generateResumeHtml({ languages }, ""), "text/html");
+    const heading = [...doc.querySelectorAll("h2")].find((node) => node.textContent === "Language Spoken")!;
+    return heading.nextElementSibling!;
+  }
+
+  it("prints language and competency without spoken or written columns", () => {
+    const table = languageTable([
+      { language: "English", proficiency: "Fluent", spoken: "Native", written: "Intermediate" },
+      { language: "Japanese", proficiency: "Beginner" },
+    ]);
+    const rows = [...table.querySelectorAll("tbody tr")].map((row) => [...row.querySelectorAll("td")].map((cell) => cell.textContent));
+    expect(rows).toEqual([["English", "Fluent"], ["Japanese", "Beginner"]]);
+    expect([...table.querySelectorAll("th")].map((cell) => cell.textContent)).toEqual(["Language", "Competency"]);
+    expect(table.textContent).not.toContain("No language information provided");
+  });
+
+  it("shows the empty message for old records and blank rows", () => {
+    for (const value of [undefined, null, [], [{ language: " ", proficiency: "Beginner" }]]) {
+      expect(languageTable(value).textContent).toContain("No language information provided");
+    }
+  });
+
+  it("escapes language values as text", () => {
+    const table = languageTable([{ language: '<img src=x onerror="bad()">', proficiency: "Fluent", spoken: "<script>bad()</script>" }]);
+    expect(table.querySelector("img, script")).toBeNull();
+    expect(table.textContent).toContain('<img src=x onerror="bad()">');
+  });
+});

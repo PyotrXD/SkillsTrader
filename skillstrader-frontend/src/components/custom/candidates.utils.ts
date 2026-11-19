@@ -114,11 +114,14 @@ export function buildCandidatePayload(form: CandidateForm): Record<string, unkno
     sss_number: form.sss_number || null,
     philhealth: form.philhealth || null,
     highest_educ_attainment: form.highest_educ_attainment || null,
-    school_elementary: form.school_elementary || null,
-    school_junior_high: form.school_junior_high || null,
-    school_senior_high: form.school_senior_high || null,
-    school_college: form.school_college || null,
-    school_other: form.school_other || null,
+    // School names live in candidate_educations. The edit handler first copies
+    // any legacy-only schools there, so clearing these cannot lose old schools
+    // or leave a conflicting summary when a later history write fails.
+    school_elementary: null,
+    school_junior_high: null,
+    school_senior_high: null,
+    school_college: null,
+    school_other: null,
     email: form.email,
     phone: form.phone,
     work_history: form.work_history,

@@ -1,8 +1,5 @@
-import type {
-  EducationEntry,
-  WorkExperienceEntry,
-} from "../../types/Candidate";
-import { educationLevelLabel, formatEducationPeriod } from "./candidateHistory";
+import type { WorkExperienceEntry } from "../../types/Candidate";
+import { educationLevelLabel, formatEducationPeriod, getEducationHistory, isEducationBlank, isWorkExperienceBlank } from "./candidateHistory";
 import { resumePaginationScript } from "./resumePagination";
 
 /** Printed on every page of the resume, left of the page stamp. */
@@ -80,54 +77,46 @@ export function generateResumeHtml(candidate: ResumeCandidate, imgSrc: string): 
   const positionScreened = text(candidate.position_screened, "");
   const status = text(candidate.status, "");
 
-  const educationEntries = readEntries<EducationEntry>(candidate.educations);
+  // Editor fields on older candidates may contain HTML. Parse them in an inert
+  // document and escape the resulting text before inserting it into the resume.
+  function legacyLines(value: unknown): string[] {
+    if (typeof value !== "string" || !value.trim()) return [];
+    const doc = new DOMParser().parseFromString(value, "text/html");
+    doc.querySelectorAll("script, style, template").forEach((node) => node.remove());
+    doc.querySelectorAll("br").forEach((node) => node.replaceWith("\n"));
+    doc.querySelectorAll("p, div, li, h1, h2, h3, h4").forEach((node) => node.append("\n"));
+    return (doc.body.textContent ?? "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  }
+
+  const educationEntries = getEducationHistory(candidate).filter((entry) => !isEducationBlank(entry));
   const educationRows = [
     ["Highest Educational Attainment", highestEducation],
-    ...(educationEntries.length > 0
-      ? educationEntries.map(
-          (entry) =>
-            [
-              educationLevelLabel(entry.level),
-              [
-                text(entry.school_name, ""),
-                text(entry.course, ""),
-                formatEducationPeriod(entry),
-              ]
-                .filter(Boolean)
-                .join(" — "),
-            ] as [string, string],
-        )
-      : ([
-          ["Elementary", text(candidate.school_elementary, "")],
-          ["Junior High", text(candidate.school_junior_high, "")],
-          ["Senior High", text(candidate.school_senior_high, "")],
-          ["College", text(candidate.school_college, "")],
-          ["Other", text(candidate.school_other, "")],
-        ] as [string, string][])),
+    ...educationEntries.map((entry) => [
+      text(educationLevelLabel(entry.level), "Other"),
+      [text(entry.school_name, ""), text(entry.course, ""),
+        text(formatEducationPeriod(entry), ""), text(entry.notes, "")].filter(Boolean).join(" - "),
+    ]),
+    ...legacyLines(candidate.education).map((line) => ["Education summary", text(line, "")]),
   ]
     .filter(([, value]) => value)
-    .map(
-      ([label, value]) => `
-        <tr>
-          <td>${label}</td>
-          <td>${value}</td>
-        </tr>`,
-    )
+    .map(([label, value]) => `
+        <tr><td>${label}</td><td>${value}</td></tr>`)
     .join("");
 
-  const workEntries = readEntries<WorkExperienceEntry>(candidate.work_experiences);
+  const workEntries = readEntries<WorkExperienceEntry>(candidate.work_experiences)
+    .filter((entry) => !isWorkExperienceBlank(entry));
   const workExperienceRows = workEntries
-    .map(
-      (entry) => `
-                <tr>
-                  <td>${text(entry.company, "N/A")}</td>
-                  <td>${text(entry.position, "N/A")}</td>
-                  <td>${text(entry.start_date?.slice(0, 4), "N/A")}</td>
-                  <td>${text(entry.is_current ? "Present" : entry.end_date?.slice(0, 4), "N/A")}</td>
-                  <td>${text(entry.location, "N/A")}</td>
-                </tr>`,
-    )
-    .join("");
+    .map((entry) => `
+        <tr>
+          <td>${text(entry.company)}</td>
+          <td>${text(entry.position)}</td>
+          <td>${text(entry.start_date?.slice(0, 4))}</td>
+          <td>${text(entry.is_current ? "Present" : entry.end_date?.slice(0, 4))}</td>
+          <td>${text(entry.location)}</td>
+        </tr>
+        ${entry.description ? `<tr><td colspan="5">${compactParagraph(entry.description)}</td></tr>` : ""}`)
+    .join("") + legacyLines(candidate.work_history)
+      .map((line) => `<tr><td colspan="5">${text(line, "")}</td></tr>`).join("");
 
   const idRows = [
     ["PAG-IBIG", pagibigNumber, "N/A"],

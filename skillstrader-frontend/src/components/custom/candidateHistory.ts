@@ -58,6 +58,41 @@ export function emptyEducationEntry(): EducationEntry {
   };
 }
 
+const LEGACY_SCHOOLS = [
+  ["school_elementary", "elementary"],
+  ["school_junior_high", "junior_high"],
+  ["school_senior_high", "senior_high"],
+  ["school_college", "college"],
+  ["school_other", "other"],
+] as const;
+
+type EducationHistorySource = { educations?: unknown } & Partial<
+  Record<(typeof LEGACY_SCHOOLS)[number][0], unknown>
+>;
+
+/** Merge older school fields without hiding schools when structured rows exist. */
+export function getEducationHistory(candidate: EducationHistorySource): EducationEntry[] {
+  const entries: EducationEntry[] = Array.isArray(candidate.educations)
+    ? [...candidate.educations]
+    : [];
+  const normalized = (value: string) => value.trim().toLowerCase();
+  for (const [field, level] of LEGACY_SCHOOLS) {
+    const value = candidate[field];
+    if (typeof value !== "string" || !value.trim()) continue;
+    if (entries.some((entry) => entry.level === level &&
+      normalized(entry.school_name) === normalized(value))) continue;
+    entries.push({ ...emptyEducationEntry(), level, school_name: value.trim(), legacy_school_field: field });
+  }
+  return entries;
+}
+
+/** Keep the form's older school fields consistent with its edited history. */
+export function educationLegacyFields(entries: EducationEntry[]) {
+  return Object.fromEntries(LEGACY_SCHOOLS.map(([field, level]) => [
+    field, entries.find((entry) => entry.level === level && entry.school_name.trim())?.school_name ?? "",
+  ]));
+}
+
 function text(value?: string | null): string {
   // PocketBase returns date fields as "YYYY-MM-DD 00:00:00" in some paths, so
   // the slice keeps <input type="date"> usable (ISO 8601 sorts as a string).
@@ -65,7 +100,8 @@ function text(value?: string | null): string {
 }
 
 function year(value?: number | string | null): string {
-  if (value === null || value === undefined || value === "") return "";
+  // Optional PocketBase number fields use zero for an unset value.
+  if (value === null || value === undefined || value === "" || Number(value) === 0) return "";
   return String(value);
 }
 
@@ -76,6 +112,7 @@ export function isWorkExperienceBlank(entry: WorkExperienceEntry): boolean {
     entry.location.trim() ||
     entry.start_date ||
     entry.end_date ||
+    entry.is_current ||
     entry.description.trim()
   );
 }
@@ -290,9 +327,7 @@ export async function fetchWorkExperiencesByCandidates(
     return result;
   } catch (err) {
     console.error("Failed to fetch work experiences for candidates:", err);
-    const empty: Record<string, WorkExperienceEntry[]> = {};
-    for (const id of candidateIds) empty[id] = [];
-    return empty;
+    throw new Error("Could not load employment history. Please retry.");
   }
 }
 
@@ -320,9 +355,7 @@ export async function fetchEducationsByCandidates(
     return result;
   } catch (err) {
     console.error("Failed to fetch educations for candidates:", err);
-    const empty: Record<string, EducationEntry[]> = {};
-    for (const id of candidateIds) empty[id] = [];
-    return empty;
+    throw new Error("Could not load education history. Please retry.");
   }
 }
 
@@ -337,7 +370,10 @@ async function syncEntries<T extends { id?: string }>(
   next: T[],
   buildPayload: (entry: T) => Record<string, unknown>,
   isBlank: (entry: T) => boolean,
+  onProgress?: (saved: T[], draft: T[]) => void,
 ): Promise<void> {
+  let saved = [...previous];
+  const draft = [...next];
   const keptIds = new Set(
     next.filter((entry) => entry.id && !isBlank(entry)).map((entry) => entry.id),
   );
@@ -345,29 +381,37 @@ async function syncEntries<T extends { id?: string }>(
   for (const entry of previous) {
     if (!entry.id || keptIds.has(entry.id)) continue;
     await pb.collection(collection).delete(entry.id);
+    saved = saved.filter((row) => row.id !== entry.id);
+    onProgress?.(saved, [...draft]);
   }
 
   const previousById = new Map(
     previous.filter((entry) => entry.id).map((entry) => [entry.id, entry]),
   );
 
-  for (const entry of next) {
+  for (const [index, entry] of next.entries()) {
     if (isBlank(entry)) continue;
     const payload = buildPayload(entry);
 
     if (!entry.id) {
-      await pb.collection(collection).create({ ...payload, candidate: candidateId });
+      const record = await pb.collection(collection).create({ ...payload, candidate: candidateId });
+      const created = { ...entry, id: record.id };
+      draft[index] = created;
+      saved = [...saved, created];
+      onProgress?.(saved, [...draft]);
       continue;
     }
 
     const before = previousById.get(entry.id);
-    if (!before) continue;
     if (
+      before &&
       JSON.stringify(buildPayload(before)) === JSON.stringify(payload)
     ) {
       continue;
     }
     await pb.collection(collection).update(entry.id, payload);
+    saved = [...saved.filter((row) => row.id !== entry.id), entry];
+    onProgress?.(saved, [...draft]);
   }
 }
 
@@ -375,6 +419,7 @@ export function syncWorkExperiences(
   candidateId: string,
   previous: WorkExperienceEntry[],
   next: WorkExperienceEntry[],
+  onProgress?: (saved: WorkExperienceEntry[], draft: WorkExperienceEntry[]) => void,
 ): Promise<void> {
   return syncEntries(
     WORK_EXPERIENCE_COLLECTION,
@@ -383,6 +428,7 @@ export function syncWorkExperiences(
     next,
     buildWorkExperiencePayload,
     isWorkExperienceBlank,
+    onProgress,
   );
 }
 
@@ -390,6 +436,7 @@ export function syncEducations(
   candidateId: string,
   previous: EducationEntry[],
   next: EducationEntry[],
+  onProgress?: (saved: EducationEntry[], draft: EducationEntry[]) => void,
 ): Promise<void> {
   return syncEntries(
     EDUCATION_COLLECTION,
@@ -398,5 +445,6 @@ export function syncEducations(
     next,
     buildEducationPayload,
     isEducationBlank,
+    onProgress,
   );
 }

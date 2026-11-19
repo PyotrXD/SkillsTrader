@@ -101,6 +101,9 @@ export type EducationLevel =
 
 export type EducationEntry = {
   id?: string;
+  // Client-only identity for a school loaded from an older candidate field.
+  // Kept through edits until it has a real history-record ID; never sent to PB.
+  legacy_school_field?: string;
   candidate?: string;
   level: EducationLevel | "";
   school_name: string;

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { Icon } from "@iconify/react";
 import Modal from "../ui/Modal";
@@ -43,6 +43,8 @@ import {
   formatEducationPeriod,
   formatWorkPeriod,
   getMostRecentRole,
+  getEducationHistory,
+  educationLegacyFields,
   syncEducations,
   syncWorkExperiences,
 } from "./candidateHistory";
@@ -50,6 +52,10 @@ import CandidateFormFields from "./CandidateFormFields";
 import type { CandidateFormTab } from "./CandidateFormFields";
 
 export default function Candidates() {
+  // Async saves may finish after their dialog is closed. Only the form session
+  // that started a save may receive its progress, errors, or completion state.
+  const formSession = useRef(0);
+  useEffect(() => () => { formSession.current += 1; }, []);
   const [form, setForm] = useState<CandidateForm>(initialForm);
   const [positions, setPositions] = useState<PositionRecord[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -65,7 +71,7 @@ export default function Candidates() {
     null,
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [, setError] = useState("");
+  const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [showToast, setShowToast] = useState(false);
   const [toastType, setToastType] = useState<"success" | "error" | "info">(
@@ -340,7 +346,8 @@ export default function Candidates() {
       console.error("Failed to fetch candidates:", err);
       setPagedCandidates([]);
       setTotalPages(1);
-      setListError("Could not load candidates.");
+      setListError(err instanceof Error && err.message.startsWith("Could not load ")
+        ? err.message : "Could not load candidates.");
     } finally {
       setIsListLoading(false);
     }
@@ -412,6 +419,8 @@ export default function Candidates() {
   }
 
   function handleOpenModal() {
+    formSession.current += 1;
+    setIsSubmitting(false);
     setForm(initialForm);
     setFormTab("personal");
     setIsModalOpen(true);
@@ -419,12 +428,16 @@ export default function Candidates() {
   }
 
   function handleCloseModal() {
+    formSession.current += 1;
+    setIsSubmitting(false);
     setIsModalOpen(false);
     setFormTab("personal");
     setError("");
   }
 
   function handleEdit(candidate: CandidateForm) {
+    formSession.current += 1;
+    setIsSubmitting(false);
     setEditCandidate(candidate);
     setForm({
       ...candidate,
@@ -438,6 +451,8 @@ export default function Candidates() {
   }
 
   function handleCloseEditModal() {
+    formSession.current += 1;
+    setIsSubmitting(false);
     setIsEditModalOpen(false);
     setEditCandidate(null);
     setFormTab("personal");
@@ -470,6 +485,32 @@ export default function Candidates() {
     setViewCandidate(null);
   }
 
+  async function prepareEducationHistory(
+    previous: CandidateForm,
+    next: CandidateForm,
+    session: number,
+  ) {
+    let baseline = previous;
+    let draft = { ...next, educations: getEducationHistory(next) };
+    const originalSchools = getEducationHistory(previous);
+    if (originalSchools.some((entry) => !entry.id)) {
+      // Preserve the stored originals before clearing their legacy fields.
+      // New IDs must follow the draft even if a school was renamed or removed.
+      await syncEducations(String(previous.id), previous.educations, originalSchools, (saved, originals) => {
+        baseline = { ...baseline, educations: saved };
+        draft = { ...draft, educations: draft.educations.map((entry) => {
+          if (entry.id || !entry.legacy_school_field) return entry;
+          const original = originals.find((row) => row.legacy_school_field === entry.legacy_school_field);
+          return original?.id ? { ...entry, id: original.id } : entry;
+        }) };
+        if (formSession.current !== session) return;
+        setEditCandidate(baseline);
+        setForm((current) => ({ ...current, educations: draft.educations }));
+      });
+    }
+    return { previous: baseline, next: draft };
+  }
+
   // The entry rows live in their own collections, so they are synced after the
   // candidate record itself is written; a failure here must not be reported as
   // "the candidate was not saved".
@@ -477,21 +518,44 @@ export default function Candidates() {
     candidateId: string,
     previous: CandidateForm | null,
     next: CandidateForm,
+    session: number,
   ) {
+    // Track each completed child write so a retry cannot duplicate new entries
+    // or try to delete a row that was already removed before a later failure.
+    let saved: CandidateForm = {
+      ...(previous ?? next), id: candidateId,
+      ...educationLegacyFields([]),
+      work_experiences: previous?.work_experiences ?? [],
+      educations: previous?.educations ?? [],
+    };
+    if (formSession.current === session) setEditCandidate(saved);
     await syncWorkExperiences(
       candidateId,
       previous?.work_experiences ?? [],
       next.work_experiences ?? [],
+      (entries, draft) => {
+        saved = { ...saved, work_experiences: entries };
+        if (formSession.current !== session) return;
+        setEditCandidate(saved);
+        setForm((current) => ({ ...current, work_experiences: draft }));
+      },
     );
     await syncEducations(
       candidateId,
       previous?.educations ?? [],
       next.educations ?? [],
+      (entries, draft) => {
+        saved = { ...saved, educations: entries };
+        if (formSession.current !== session) return;
+        setEditCandidate(saved);
+        setForm((current) => ({ ...current, educations: draft }));
+      },
     );
   }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const session = formSession.current;
     // A field on an inactive tab is unmounted, so the browser cannot enforce
     // `required` on it. firstMissingRequired is what closes that gap.
     const missing = firstMissingRequired(form);
@@ -504,20 +568,11 @@ export default function Candidates() {
     setIsSubmitting(true);
     setError("");
     try {
-      const payload = buildCandidatePayload(form);
+      const draft = { ...form, educations: getEducationHistory(form) };
+      const payload = buildCandidatePayload(draft);
 
       const record = await pb.collection("candidates").create(payload);
       await createDocumentsForCandidate(record.id, form.documents || {});
-
-      try {
-        await syncHistoryEntries(record.id, null, form);
-      } catch (historyErr: unknown) {
-        const historyLike = historyErr as { message?: string };
-        showFeedback(
-          "error",
-          `Candidate added, but work/school history failed to save. ${historyLike.message ?? ""}`,
-        );
-      }
 
       addAuditLog({
         actor_email: pb.authStore.record?.email ?? "unknown",
@@ -527,11 +582,33 @@ export default function Candidates() {
         entity_name: getCandidateDisplayName(form),
       });
 
+      try {
+        await syncHistoryEntries(record.id, null, draft, session);
+      } catch (historyErr: unknown) {
+        setRefreshToken((v) => v + 1);
+        if (formSession.current !== session) return;
+        const historyLike = historyErr as { message?: string };
+        const message = `Candidate added, but work/school history failed to save. ${historyLike.message ?? ""} Retry saving to finish.`;
+        setError(message);
+        showFeedback(
+          "error",
+          message,
+        );
+        // Continue as an edit of the existing candidate when the user retries.
+        setForm((current) => ({ ...current, id: record.id }));
+        setIsModalOpen(false);
+        setIsEditModalOpen(true);
+        return;
+      }
+
+      setRefreshToken((v) => v + 1);
+      if (formSession.current !== session) return;
       showFeedback("success", "Candidate added successfully.");
       setIsModalOpen(false);
       setForm(initialForm);
-      setRefreshToken((v) => v + 1);
+      setEditCandidate(null);
     } catch (err: unknown) {
+      if (formSession.current !== session) return;
       const errorLike = err as { data?: unknown; message?: string };
       const detail = errorLike.data
         ? JSON.stringify(errorLike.data)
@@ -539,12 +616,13 @@ export default function Candidates() {
       setError(`Failed to add candidate. ${detail}`);
       showFeedback("error", `Failed to add candidate. ${detail}`);
     } finally {
-      setIsSubmitting(false);
+      if (formSession.current === session) setIsSubmitting(false);
     }
   }
 
   async function onEditSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const session = formSession.current;
     const missing = firstMissingRequired(form);
     if (missing) {
       setFormTab("personal");
@@ -607,7 +685,8 @@ export default function Candidates() {
     }
 
     try {
-      const payload = buildCandidatePayload(form);
+      const prepared = await prepareEducationHistory(editCandidate, form, session);
+      const payload = buildCandidatePayload(prepared.next);
 
       await pb.collection("candidates").update(String(editCandidate.id), payload);
       await updateDocumentsForCandidate(
@@ -615,16 +694,6 @@ export default function Candidates() {
         editCandidate.documents || {},
         form.documents || {},
       );
-
-      try {
-        await syncHistoryEntries(String(editCandidate.id), editCandidate, form);
-      } catch (historyErr: unknown) {
-        const historyLike = historyErr as { message?: string };
-        showFeedback(
-          "error",
-          `Candidate updated, but work/school history failed to save. ${historyLike.message ?? ""}`,
-        );
-      }
 
       addAuditLog({
         actor_email: pb.authStore.record?.email ?? "unknown",
@@ -634,10 +703,27 @@ export default function Candidates() {
         entity_name: getCandidateDisplayName(form),
       });
 
+      try {
+        await syncHistoryEntries(String(editCandidate.id), prepared.previous, prepared.next, session);
+      } catch (historyErr: unknown) {
+        setRefreshToken((v) => v + 1);
+        if (formSession.current !== session) return;
+        const historyLike = historyErr as { message?: string };
+        const message = `Candidate updated, but work/school history failed to save. ${historyLike.message ?? ""} Retry saving to finish.`;
+        setError(message);
+        showFeedback(
+          "error",
+          message,
+        );
+        return;
+      }
+
+      setRefreshToken((v) => v + 1);
+      if (formSession.current !== session) return;
       showFeedback("success", "Candidate updated successfully.");
       setIsEditModalOpen(false);
-      setRefreshToken((v) => v + 1);
     } catch (err: unknown) {
+      if (formSession.current !== session) return;
       const errorLike = err as { data?: unknown; message?: string };
       const detail = errorLike.data
         ? JSON.stringify(errorLike.data)
@@ -645,7 +731,7 @@ export default function Candidates() {
       setError(`Failed to update candidate. ${detail}`);
       showFeedback("error", `Failed to update candidate. ${detail}`);
     } finally {
-      setIsSubmitting(false);
+      if (formSession.current === session) setIsSubmitting(false);
     }
   }
 
@@ -1389,34 +1475,14 @@ export default function Candidates() {
                          <dt className="text-sm text-(--muted)">Highest Educational Attainment</dt>
                          <dd className="text-(--text)">{viewCandidate.highest_educ_attainment || "N/A"}</dd>
                        </div>
-                       <div>
-                         <dt className="text-sm text-(--muted)">Elementary School</dt>
-                         <dd className="text-(--text)">{viewCandidate.school_elementary || "N/A"}</dd>
-                       </div>
-                       <div>
-                         <dt className="text-sm text-(--muted)">Junior High School</dt>
-                         <dd className="text-(--text)">{viewCandidate.school_junior_high || "N/A"}</dd>
-                       </div>
-                       <div>
-                         <dt className="text-sm text-(--muted)">Senior High School</dt>
-                         <dd className="text-(--text)">{viewCandidate.school_senior_high || "N/A"}</dd>
-                       </div>
-                       <div>
-                         <dt className="text-sm text-(--muted)">College</dt>
-                         <dd className="text-(--text)">{viewCandidate.school_college || "N/A"}</dd>
-                       </div>
-                       <div>
-                         <dt className="text-sm text-(--muted)">Other School</dt>
-                         <dd className="text-(--text)">{viewCandidate.school_other || "N/A"}</dd>
-                       </div>
                      </dl>
-                     {viewCandidate.educations && viewCandidate.educations.length > 0 && (
+                     {getEducationHistory(viewCandidate).length > 0 && (
                        <div className="mt-4">
                          <h4 className="text-sm font-medium text-(--muted) mb-2">
                            School History Entries
                          </h4>
                          <ul className="space-y-2">
-                           {viewCandidate.educations.map((entry, index) => (
+                           {getEducationHistory(viewCandidate).map((entry, index) => (
                              <li
                                key={entry.id ?? `edu-${index}`}
                                className="border border-(--border) rounded-lg p-3"
@@ -1658,6 +1724,8 @@ export default function Candidates() {
                </div>
                
                <form onSubmit={onSubmit}>
+                 {error && <p role="alert" className="mb-4 text-red-700">{error}</p>}
+                 <fieldset disabled={isSubmitting}>
                  <CandidateFormFields
                    form={form}
                    setForm={setForm}
@@ -1665,6 +1733,7 @@ export default function Candidates() {
                    tab={formTab}
                    onTabChange={setFormTab}
                  />
+                 </fieldset>
 
                  <div className="mt-8 flex justify-end gap-3">
                    <button
@@ -1758,6 +1827,8 @@ export default function Candidates() {
                </div>
                
                <form onSubmit={onEditSubmit}>
+                 {error && <p role="alert" className="mb-4 text-red-700">{error}</p>}
+                 <fieldset disabled={isSubmitting}>
                  <CandidateFormFields
                    form={form}
                    setForm={setForm}
@@ -1765,6 +1836,7 @@ export default function Candidates() {
                    tab={formTab}
                    onTabChange={setFormTab}
                  />
+                 </fieldset>
 
                  <div className="mt-8 flex justify-end gap-3">
                    <button

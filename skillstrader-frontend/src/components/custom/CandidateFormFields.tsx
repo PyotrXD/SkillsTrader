@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { CandidateForm, PositionRecord } from "../../types/Candidate";
 import { EducationFields, WorkExperienceFields } from "./CandidateHistoryFields";
+import { educationLegacyFields, getEducationHistory } from "./candidateHistory";
 import { candidateStatuses } from "./candidates.constants";
 
 export type CandidateFormTab = "personal" | "education" | "work" | "details";
@@ -261,59 +262,16 @@ export default function CandidateFormFields({ form, setForm, positions, tab, onT
                 className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-(--muted) mb-1">Elementary School</label>
-              <input
-                type="text"
-                value={form.school_elementary}
-                onChange={(e) => setForm({...form, school_elementary: e.target.value})}
-                className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-(--muted) mb-1">Junior High School</label>
-              <input
-                type="text"
-                value={form.school_junior_high}
-                onChange={(e) => setForm({...form, school_junior_high: e.target.value})}
-                className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-(--muted) mb-1">Senior High School</label>
-              <input
-                type="text"
-                value={form.school_senior_high}
-                onChange={(e) => setForm({...form, school_senior_high: e.target.value})}
-                className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-(--muted) mb-1">College</label>
-              <input
-                type="text"
-                value={form.school_college}
-                onChange={(e) => setForm({...form, school_college: e.target.value})}
-                className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-(--muted) mb-1">Other School</label>
-              <input
-                type="text"
-                value={form.school_other}
-                onChange={(e) => setForm({...form, school_other: e.target.value})}
-                className="w-full px-3 py-2 border border-(--border) rounded-md focus:outline-none focus:ring-2 focus:ring-(--primary)"
-              />
-            </div>
             <div className="pt-4 border-t border-(--border)">
               <h4 className="text-sm font-semibold text-(--text) mb-1">School History</h4>
               <p className="text-xs text-(--muted) mb-3">
-                One row per school attended; every row is saved as its own entry.
+                Add each school once, with the years attended. Leave unused entries blank.
               </p>
               <EducationFields
-                entries={form.educations}
-                onChange={(next) => setForm({...form, educations: next})}
+                entries={getEducationHistory(form)}
+                onChange={(next) => setForm({...form, educations: next,
+                  ...educationLegacyFields(next),
+                })}
               />
             </div>
           </div>

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { generateResumeHtml } from "./resumeTemplate";
+import { emptyEducationEntry, emptyWorkExperience } from "./candidateHistory";
 
 /*
  * These are static guards on the generated print document, not layout tests: jsdom has no layout
@@ -55,5 +56,54 @@ describe("the print document's page geometry", () => {
   it("prints no work experience section as empty rather than as the deleted free text", () => {
     expect(html).toContain("No work experience information provided");
     expect(html).not.toContain("Work History (free text)");
+  });
+});
+
+describe("resume history content", () => {
+  function documentFor(candidate: Record<string, unknown>) {
+    return new DOMParser().parseFromString(generateResumeHtml(candidate, ""), "text/html");
+  }
+
+  it("prints structured schools, jobs, years and additional details", () => {
+    const doc = documentFor({ educations: [{ ...emptyEducationEntry(), level: "college",
+      school_name: "University", course: "Nursing", start_year: "2010", end_year: "2014", notes: "Honors" }],
+      work_experiences: [{ ...emptyWorkExperience(), company: "Hospital", position: "Nurse",
+        start_date: "2015-01-01", is_current: true, location: "Singapore", description: "Patient care" }] });
+    expect(doc.body.textContent).toContain("University - Nursing - 2010 - 2014 - Honors");
+    for (const value of ["Hospital", "Nurse", "2015", "Present", "Singapore", "Patient care"]) {
+      expect(doc.body.textContent).toContain(value);
+    }
+    expect(doc.body.textContent).not.toContain("No work experience information provided");
+    expect(doc.body.textContent).not.toContain("No education information provided");
+  });
+
+  it("includes legacy schools alongside structured schools without duplicating them", () => {
+    const doc = documentFor({ school_elementary: "Primary School", school_college: "University",
+      educations: [{ ...emptyEducationEntry(), level: "college", school_name: "University" }] });
+    expect(doc.body.textContent).toContain("Primary School");
+    expect([...doc.querySelectorAll("td")].filter((cell) => cell.textContent === "University")).toHaveLength(1);
+  });
+
+  it("prints older rich-text history safely, preserving line breaks", () => {
+    const doc = documentFor({ work_history: '<p>Earlier employer &amp; Co</p><p>2010–2012</p><script>bad()</script>',
+      education: '<p>Earlier school</p><img src=x onerror="bad()">' });
+    expect(doc.body.textContent).toContain("Earlier employer & Co");
+    expect(doc.body.textContent).toContain("2010–2012");
+    expect(doc.body.textContent).toContain("Earlier school");
+    expect(doc.querySelector("[onerror]")).toBeNull();
+    expect(doc.body.textContent).not.toContain("bad()");
+    expect(doc.body.textContent).not.toContain("No work experience information provided");
+  });
+
+  it("escapes structured history and treats blank draft rows as empty", () => {
+    const doc = documentFor({ educations: [{ ...emptyEducationEntry(), level: '<img src=x onerror="bad()">',
+      school_name: "<script>school()</script>", end_year: "<b>2020</b>" }],
+      work_experiences: [emptyWorkExperience()] });
+    expect(doc.querySelector("[onerror]")).toBeNull();
+    expect(doc.body.textContent).toContain("<script>school()</script>");
+    expect(doc.body.textContent).toContain("<b>2020</b>");
+    expect(doc.body.textContent).toContain("No work experience information provided");
+    expect(documentFor({ educations: [emptyEducationEntry()] }).body.textContent)
+      .toContain("No education information provided");
   });
 });

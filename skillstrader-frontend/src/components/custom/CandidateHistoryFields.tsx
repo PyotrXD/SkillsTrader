@@ -74,16 +74,15 @@ function HistoryList<T extends { id?: string }>({
   removeLabel,
   renderFields,
 }: HistoryListProps<T>) {
+  // Show the first entry without saving a placeholder until the user types.
+  const visibleEntries = entries.length ? entries : [createEmpty()];
   function patchAt(index: number, changes: Partial<T>) {
-    onChange(entries.map((entry, i) => (i === index ? { ...entry, ...changes } : entry)));
+    onChange(visibleEntries.map((entry, i) => (i === index ? { ...entry, ...changes } : entry)));
   }
 
   return (
     <div className="space-y-3">
-      {entries.length === 0 && (
-        <p className="text-sm text-(--muted)">No entries yet.</p>
-      )}
-      {entries.map((entry, index) => (
+      {visibleEntries.map((entry, index) => (
         <EntryRow
           key={entry.id ?? `new-${index}`}
           index={index}
@@ -94,7 +93,7 @@ function HistoryList<T extends { id?: string }>({
           {renderFields(entry, index, (changes) => patchAt(index, changes))}
         </EntryRow>
       ))}
-      <AddEntryButton onClick={() => onChange([...entries, createEmpty()])} label={addLabel} />
+      <AddEntryButton onClick={() => onChange([...visibleEntries, createEmpty()])} label={addLabel} />
     </div>
   );
 }
@@ -103,6 +102,18 @@ type WorkExperienceFieldsProps = {
   entries: WorkExperienceEntry[];
   onChange: (next: WorkExperienceEntry[]) => void;
 };
+
+// Keep existing month/day precision when a year is edited. New entries need
+// a complete date for PocketBase; clamp February 29 when moving to a non-leap year.
+function withYear(date: string, year: string): string {
+  if (!year) return "";
+  const [, month = "01", day = "01"] = date.split("-");
+  const suffix = `-${month}-${day}`;
+  if (suffix === "-02-29" && new Date(Number(year), 1, 29).getMonth() !== 1) {
+    return `${year}-02-28`;
+  }
+  return `${year}${suffix}`;
+}
 
 export function WorkExperienceFields({
   entries,
@@ -148,40 +159,36 @@ export function WorkExperienceFields({
               />
             </div>
           </div>
-          <div>
-            <label className={labelClass} htmlFor={`work-location-${index}`}>
-              Location
-            </label>
-            <input
-              id={`work-location-${index}`}
-              type="text"
-              value={entry.location}
-              onChange={(e) => patch({ location: e.target.value })}
-              className={inputClass}
-            />
-          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className={labelClass} htmlFor={`work-start-${index}`}>
-                Start date
+                Start year
               </label>
               <input
                 id={`work-start-${index}`}
-                type="date"
-                value={entry.start_date}
-                onChange={(e) => patch({ start_date: e.target.value })}
+                type="number"
+                inputMode="numeric"
+                min={1900}
+                max={2100}
+                placeholder="YYYY"
+                value={entry.start_date.split("-")[0]}
+                onChange={(e) => patch({ start_date: withYear(entry.start_date, e.target.value) })}
                 className={inputClass}
               />
             </div>
             <div>
               <label className={labelClass} htmlFor={`work-end-${index}`}>
-                End date
+                End year
               </label>
               <input
                 id={`work-end-${index}`}
-                type="date"
-                value={entry.end_date}
-                onChange={(e) => patch({ end_date: e.target.value })}
+                type="number"
+                inputMode="numeric"
+                min={1900}
+                max={2100}
+                placeholder={entry.is_current ? "Present" : "YYYY"}
+                value={entry.end_date.split("-")[0]}
+                onChange={(e) => patch({ end_date: withYear(entry.end_date, e.target.value) })}
                 className={inputClass}
                 disabled={entry.is_current}
               />
@@ -201,18 +208,26 @@ export function WorkExperienceFields({
               Currently employed here
             </label>
           </div>
-          <div>
-            <label className={labelClass} htmlFor={`work-description-${index}`}>
-              Description
-            </label>
-            <textarea
-              id={`work-description-${index}`}
-              value={entry.description}
-              onChange={(e) => patch({ description: e.target.value })}
-              className={inputClass}
-              rows={3}
-            />
-          </div>
+          <details open={Boolean(entry.location || entry.description)}>
+            <summary className="cursor-pointer text-sm text-(--muted)">Additional job details (optional)</summary>
+            <div className="mt-3">
+              <label className={labelClass} htmlFor={`work-location-${index}`}>Location</label>
+              <input id={`work-location-${index}`} type="text" value={entry.location}
+                onChange={(e) => patch({ location: e.target.value })} className={inputClass} />
+            </div>
+            <div className="mt-3">
+              <label className={labelClass} htmlFor={`work-description-${index}`}>
+                Description
+              </label>
+              <textarea
+                id={`work-description-${index}`}
+                value={entry.description}
+                onChange={(e) => patch({ description: e.target.value })}
+                className={inputClass}
+                rows={3}
+              />
+            </div>
+          </details>
           <p className="text-xs text-(--muted)">
             Period: {formatWorkPeriod(entry) || "Not set"}
           </p>
@@ -298,6 +313,7 @@ export function EducationFields({ entries, onChange }: EducationFieldsProps) {
                 min={1900}
                 max={2100}
                 value={entry.start_year}
+                placeholder="YYYY"
                 onChange={(e) => patch({ start_year: e.target.value })}
                 className={inputClass}
               />
@@ -313,6 +329,7 @@ export function EducationFields({ entries, onChange }: EducationFieldsProps) {
                 min={1900}
                 max={2100}
                 value={entry.end_year}
+                placeholder="YYYY"
                 onChange={(e) => patch({ end_year: e.target.value })}
                 className={inputClass}
               />

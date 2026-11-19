@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => {
     create: vi.fn().mockResolvedValue({ id: "new1" }),
     update: vi.fn().mockResolvedValue({ id: "updated" }),
     delete: vi.fn().mockResolvedValue(true),
+    getList: vi.fn(),
   };
   return { collection, pb: { collection: vi.fn(() => collection) } };
 });
@@ -27,6 +28,9 @@ import {
   syncWorkExperiences,
   EDUCATION_COLLECTION,
   WORK_EXPERIENCE_COLLECTION,
+  fetchWorkExperiencesByCandidates,
+  fetchEducationsByCandidates,
+  mapEducationRaw,
 } from "./candidateHistory";
 
 function work(overrides: Partial<WorkExperienceEntry> = {}): WorkExperienceEntry {
@@ -41,8 +45,62 @@ beforeEach(() => {
   mocks.collection.create.mockClear();
   mocks.collection.update.mockClear();
   mocks.collection.delete.mockClear();
+  mocks.collection.getList.mockReset();
   mocks.pb.collection.mockClear();
   mocks.pb.collection.mockReturnValue(mocks.collection);
+});
+
+describe("history loading", () => {
+  it("reports employment and education failures rather than returning empty histories", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      mocks.collection.getList.mockRejectedValue(new Error("Request failed"));
+      await expect(fetchWorkExperiencesByCandidates(["cand1"]))
+        .rejects.toThrow("Could not load employment history");
+      await expect(fetchEducationsByCandidates(["cand1"]))
+        .rejects.toThrow("Could not load education history");
+    } finally { log.mockRestore(); }
+  });
+
+  it("keeps genuinely empty successful responses empty", async () => {
+    mocks.collection.getList.mockResolvedValue({ items: [], totalPages: 1 });
+    expect(await fetchWorkExperiencesByCandidates(["cand1"])).toEqual({ cand1: [] });
+    expect(await fetchEducationsByCandidates(["cand1"])).toEqual({ cand1: [] });
+  });
+});
+
+describe("retrying a partially saved history", () => {
+  it("retains created IDs and does not duplicate earlier rows on retry", async () => {
+    const first = work({ company: "First employer" });
+    const second = work({ company: "Second employer" });
+    let saved: WorkExperienceEntry[] = [];
+    let draft = [first, second];
+    const progress = (rows: WorkExperienceEntry[], next: WorkExperienceEntry[]) => {
+      saved = rows; draft = next;
+    };
+    mocks.collection.create.mockResolvedValueOnce({ id: "first" }).mockRejectedValueOnce(new Error("Offline"));
+    await expect(syncWorkExperiences("cand1", [], draft, progress)).rejects.toThrow("Offline");
+    expect(draft[0].id).toBe("first");
+    expect(saved).toHaveLength(1);
+    mocks.collection.create.mockClear();
+    await syncWorkExperiences("cand1", saved, draft, progress);
+    expect(mocks.collection.create).toHaveBeenCalledTimes(1);
+    expect(mocks.collection.create).toHaveBeenCalledWith(expect.objectContaining({ company: "Second employer" }));
+    expect(first.id).toBeUndefined();
+  });
+
+  it("does not repeat completed deletions after a later write fails", async () => {
+    const previous = [work({ id: "old", company: "Old" })];
+    const next = [work({ company: "New" })];
+    let saved = previous;
+    mocks.collection.create.mockRejectedValueOnce(new Error("Offline"));
+    await expect(syncWorkExperiences("cand1", previous, next, (rows) => { saved = rows; }))
+      .rejects.toThrow("Offline");
+    expect(saved).toEqual([]);
+    mocks.collection.delete.mockClear();
+    await syncWorkExperiences("cand1", saved, next);
+    expect(mocks.collection.delete).not.toHaveBeenCalled();
+  });
 });
 
 describe("latest work history derivation", () => {
@@ -107,6 +165,10 @@ describe("period formatting", () => {
 });
 
 describe("education ordering and labels", () => {
+  it("shows unset PocketBase year values as blank rather than year zero", () => {
+    expect(mapEducationRaw({ id: "edu1", start_year: 0, end_year: "0" }))
+      .toMatchObject({ start_year: "", end_year: "" });
+  });
   it("sorts by the most recent year and keeps unknown levels readable", () => {
     const entries = [
       edu({ school_name: "Elem", level: "elementary", end_year: "2012" }),
@@ -125,6 +187,10 @@ describe("education ordering and labels", () => {
 });
 
 describe("payload builders", () => {
+  it("does not send client-only legacy school identity to PocketBase", () => {
+    expect(buildEducationPayload(edu({ school_name: "University", legacy_school_field: "school_college" })))
+      .not.toHaveProperty("legacy_school_field");
+  });
   it("clears end_date for a current role and blanks empty strings to null", () => {
     expect(
       buildWorkExperiencePayload(

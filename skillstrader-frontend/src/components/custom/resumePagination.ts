@@ -58,7 +58,7 @@ export function collectResumeAtoms(flow: HTMLElement): ResumeAtom[] {
   const children = flow.children;
   for (let i = 0; i < children.length; i += 1) {
     const child = children[i] as HTMLElement;
-    if (child.classList.contains('footer')) continue;
+    if (child.classList.contains('footer') || child.classList.contains('resume-watermark')) continue;
     blocks.push(child);
   }
 
@@ -233,11 +233,15 @@ export function runResumePrintBootstrap(
 
   const atoms = collect(flow);
   if (atoms.length === 0) return;
+  const watermark = flow.querySelector('.resume-watermark');
 
   const createSheet = function (): HTMLElement {
     const sheet = document.createElement('section');
     sheet.className = 'sheet';
     sheet.style.height = 'auto';
+    // Each physical page owns a logo; absolute positioning keeps it out of
+    // the measurements used to decide where school and work rows split.
+    if (watermark) sheet.appendChild(watermark.cloneNode(true));
     const footer = document.createElement('footer');
     footer.className = 'footer';
     const brand = document.createElement('span');

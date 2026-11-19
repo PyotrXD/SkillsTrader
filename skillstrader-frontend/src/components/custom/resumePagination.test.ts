@@ -63,6 +63,7 @@ function fixture(rows: number): string {
 
   return `
     <main class="page" id="resume-flow">
+      <img class="resume-watermark" src="data:image/png;base64,sample" alt="" aria-hidden="true" />
       <header class="header" data-h="${HEADER_HEIGHT}"><span>Photo and name</span></header>
       <section class="section">
         <h2 class="section-title">Work Experience</h2>
@@ -262,6 +263,10 @@ describe("the embedded print script", () => {
       "Page 3 / 3",
     ]);
     expect(book.querySelectorAll("tbody > tr")).toHaveLength(9);
+    for (const sheet of sheets) {
+      expect(sheet.querySelectorAll(':scope > .resume-watermark')).toHaveLength(1);
+      expect(sheet.querySelector('.resume-watermark')?.getAttribute('aria-hidden')).toBe('true');
+    }
     expect((document.getElementById("resume-flow") as HTMLElement).style.display).toBe("none");
     expect(print).toHaveBeenCalledTimes(1);
 
@@ -282,6 +287,7 @@ describe("the embedded print script", () => {
     const book = document.getElementById("resume-book") as HTMLElement;
     expect(book.querySelectorAll(".sheet")).toHaveLength(0);
     expect((document.getElementById("resume-flow") as HTMLElement).style.display).toBe("");
+    expect(document.querySelector('#resume-flow > .resume-watermark')).not.toBeNull();
     expect(print).not.toHaveBeenCalled();
 
     vi.advanceTimersByTime(1500);

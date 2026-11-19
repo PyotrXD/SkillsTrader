@@ -1,6 +1,7 @@
 import type { WorkExperienceEntry } from "../../types/Candidate";
 import { educationLevelLabel, formatEducationPeriod, getEducationHistory, isEducationBlank, isWorkExperienceBlank } from "./candidateHistory";
 import { resumePaginationScript } from "./resumePagination";
+import watermarkLogo from "../../assets/images/skillstrader-logo.jpeg?inline";
 
 /** Printed on every page of the resume, left of the page stamp. */
 const FOOTER_BRAND = "SkillsTrader";
@@ -299,6 +300,36 @@ export function generateResumeHtml(candidate: ResumeCandidate, imgSrc: string): 
             justify-content: space-between;
             color: #222;
             font-size: 10px;
+            z-index: 1;
+          }
+
+          .page,
+          .sheet {
+            isolation: isolate;
+          }
+
+          .resume-watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 145mm;
+            height: 145mm;
+            object-fit: contain;
+            opacity: 0.08;
+            z-index: 0;
+            pointer-events: none;
+            user-select: none;
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+          }
+
+          .page > .header,
+          .page > .section,
+          .sheet > .header,
+          .sheet > .section {
+            position: relative;
+            z-index: 1;
           }
 
           /*
@@ -350,6 +381,11 @@ export function generateResumeHtml(candidate: ResumeCandidate, imgSrc: string): 
           }
 
           @media print {
+            /* The unpaginated fallback also repeats its logo on each paper page. */
+            #resume-flow > .resume-watermark {
+              position: fixed;
+            }
+
             body {
               background: #fff;
             }
@@ -375,6 +411,7 @@ export function generateResumeHtml(candidate: ResumeCandidate, imgSrc: string): 
       </head>
       <body>
         <main class="page" id="resume-flow">
+          <img class="resume-watermark" src="${escapeHtml(watermarkLogo)}" alt="" aria-hidden="true" />
           <header class="header">
             <div>
               <div class="candidate-id">${applicantId}</div>

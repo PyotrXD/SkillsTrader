@@ -19,6 +19,14 @@ const html = generateResumeHtml(
 );
 
 describe("the print document's page geometry", () => {
+  it("embeds the logo as a decorative image, so printing needs no separate logo request or background graphics", () => {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const watermark = doc.querySelector('#resume-flow > img.resume-watermark');
+    expect(watermark?.getAttribute('src')).toMatch(/^data:image\/jpeg;base64,/);
+    expect(watermark?.getAttribute('aria-hidden')).toBe('true');
+    expect(watermark?.getAttribute('alt')).toBe('');
+    expect(html).toMatch(/\.resume-watermark\s*\{[^}]*position:\s*absolute[^}]*top:\s*50%[^}]*left:\s*50%[^}]*translate\(-50%, -50%\)[^}]*opacity:\s*0\.08/s);
+  });
   it("declares A4 as the paper size with no page margin", () => {
     // Without this the export inherits the OS driver default, which is how Letter output appears.
     expect(html).toMatch(/@page\s*\{[^}]*size:\s*A4[^}]*margin:\s*0[^}]*\}/s);

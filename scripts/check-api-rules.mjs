@@ -149,12 +149,18 @@ assertMap('up', applied, EXPECTED);
 console.log(failures === 0 ? '  OK  applied rules match the expected tiers' : `  ${failures} mismatch(es) on apply`);
 
 const beforeRollback = failures;
-// Two rollback steps, not one. This script assumed 1793000000 was the tip of the chain and reverted
-// a single migration to reach its "before" state; 1794000000 sits after it now, so one step only
-// undoes the newest file. Stepping twice proves each migration's down path on its own terms:
-// rolling back 1794000000 must narrow the users roster read without touching anything else.
+// Roll back through the named migration, including any newer migrations, so new
+// schema changes cannot make this check silently test the wrong down() function.
+function rollbackThrough(file) {
+  const db = new DatabaseSync(path.join(throwaway, 'data.db'), { readOnly: true });
+  const applied = db.prepare('select file from _migrations order by file desc').all().map((row) => row.file);
+  db.close();
+  const index = applied.indexOf(file);
+  if (index === -1) throw new Error(`Migration not applied: ${file}`);
+  runMigrate(['migrate', 'down', String(index + 1)]);
+}
 console.log('rolling back 1794000000 (users read rules) and re-checking...');
-runMigrate(['migrate', 'down', '1']);
+rollbackThrough('1794000000_users_manager_read_rules.js');
 assertMap('down-users', readRules(path.join(throwaway, 'data.db')), {
   ...EXPECTED,
   users: { listRule: SELF_OR_ADMIN, viewRule: SELF_OR_ADMIN, createRule: ADMIN, updateRule: SELF_OR_ADMIN, deleteRule: ADMIN },

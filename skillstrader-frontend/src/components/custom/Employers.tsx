@@ -152,6 +152,7 @@ function handleOpenModal() {
     // Check if user is authenticated
     if (!pb.authStore.isValid) {
       setError("Please log in to add employers");
+      showFeedback("error", "Please log in to add employers");
       return;
     }
     

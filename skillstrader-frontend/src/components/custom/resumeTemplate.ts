@@ -12,6 +12,21 @@ function readEntries<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
 }
 
+function ageInYears(birthdate: unknown): number | null {
+  if (typeof birthdate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(birthdate)) return null;
+
+  const birth = new Date(`${birthdate}T00:00:00Z`);
+  if (!Number.isFinite(birth.getTime()) || birth.toISOString().slice(0, 10) !== birthdate) return null;
+
+  // Keep the stored birth date as a calendar date and use the browser's local day for today.
+  const today = new Date();
+  const birthMonth = birth.getUTCMonth();
+  const beforeBirthday = today.getMonth() < birthMonth ||
+    (today.getMonth() === birthMonth && today.getDate() < birth.getUTCDate());
+  const age = today.getFullYear() - birth.getUTCFullYear() - Number(beforeBirthday);
+  return age >= 0 ? age : null;
+}
+
 export function generateResumeHtml(candidate: ResumeCandidate, imgSrc: string): string {
   function escapeHtml(value: unknown): string {
     if (value === null || value === undefined) return "";
@@ -64,6 +79,7 @@ export function generateResumeHtml(candidate: ResumeCandidate, imgSrc: string): 
   );
   const civilStatus = text(candidate.marital_status);
   const birthdate = text(candidate.birthdate);
+  const age = ageInYears(candidate.birthdate);
   const gender = text(candidate.gender);
   const religion = text(candidate.religion);
   const height = text(candidate.height);
@@ -434,7 +450,7 @@ export function generateResumeHtml(candidate: ResumeCandidate, imgSrc: string): 
                 <div class="label">Date of Birth</div>
                 <div class="value">${birthdate}</div>
                 <div class="label">Age:</div>
-                <div class="value">N/A</div>
+                <div class="value">${age ?? "N/A"}</div>
               </div>
               <div class="info-row">
                 <div class="label">Gender:</div>

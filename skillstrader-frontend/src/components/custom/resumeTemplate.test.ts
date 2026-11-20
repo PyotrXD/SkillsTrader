@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { generateResumeHtml } from "./resumeTemplate";
 import { emptyEducationEntry, emptyWorkExperience } from "./candidateHistory";
 
@@ -64,6 +64,32 @@ describe("the print document's page geometry", () => {
   it("prints no work experience section as empty rather than as the deleted free text", () => {
     expect(html).toContain("No work experience information provided");
     expect(html).not.toContain("Work History (free text)");
+  });
+});
+
+describe("printed resume age", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 10, 20, 12));
+  });
+
+  afterEach(() => vi.useRealTimers());
+
+  it.each([
+    ["2000-11-19", "26"],
+    ["2000-11-20", "26"],
+    ["2000-11-21", "25"],
+    ["2026-11-20", "0"],
+    ["2026-11-21", "N/A"],
+    ["2001-02-29", "N/A"],
+    ["", "N/A"],
+  ])("prints %s as age %s", (birthdate, expectedAge) => {
+    const html = generateResumeHtml({ birthdate }, "");
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const label = [...doc.querySelectorAll(".info-grid .label")]
+      .find((element) => element.textContent === "Age:");
+
+    expect(label?.nextElementSibling?.textContent).toBe(expectedAge);
   });
 });
 

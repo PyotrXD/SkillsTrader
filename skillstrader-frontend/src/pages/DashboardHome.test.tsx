@@ -33,6 +33,7 @@ it('opens Candidates from the dashboard with the unprocessed applicant filter al
   const card = await screen.findByRole('button', { name: /unprocessed applicants 0/i });
   expect(getCandidates).toHaveBeenCalledWith(1, 1, {
     filter: 'status = "New Applicant" && is_archived = false',
+    requestKey: null,
   });
   getCandidates.mockClear();
 

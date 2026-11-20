@@ -21,17 +21,18 @@ export default function DashboardHome({ email, onNavigate }: Props) {
       try {
         // Get count of open job orders from the database
         const openJobs = await pb.collection('job_orders').getList(1, 1000, {
-          filter: 'status = "open"'
+          filter: 'status = "open"',
+          requestKey: null,
         });
-        
-        const openJobsCount = openJobs.totalItems;
+        if (!mounted) return;
 
         const result = await pb.collection('candidates').getList(1, 1, {
           filter: `status = "${NEW_APPLICANT_STATUS}" && is_archived = false`,
+          requestKey: null,
         });
 
         if (!mounted) return;
-        setActiveJobs(openJobsCount);
+        setActiveJobs(openJobs.totalItems);
         setUnprocessedApplicants(result.totalItems);
       } catch (err) {
         const message = getPocketBaseUiError(err, 'Failed to load dashboard counts.');

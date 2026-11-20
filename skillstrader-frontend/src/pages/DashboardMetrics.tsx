@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { getPocketBaseUiError, pb } from '../lib/pocketbase/pb';
+import { computeCandidateFlags, hasMissingRequiredDocuments, type FlagCandidateInput } from '../utils/candidateFlags';
 import { EXPIRY_WARNING_DAYS, summariseExpiry } from '../utils/documentExpiry';
 
 type CandidateRecord = {
   id: string;
+  status?: string;
 };
 
 type InterviewRecord = {
@@ -15,7 +17,7 @@ type InterviewRecord = {
 type DocumentRecord = {
   candidate?: string | null;
   doc_type?: string | null;
-  status?: string | null;
+  file?: string | null;
   expiry_date?: string | null;
 };
 
@@ -29,26 +31,8 @@ type MetricState = {
   expiringDocuments: number;
 };
 
-const REQUIRED_DOCUMENT_TYPES = ['resume', 'passport', 'visa', 'nbi_clearance', 'police_clearance'];
-const ACCEPTED_DOCUMENT_STATUSES = new Set(['Submitted', 'Verified']);
-
-function toCandidateId(value: unknown): string | null {
-  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
-}
-
-function isPastOrToday(dateText: string, todayISO: string): boolean {
-  const normalized = dateText.slice(0, 10);
-  return normalized <= todayISO;
-}
-
 export default function DashboardMetrics() {
-  const [metrics, setMetrics] = useState<MetricState>({
-    notInterviewed: 0,
-    notScheduled: 0,
-    missingDocuments: 0,
-    expiredDocuments: 0,
-    expiringDocuments: 0,
-  });
+  const [metrics, setMetrics] = useState<MetricState | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,49 +45,51 @@ export default function DashboardMetrics() {
 
       try {
         const [candidates, interviews, documents] = await Promise.all([
-          pb.collection('candidates').getFullList<CandidateRecord>({ sort: '-updated', filter: 'is_archived = false' }),
-          pb.collection('interviews').getFullList<InterviewRecord>({ sort: '-updated' }),
-          pb.collection('documents').getFullList<DocumentRecord>({ sort: '-updated' }),
+          pb.collection('candidates').getFullList<CandidateRecord>({
+            filter: 'is_archived = false', fields: 'id,status', requestKey: null,
+          }),
+          pb.collection('interviews').getFullList<InterviewRecord>({
+            sort: '-created', fields: 'candidate,interview_date,result', requestKey: null,
+          }),
+          pb.collection('documents').getFullList<DocumentRecord>({
+            fields: 'candidate,doc_type,file,expiry_date', requestKey: null,
+          }),
         ]);
 
         const candidateIds = new Set(candidates.map((candidate) => candidate.id));
-        const todayISO = new Date().toISOString().slice(0, 10);
-
-        const scheduledCandidateIds = new Set<string>();
-        const interviewedCandidateIds = new Set<string>();
-
+        // The Candidates page uses the newest interview for each candidate.
+        const latestInterviews = new Map<string, InterviewRecord>();
         for (const interview of interviews) {
-          const candidateId = toCandidateId(interview.candidate);
-          if (!candidateId || !candidateIds.has(candidateId)) continue;
-
-          scheduledCandidateIds.add(candidateId);
-
-          const hasResult = typeof interview.result === 'string' && interview.result.trim().length > 0;
-          const hasPastDate =
-            typeof interview.interview_date === 'string' &&
-            interview.interview_date.trim().length > 0 &&
-            isPastOrToday(interview.interview_date.trim(), todayISO);
-
-          if (hasResult || hasPastDate) interviewedCandidateIds.add(candidateId);
+          const candidateId = interview.candidate;
+          if (candidateId && candidateIds.has(candidateId) && !latestInterviews.has(candidateId)) {
+            latestInterviews.set(candidateId, interview);
+          }
         }
 
-        const docsByCandidate = new Map<string, Set<string>>();
+        const docsByCandidate = new Map<string, NonNullable<FlagCandidateInput['documents']>>();
         for (const doc of documents) {
-          const candidateId = toCandidateId(doc.candidate);
-          const docType = typeof doc.doc_type === 'string' ? doc.doc_type.trim() : '';
-          const status = typeof doc.status === 'string' ? doc.status.trim() : '';
-          if (!candidateId || !candidateIds.has(candidateId) || !docType) continue;
-          if (!ACCEPTED_DOCUMENT_STATUSES.has(status)) continue;
-
-          if (!docsByCandidate.has(candidateId)) docsByCandidate.set(candidateId, new Set<string>());
-          docsByCandidate.get(candidateId)?.add(docType);
+          const { candidate, doc_type: type, file } = doc;
+          if (!candidate || !candidateIds.has(candidate) || !type || !file) continue;
+          const files = docsByCandidate.get(candidate) ?? {};
+          files[type] = file;
+          docsByCandidate.set(candidate, files);
         }
 
+        let notInterviewed = 0;
+        let notScheduled = 0;
         let missingDocuments = 0;
         for (const candidate of candidates) {
-          const available = docsByCandidate.get(candidate.id) ?? new Set<string>();
-          const hasAllRequired = REQUIRED_DOCUMENT_TYPES.every((docType) => available.has(docType));
-          if (!hasAllRequired) missingDocuments += 1;
+          const status = candidate.status ?? '';
+          const candidateDocuments = docsByCandidate.get(candidate.id);
+          if (status === 'Deployed') {
+            if (hasMissingRequiredDocuments(candidateDocuments)) missingDocuments += 1;
+            continue;
+          }
+
+          const flags = computeCandidateFlags({ status, documents: candidateDocuments }, latestInterviews.get(candidate.id));
+          if (flags.includes('Not Interviewed')) notInterviewed += 1;
+          if (flags.includes('Not Scheduled')) notScheduled += 1;
+          if (flags.includes('Missing Docs')) missingDocuments += 1;
         }
 
         // Expiry is counted over every document row, not only candidate-linked ones:
@@ -113,16 +99,16 @@ export default function DashboardMetrics() {
 
         if (!mounted) return;
         setMetrics({
-          notInterviewed: candidates.length - interviewedCandidateIds.size,
-          notScheduled: candidates.length - scheduledCandidateIds.size,
+          notInterviewed,
+          notScheduled,
           missingDocuments,
           expiredDocuments: expiry.expired,
           expiringDocuments: expiry.expiring,
         });
       } catch (err) {
-        const message = getPocketBaseUiError(err, 'Failed to load dashboard metrics.');
         if (!mounted) return;
-        setError(message);
+        const fallback = 'Failed to load dashboard metrics.';
+        setError(getPocketBaseUiError(err, fallback) ?? fallback);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -138,33 +124,33 @@ export default function DashboardMetrics() {
     <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3" aria-label="Candidate dashboard metrics">
       <article className="bg-white border border-[var(--border)] rounded-2xl shadow-[0_10px_26px_rgba(13,27,110,0.06)] p-4 grid gap-2">
         <p className="m-0 text-[var(--muted)] text-[12px] font-bold tracking-[0.04em] uppercase">Candidates not interviewed</p>
-        <p className="m-0 text-[clamp(28px,4vw,34px)] font-extrabold leading-none text-[var(--navy)]">{loading ? '...' : metrics.notInterviewed}</p>
+        <p className="m-0 text-[clamp(28px,4vw,34px)] font-extrabold leading-none text-[var(--navy)]">{loading ? '...' : metrics?.notInterviewed ?? '—'}</p>
       </article>
 
       <article className="bg-white border border-[var(--border)] rounded-2xl shadow-[0_10px_26px_rgba(13,27,110,0.06)] p-4 grid gap-2">
         <p className="m-0 text-[var(--muted)] text-[12px] font-bold tracking-[0.04em] uppercase">Candidates not scheduled</p>
-        <p className="m-0 text-[clamp(28px,4vw,34px)] font-extrabold leading-none text-[var(--navy)]">{loading ? '...' : metrics.notScheduled}</p>
+        <p className="m-0 text-[clamp(28px,4vw,34px)] font-extrabold leading-none text-[var(--navy)]">{loading ? '...' : metrics?.notScheduled ?? '—'}</p>
       </article>
 
       <article className="bg-white border border-[var(--border)] rounded-2xl shadow-[0_10px_26px_rgba(13,27,110,0.06)] p-4 grid gap-2">
         <p className="m-0 text-[var(--muted)] text-[12px] font-bold tracking-[0.04em] uppercase">Candidates with missing documents</p>
-        <p className="m-0 text-[clamp(28px,4vw,34px)] font-extrabold leading-none text-[var(--navy)]">{loading ? '...' : metrics.missingDocuments}</p>
+        <p className="m-0 text-[clamp(28px,4vw,34px)] font-extrabold leading-none text-[var(--navy)]">{loading ? '...' : metrics?.missingDocuments ?? '—'}</p>
       </article>
 
       <article className="bg-white border border-[var(--border)] rounded-2xl shadow-[0_10px_26px_rgba(13,27,110,0.06)] p-4 grid gap-2">
         <p className="m-0 text-[var(--muted)] text-[12px] font-bold tracking-[0.04em] uppercase">Documents needing expiry action</p>
         <p className="m-0 text-[clamp(28px,4vw,34px)] font-extrabold leading-none text-[var(--navy)]">
-          {loading ? '...' : metrics.expiredDocuments + metrics.expiringDocuments}
+          {loading ? '...' : metrics ? metrics.expiredDocuments + metrics.expiringDocuments : '—'}
         </p>
         {/* The window is stated, not implied: a bare count gives no way to tell how urgent it is. */}
         <p className="m-0 text-[var(--muted)] text-[11px]">
           {loading
             ? `Loading`
-            : `${metrics.expiredDocuments} lapsed · ${metrics.expiringDocuments} due within ${EXPIRY_WARNING_DAYS} days`}
+            : metrics && `${metrics.expiredDocuments} lapsed · ${metrics.expiringDocuments} due within ${EXPIRY_WARNING_DAYS} days`}
         </p>
       </article>
 
-      {error ? <p className="m-0 text-[#9f2d20] text-[13px]">{error}</p> : null}
+      {error ? <p role="alert" className="m-0 text-[#9f2d20] text-[13px]">{error}</p> : null}
     </section>
   );
 }

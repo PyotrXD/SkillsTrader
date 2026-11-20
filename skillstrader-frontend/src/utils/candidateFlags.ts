@@ -31,6 +31,13 @@ export type FlagInterviewInput = {
   result?: string | null;
 } | null | undefined;
 
+export function hasMissingRequiredDocuments(documents: FlagCandidateInput['documents']): boolean {
+  return REQUIRED_DOCUMENT_TYPES.some((key) => {
+    const file = documents?.[key];
+    return file === null || file === undefined || file === '';
+  });
+}
+
 /**
  * Compute the Action Required flags for a candidate.
  *
@@ -51,14 +58,7 @@ export function computeCandidateFlags(
   const flags: CandidateFlag[] = [];
 
   // --- Missing Docs ---
-  const docs = candidate.documents ?? {};
-  const hasRequiredDocs = REQUIRED_DOCUMENT_TYPES.every(
-    (key) => {
-      const val = docs[key];
-      return val !== null && val !== undefined && val !== '';
-    },
-  );
-  if (!hasRequiredDocs) flags.push('Missing Docs');
+  if (hasMissingRequiredDocuments(candidate.documents)) flags.push('Missing Docs');
 
   // --- Not Scheduled ---
   const hasInterviewDate = !!interview?.interview_date;

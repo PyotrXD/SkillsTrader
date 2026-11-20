@@ -192,6 +192,7 @@ export type CandidateForm = {
   // Files
   profile_photo?: File | string | null;
   documents?: Record<string, string | File | null>;
+  documentRecordIds?: Partial<Record<string, string>>;
 };
 
 // ArchivedCandidate is the same shape — alias lang

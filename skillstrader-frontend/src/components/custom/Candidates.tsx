@@ -55,6 +55,11 @@ type Props = {
   initialStatusFilter?: (typeof candidateStatuses)[number];
 };
 
+type CandidateDocuments = {
+  documents: Record<string, string | null>;
+  documentRecordIds: Partial<Record<string, string>>;
+};
+
 export default function Candidates({ initialStatusFilter }: Props) {
   // Async saves may finish after their dialog is closed. Only the form session
   // that started a save may receive its progress, errors, or completion state.
@@ -106,7 +111,10 @@ export default function Candidates({ initialStatusFilter }: Props) {
     "info" | "details" | "documents" | "notes"
   >("info");
   const [formTab, setFormTab] = useState<CandidateFormTab>("personal");
-  const [uploadingDocType, setUploadingDocType] = useState<string | null>(null);
+  const [documentAction, setDocumentAction] = useState<{
+    key: string;
+    action: "upload" | "remove";
+  } | null>(null);
   const userRole = useMemo(() => getUserRole() ?? "staff", []);
   const canManageCandidates =
     userRole === "administrator" || userRole === "manager";
@@ -147,7 +155,7 @@ export default function Candidates({ initialStatusFilter }: Props) {
 
   async function fetchDocumentsByCandidate(
     candidateIds: string[],
-  ): Promise<Record<string, Record<string, string | null>>> {
+  ): Promise<Partial<Record<string, CandidateDocuments>>> {
     if (candidateIds.length === 0) return {};
 
     const candidateFilter = candidateIds
@@ -172,23 +180,17 @@ export default function Candidates({ initialStatusFilter }: Props) {
     }
 
     const token = await pb.files.getToken({ requestKey: null });
-    const documentsByCandidate: Record<
-      string,
-      Record<string, string | null>
-    > = {};
+    const documentsByCandidate: Partial<Record<string, CandidateDocuments>> = {};
     for (const id of candidateIds) {
-      documentsByCandidate[id] = createEmptyDocumentsMap();
+      documentsByCandidate[id] = { documents: createEmptyDocumentsMap(), documentRecordIds: {} };
     }
 
     for (const doc of documents) {
       if (!doc.candidate || !doc.file || !doc.doc_type) continue;
-      if (!documentsByCandidate[doc.candidate]) continue;
-      if (documentsByCandidate[doc.candidate][doc.doc_type]) continue;
-      documentsByCandidate[doc.candidate][doc.doc_type] = pb.files.getURL(
-        doc,
-        doc.file,
-        { token },
-      );
+      const candidateDocs = documentsByCandidate[doc.candidate];
+      if (!candidateDocs || candidateDocs.documentRecordIds[doc.doc_type]) continue;
+      candidateDocs.documents[doc.doc_type] = pb.files.getURL(doc, doc.file, { token });
+      candidateDocs.documentRecordIds[doc.doc_type] = doc.id;
     }
 
     return documentsByCandidate;
@@ -251,8 +253,8 @@ export default function Candidates({ initialStatusFilter }: Props) {
 
     return items.map((item) => {
       const status = item.status ?? "New Applicant";
-      const documents =
-        documentsByCandidate[item.id] ?? createEmptyDocumentsMap();
+      const candidateDocs = documentsByCandidate[item.id];
+      const documents = candidateDocs?.documents ?? createEmptyDocumentsMap();
       const interview = interviewsByCandidate[item.id] ?? null;
 
       const computedFlags = computeCandidateFlags(
@@ -311,6 +313,7 @@ export default function Candidates({ initialStatusFilter }: Props) {
           ? pb.files.getURL(item, item.photo, { token: photoToken })
           : null,
         documents,
+        documentRecordIds: candidateDocs?.documentRecordIds,
       };
     });
   }
@@ -896,6 +899,58 @@ export default function Candidates({ initialStatusFilter }: Props) {
     }
   }
 
+  function updateCandidateDocuments(
+    candidateId: string,
+    update: (candidate: CandidateForm) => CandidateForm,
+  ) {
+    const updateMatch = (candidate: CandidateForm) =>
+      String(candidate.id) === candidateId ? update(candidate) : candidate;
+    setViewCandidate((current) => current && updateMatch(current));
+    setPagedCandidates((current) => current.map(updateMatch));
+    setArchivedCandidates((current) => current.map(updateMatch));
+  }
+
+  async function refreshCandidateDocuments(candidateId: string) {
+    const documentsByCandidate = await fetchDocumentsByCandidate([candidateId]);
+    updateCandidateDocuments(candidateId, (candidate) => ({ ...candidate, ...documentsByCandidate[candidateId] }));
+  }
+
+  async function handleViewDocumentRemove(key: string, label: string) {
+    if (!canManageCandidates || documentAction || !viewCandidate?.id) return;
+    const documentId = viewCandidate.documentRecordIds?.[key];
+    if (!documentId || !window.confirm(`Permanently remove ${label} from this candidate?`)) return;
+
+    const candidateId = String(viewCandidate.id);
+    setDocumentAction({ key, action: "remove" });
+
+    try {
+      await pb.collection("documents").delete(documentId);
+    } catch (err) {
+      console.error(`Failed to remove ${label}:`, err);
+      showFeedback("error", `Failed to remove ${label}.`);
+      setDocumentAction(null);
+      return;
+    }
+
+    updateCandidateDocuments(candidateId, (candidate) => {
+      if (candidate.documentRecordIds?.[key] !== documentId) return candidate;
+      const documentRecordIds = { ...candidate.documentRecordIds };
+      delete documentRecordIds[key];
+      return { ...candidate, documents: { ...candidate.documents, [key]: null }, documentRecordIds };
+    });
+
+    try {
+      await refreshCandidateDocuments(candidateId);
+      showFeedback("success", `${label} removed successfully.`);
+    } catch (err) {
+      console.error(`Failed to refresh documents after removing ${label}:`, err);
+      showFeedback("info", `${label} was removed. Reopen the candidate to refresh the document list.`);
+    } finally {
+      setRefreshToken((value) => value + 1);
+      setDocumentAction(null);
+    }
+  }
+
   async function handleViewDocumentUpload(
     key: string,
     label: string,
@@ -903,10 +958,10 @@ export default function Candidates({ initialStatusFilter }: Props) {
   ) {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (!file || !viewCandidate?.id) return;
+    if (!canManageCandidates || documentAction || !file || !viewCandidate?.id) return;
 
     const candidateId = String(viewCandidate.id);
-    setUploadingDocType(key);
+    setDocumentAction({ key, action: "upload" });
 
     try {
       let currentPage = 1;
@@ -933,38 +988,14 @@ export default function Candidates({ initialStatusFilter }: Props) {
         status: "Submitted",
       });
 
-      const refreshedDocsByCandidate = await fetchDocumentsByCandidate([
-        candidateId,
-      ]);
-      const refreshedDocuments =
-        refreshedDocsByCandidate[candidateId] ?? createEmptyDocumentsMap();
-
-      setViewCandidate((current) =>
-        current && String(current.id) === candidateId
-          ? { ...current, documents: refreshedDocuments }
-          : current,
-      );
-      setPagedCandidates((current) =>
-        current.map((candidate) =>
-          String(candidate.id) === candidateId
-            ? { ...candidate, documents: refreshedDocuments }
-            : candidate,
-        ),
-      );
-      setArchivedCandidates((current) =>
-        current.map((candidate) =>
-          String(candidate.id) === candidateId
-            ? { ...candidate, documents: refreshedDocuments }
-            : candidate,
-        ),
-      );
+      await refreshCandidateDocuments(candidateId);
       setRefreshToken((value) => value + 1);
       showFeedback("success", `${label} uploaded successfully.`);
     } catch (err) {
       console.error(`Failed to upload ${label}:`, err);
       showFeedback("error", `Failed to upload ${label}.`);
     } finally {
-      setUploadingDocType(null);
+      setDocumentAction(null);
     }
   }
 
@@ -1613,7 +1644,8 @@ export default function Candidates({ initialStatusFilter }: Props) {
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                      {documentTypes.map(([key, label]) => {
                        const docUrl = viewCandidate.documents?.[key];
-                       const isUploading = uploadingDocType === key;
+                       const isUploading = documentAction?.key === key && documentAction.action === "upload";
+                       const isRemoving = documentAction?.key === key && documentAction.action === "remove";
                        return (
                          <div key={key} className="border border-(--border) rounded-lg p-3">
                            <div className="flex justify-between items-start gap-3">
@@ -1637,12 +1669,23 @@ export default function Candidates({ initialStatusFilter }: Props) {
                                )}
                                {canManageCandidates && (
                                  <>
+                                   {docUrl && viewCandidate.documentRecordIds?.[key] && (
+                                     <button
+                                       type="button"
+                                       aria-label={`Remove ${label}`}
+                                       disabled={documentAction !== null}
+                                       onClick={() => void handleViewDocumentRemove(key, label)}
+                                       className="text-sm font-medium text-red-600 hover:text-red-800 disabled:text-gray-400"
+                                     >
+                                       {isRemoving ? "Removing..." : "Remove"}
+                                     </button>
+                                   )}
                                    <input
                                      id={`view-document-upload-${key}`}
                                      type="file"
                                      accept="application/pdf,image/jpeg,image/png,image/webp"
                                      className="hidden"
-                                     disabled={isUploading}
+                                     disabled={documentAction !== null}
                                      onChange={(event) =>
                                        void handleViewDocumentUpload(
                                          key,
@@ -1654,7 +1697,7 @@ export default function Candidates({ initialStatusFilter }: Props) {
                                    <label
                                      htmlFor={`view-document-upload-${key}`}
                                      className={`text-sm font-medium ${
-                                       isUploading
+                                       documentAction
                                          ? "cursor-not-allowed text-gray-400"
                                          : "cursor-pointer text-(--primary) hover:text-(--primary)/80"
                                      }`}

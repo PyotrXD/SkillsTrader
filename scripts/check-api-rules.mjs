@@ -43,8 +43,12 @@ const READ =
 const MANAGER =
   "@request.auth.id != '' && (@request.auth.role = 'administrator' || @request.auth.role = 'manager')";
 const ADMIN = "@request.auth.id != '' && @request.auth.role = 'administrator'";
+const DOCUMENT_DELETE =
+  "@request.auth.id != '' && (@request.auth.role = 'administrator' || (@request.auth.role = 'manager' && candidate != ''))";
 const BARE = "@request.auth.id != ''";
 const SELF_OR_ADMIN = "@request.auth.id != '' && (@request.auth.role = 'administrator' || id = @request.auth.id)";
+const PROFILE_UPDATE =
+  "@request.auth.id != '' && (@request.auth.role = 'administrator' || (id = @request.auth.id && @request.body.role:changed = false))";
 // The users roster is readable by administrator and manager (1794000000), plus each record's own
 // row. Distinct from READ above, which is the staff-wider rule on the transactional collections.
 const ROSTER_READ =
@@ -61,15 +65,14 @@ const EXPECTED = {
   positions: { deleteRule: MANAGER },
   // Hook-write-only. null is PocketBase's "no API access"; the old always-false expression is gone.
   audit_logs: { listRule: ADMIN, viewRule: ADMIN, createRule: null, updateRule: null, deleteRule: null },
-  // Already hardened before this migration; asserted so a future migration cannot quietly widen them.
   candidates: { listRule: READ, viewRule: READ, deleteRule: ADMIN },
-  documents: { listRule: READ, viewRule: READ, deleteRule: ADMIN },
+  documents: { listRule: READ, viewRule: READ, deleteRule: DOCUMENT_DELETE },
   candidate_work_experiences: { listRule: READ, viewRule: READ, createRule: MANAGER, updateRule: MANAGER, deleteRule: MANAGER },
   candidate_educations: { listRule: READ, viewRule: READ, createRule: MANAGER, updateRule: MANAGER, deleteRule: MANAGER },
   users: {
     listRule: ROSTER_READ,
     viewRule: ROSTER_READ,
-    updateRule: SELF_OR_ADMIN,
+    updateRule: PROFILE_UPDATE,
     createRule: ADMIN,
     deleteRule: ADMIN,
   },
@@ -148,7 +151,6 @@ const applied = readRules(path.join(throwaway, 'data.db'));
 assertMap('up', applied, EXPECTED);
 console.log(failures === 0 ? '  OK  applied rules match the expected tiers' : `  ${failures} mismatch(es) on apply`);
 
-const beforeRollback = failures;
 // Roll back through the named migration, including any newer migrations, so new
 // schema changes cannot make this check silently test the wrong down() function.
 function rollbackThrough(file) {
@@ -159,10 +161,27 @@ function rollbackThrough(file) {
   if (index === -1) throw new Error(`Migration not applied: ${file}`);
   runMigrate(['migrate', 'down', String(index + 1)]);
 }
+
+const beforeDocumentRollback = failures;
+const beforeDocumentRules = {
+  ...EXPECTED,
+  documents: { ...EXPECTED.documents, deleteRule: ADMIN },
+  users: { ...EXPECTED.users, updateRule: SELF_OR_ADMIN },
+};
+console.log('rolling back 1795046500 (document removal permissions) and re-checking...');
+rollbackThrough('1795046500_candidate_document_delete_rules.js');
+assertMap('down-documents', readRules(path.join(throwaway, 'data.db')), beforeDocumentRules);
+console.log(
+  failures === beforeDocumentRollback
+    ? '  OK  document deletion and profile update rules restored'
+    : `  ${failures - beforeDocumentRollback} mismatch(es) rolling back document removal permissions`,
+);
+
+const beforeRollback = failures;
 console.log('rolling back 1794000000 (users read rules) and re-checking...');
 rollbackThrough('1794000000_users_manager_read_rules.js');
 assertMap('down-users', readRules(path.join(throwaway, 'data.db')), {
-  ...EXPECTED,
+  ...beforeDocumentRules,
   users: { listRule: SELF_OR_ADMIN, viewRule: SELF_OR_ADMIN, createRule: ADMIN, updateRule: SELF_OR_ADMIN, deleteRule: ADMIN },
 });
 console.log(

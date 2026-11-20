@@ -11,8 +11,8 @@
 //   node scripts/export-schema-snapshot.mjs --verify
 export const schemaSnapshot = {
   "generatedFrom": {
-    "lastMigration": "1795046500_candidate_document_delete_rules.js",
-    "migrationCount": 40
+    "lastMigration": "1795046600_staff_candidate_history_create_rules.js",
+    "migrationCount": 41
   },
   "collections": {
     "_authOrigins": [

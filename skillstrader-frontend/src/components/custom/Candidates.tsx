@@ -115,9 +115,10 @@ export default function Candidates({ initialStatusFilter }: Props) {
     key: string;
     action: "upload" | "remove";
   } | null>(null);
-  const userRole = useMemo(() => getUserRole() ?? "staff", []);
+  const userRole = useMemo(() => getUserRole(), []);
   const canManageCandidates =
     userRole === "administrator" || userRole === "manager";
+  const canAddCandidates = canManageCandidates || userRole === "staff";
   const canRestoreArchived = canManageCandidates;
 
   function buildCandidateFilter(archived: boolean): string {
@@ -434,6 +435,7 @@ export default function Candidates({ initialStatusFilter }: Props) {
   }
 
   function handleOpenModal() {
+    if (!canAddCandidates) return;
     formSession.current += 1;
     setIsSubmitting(false);
     setForm(initialForm);
@@ -570,6 +572,7 @@ export default function Candidates({ initialStatusFilter }: Props) {
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!canAddCandidates) return;
     const session = formSession.current;
     // A field on an inactive tab is unmounted, so the browser cannot enforce
     // `required` on it. firstMissingRequired is what closes that gap.
@@ -1046,7 +1049,7 @@ export default function Candidates({ initialStatusFilter }: Props) {
                 </p>
               </div>
               <div className="ml-auto flex items-center gap-2">
-                {canManageCandidates && (
+                {canAddCandidates && (
                   <button
                     className="border-none text-white flex items-center gap-1 text-sm bg-linear-to-br from-(--primary) to-(--primary2) rounded-md px-2.5 py-2 font-bold transition-all duration-150 hover:brightness-110 hover:scale-105"
                     onClick={handleOpenModal}

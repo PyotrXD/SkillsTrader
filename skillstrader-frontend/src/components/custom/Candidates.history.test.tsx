@@ -1,7 +1,9 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { UserRole } from "../../lib/pocketbase/pb";
 
 const h = vi.hoisted(() => ({
+  role: "manager" as UserRole,
   candidateCreate: vi.fn(), candidateUpdate: vi.fn(), candidateList: vi.fn(),
   workCreate: vi.fn(), workList: vi.fn(), educationCreate: vi.fn(), educationList: vi.fn(),
   educationUpdate: vi.fn(), educationDelete: vi.fn(),
@@ -9,7 +11,7 @@ const h = vi.hoisted(() => ({
 vi.mock("@iconify/react", () => ({ Icon: () => null }));
 vi.mock("../../utils/auditLog", () => ({ addAuditLog: vi.fn() }));
 vi.mock("../../lib/pocketbase/pb", () => ({
-  getUserRole: () => "manager",
+  getUserRole: () => h.role,
   pb: {
     authStore: { isValid: true, record: { email: "manager@example.test" } },
     files: { getToken: vi.fn().mockResolvedValue(""), getURL: vi.fn() },
@@ -34,6 +36,7 @@ function deferred<T>() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  h.role = "manager";
   h.candidateList.mockResolvedValue({ items: [], totalPages: 1, page: 1 });
   h.candidateCreate.mockResolvedValue({ id: "candidate1" });
   h.candidateUpdate.mockResolvedValue({ id: "candidate1" });
@@ -43,6 +46,66 @@ beforeEach(() => {
   h.educationDelete.mockResolvedValue(true);
   h.workList.mockResolvedValue({ items: [], totalPages: 1 });
   h.educationList.mockResolvedValue({ items: [], totalPages: 1 });
+});
+
+describe("staff candidate intake", () => {
+  async function fillCandidateForm() {
+    h.role = "staff";
+    h.candidateList.mockResolvedValue({
+      items: [{ id: "existing", first_name: "Existing", last_name: "Sample" }],
+      totalPages: 1,
+      page: 1,
+    });
+    render(<Candidates />);
+    const existingRow = within(await screen.findByRole("row", { name: /existing/i }));
+    expect(existingRow.getByRole("button", { name: "View" })).toBeEnabled();
+    expect(existingRow.queryByRole("button", { name: "Edit" })).toBeNull();
+    expect(existingRow.queryByRole("button", { name: "Archive" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add new candidate" }));
+    const dialog = within(screen.getByRole("dialog"));
+    for (const [label, value] of [["Last Name *", "Sample"], ["First Name *", "New"],
+      ["Email *", "new@example.test"], ["Phone *", "123456789"]]) {
+      const input = dialog.getByText(label, { selector: "label" }).parentElement!.querySelector("input")!;
+      fireEvent.change(input, { target: { value } });
+    }
+    fireEvent.click(dialog.getByRole("button", { name: "Work History" }));
+    fireEvent.change(dialog.getByLabelText("Position"), { target: { value: "Technician" } });
+    fireEvent.change(dialog.getByLabelText("Company"), { target: { value: "Example Employer" } });
+    fireEvent.click(dialog.getByRole("button", { name: "Education History" }));
+    fireEvent.change(dialog.getByLabelText("Level"), { target: { value: "college" } });
+    fireEvent.change(dialog.getByLabelText("School name"), { target: { value: "Example School" } });
+    fireEvent.click(dialog.getByRole("button", { name: "Add Candidate" }));
+  }
+
+  it("saves the candidate's details, work history, and education from the Add Candidate form", async () => {
+    await fillCandidateForm();
+
+    expect(await screen.findByText("Candidate added successfully.")).toBeInTheDocument();
+    expect(h.candidateCreate).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      first_name: "New", last_name: "Sample", email: "new@example.test", status: "New Applicant",
+    }));
+    expect(h.workCreate).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      candidate: "candidate1", company: "Example Employer", position: "Technician",
+    }));
+    expect(h.educationCreate).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      candidate: "candidate1", level: "college", school_name: "Example School",
+    }));
+  });
+
+  it("retries a failed history save on the same candidate without duplicating the saved work history", async () => {
+    h.educationCreate.mockRejectedValueOnce(new Error("Temporary school save failure"));
+    await fillCandidateForm();
+
+    const retry = await screen.findByRole("button", { name: "Save Changes" });
+    expect(within(screen.getByRole("dialog")).getByRole("alert")).toHaveTextContent("Candidate added, but work/school history failed to save");
+    fireEvent.click(retry);
+
+    expect(await screen.findByText("Candidate updated successfully.")).toBeInTheDocument();
+    expect(h.candidateCreate).toHaveBeenCalledTimes(1);
+    expect(h.workCreate).toHaveBeenCalledTimes(1);
+    expect(h.educationCreate).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("school names after a failed save", () => {

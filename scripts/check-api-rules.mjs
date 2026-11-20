@@ -45,6 +45,8 @@ const MANAGER =
 const ADMIN = "@request.auth.id != '' && @request.auth.role = 'administrator'";
 const DOCUMENT_DELETE =
   "@request.auth.id != '' && (@request.auth.role = 'administrator' || (@request.auth.role = 'manager' && candidate != ''))";
+const HISTORY_CREATE =
+  "@request.auth.id != '' && (@request.auth.role = 'administrator' || @request.auth.role = 'manager' || (@request.auth.role = 'staff' && candidate.is_archived = false))";
 const BARE = "@request.auth.id != ''";
 const SELF_OR_ADMIN = "@request.auth.id != '' && (@request.auth.role = 'administrator' || id = @request.auth.id)";
 const PROFILE_UPDATE =
@@ -65,10 +67,10 @@ const EXPECTED = {
   positions: { deleteRule: MANAGER },
   // Hook-write-only. null is PocketBase's "no API access"; the old always-false expression is gone.
   audit_logs: { listRule: ADMIN, viewRule: ADMIN, createRule: null, updateRule: null, deleteRule: null },
-  candidates: { listRule: READ, viewRule: READ, deleteRule: ADMIN },
+  candidates: { listRule: READ, viewRule: READ, createRule: READ, deleteRule: ADMIN },
   documents: { listRule: READ, viewRule: READ, deleteRule: DOCUMENT_DELETE },
-  candidate_work_experiences: { listRule: READ, viewRule: READ, createRule: MANAGER, updateRule: MANAGER, deleteRule: MANAGER },
-  candidate_educations: { listRule: READ, viewRule: READ, createRule: MANAGER, updateRule: MANAGER, deleteRule: MANAGER },
+  candidate_work_experiences: { listRule: READ, viewRule: READ, createRule: HISTORY_CREATE, updateRule: MANAGER, deleteRule: MANAGER },
+  candidate_educations: { listRule: READ, viewRule: READ, createRule: HISTORY_CREATE, updateRule: MANAGER, deleteRule: MANAGER },
   users: {
     listRule: ROSTER_READ,
     viewRule: ROSTER_READ,
@@ -162,9 +164,24 @@ function rollbackThrough(file) {
   runMigrate(['migrate', 'down', String(index + 1)]);
 }
 
+const beforeHistoryRollback = failures;
+const beforeHistoryRules = {
+  ...EXPECTED,
+  candidate_work_experiences: { ...EXPECTED.candidate_work_experiences, createRule: MANAGER },
+  candidate_educations: { ...EXPECTED.candidate_educations, createRule: MANAGER },
+};
+console.log('rolling back 1795046600 (staff candidate history creation) and re-checking...');
+rollbackThrough('1795046600_staff_candidate_history_create_rules.js');
+assertMap('down-history', readRules(path.join(throwaway, 'data.db')), beforeHistoryRules);
+console.log(
+  failures === beforeHistoryRollback
+    ? '  OK  history creation rules restored'
+    : `  ${failures - beforeHistoryRollback} mismatch(es) rolling back history creation permissions`,
+);
+
 const beforeDocumentRollback = failures;
 const beforeDocumentRules = {
-  ...EXPECTED,
+  ...beforeHistoryRules,
   documents: { ...EXPECTED.documents, deleteRule: ADMIN },
   users: { ...EXPECTED.users, updateRule: SELF_OR_ADMIN },
 };

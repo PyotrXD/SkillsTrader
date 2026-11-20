@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Icon } from '@iconify/react';
+import { NEW_APPLICANT_STATUS, UNPROCESSED_APPLICANTS_KEY } from '../components/custom/candidates.constants';
 import { getPocketBaseUiError, pb } from '../lib/pocketbase/pb';
 import DashboardMetrics from './DashboardMetrics';
 
@@ -25,9 +26,9 @@ export default function DashboardHome({ email, onNavigate }: Props) {
         
         const openJobsCount = openJobs.totalItems;
 
-         const result = await pb.collection('candidates').getList(1, 1, {
-           filter: 'status = "New Applicant" && is_archived = false',
-         });
+        const result = await pb.collection('candidates').getList(1, 1, {
+          filter: `status = "${NEW_APPLICANT_STATUS}" && is_archived = false`,
+        });
 
         if (!mounted) return;
         setActiveJobs(openJobsCount);
@@ -74,7 +75,7 @@ export default function DashboardHome({ email, onNavigate }: Props) {
 
         <button
           type="button"
-          onClick={() => onNavigate?.('candidates')}
+          onClick={() => onNavigate?.(UNPROCESSED_APPLICANTS_KEY)}
           className="text-left bg-gradient-to-br from-[#3a3f4b] to-[#23262e] rounded-2xl p-4 flex items-center justify-between cursor-pointer border-none hover:brightness-110 transition-all"
         >
           <div>

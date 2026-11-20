@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getPocketBaseUiError, pb, type UserRole } from '../lib/pocketbase/pb';
 import DashboardHome from './DashboardHome';
 import Candidates from "../components/custom/Candidates";
+import { NEW_APPLICANT_STATUS, UNPROCESSED_APPLICANTS_KEY } from '../components/custom/candidates.constants';
 import Employers from "../components/custom/Employers";
 import JobOrders from "../components/custom/JobOrders";
 import Placements from "../components/custom/Placements";
@@ -443,7 +444,9 @@ export default function RecordsWorkspace({ role, activeKey, onNavigate }: Props)
     users: [],
   });
 
-  const activeConfig = useMemo(() => ENTITIES.find((entity) => entity.key === activeKey) ?? ENTITIES[0], [activeKey]);
+  const showUnprocessedApplicants = activeKey === UNPROCESSED_APPLICANTS_KEY;
+  const entityKey = showUnprocessedApplicants ? 'candidates' : activeKey;
+  const activeConfig = useMemo(() => ENTITIES.find((entity) => entity.key === entityKey) ?? ENTITIES[0], [entityKey]);
 
   useEffect(() => {
     // Don't load relation options when a custom component is active — those components
@@ -719,8 +722,8 @@ export default function RecordsWorkspace({ role, activeKey, onNavigate }: Props)
     <>
       {activeKey === 'dashboard' ? (
         <DashboardHome email={pb.authStore.record?.email ?? 'your account'} onNavigate={onNavigate} />
-      ) : activeKey === 'candidates' ? (
-        <Candidates />
+      ) : entityKey === 'candidates' ? (
+        <Candidates key={activeKey} initialStatusFilter={showUnprocessedApplicants ? NEW_APPLICANT_STATUS : undefined} />
       ) : activeKey === 'employer' ? (
         <Employers />
       ) : activeKey === 'placements' ? (

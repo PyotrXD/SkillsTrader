@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { RECORD_ENTITY_ITEMS } from '../../pages/RecordsWorkspace';
 import type { UserRole } from '../../lib/pocketbase/pb';
+import { UNPROCESSED_APPLICANTS_KEY } from './candidates.constants';
 
 type Props = {
   activeKey: string;
@@ -108,6 +109,7 @@ export default function Sidebar({
   const location = useLocation();
   const navigate = useNavigate();
   const onUsersPage = location.pathname.startsWith('/dashboard/admin/users');
+  const activeEntityKey = activeKey === UNPROCESSED_APPLICANTS_KEY ? 'candidates' : activeKey;
   const showUsers = role === 'administrator' || role === 'manager';
   const sizeClass = isCollapsed ? 'p-2 justify-center' : 'px-3 py-2.5 justify-start';
 
@@ -173,7 +175,7 @@ export default function Sidebar({
 
         {/* Entity items */}
         {RECORD_ENTITY_ITEMS.map((entity) => {
-          const selected = entity.key === activeKey && activeKey !== 'users' && !onUsersPage;
+          const selected = entity.key === activeEntityKey && activeKey !== 'users' && !onUsersPage;
           const icon = ENTITY_ICONS[entity.key];
           return (
             <button

@@ -102,7 +102,7 @@ if (process.argv.includes('--verify')) {
     console.error(`RESULT: FAIL -- ${path.relative(repoRoot, outPath)} does not exist. Run the export first.`);
     process.exit(1);
   }
-  const committed = readFileSync(outPath, 'utf8');
+  const committed = readFileSync(outPath, 'utf8').replace(/\r\n/g, '\n');
   if (committed === body) {
     console.log(`RESULT: PASS -- snapshot matches the migration chain (tip ${snapshot.generatedFrom.lastMigration})`);
     process.exit(0);

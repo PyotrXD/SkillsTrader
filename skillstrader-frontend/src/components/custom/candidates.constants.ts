@@ -1,5 +1,8 @@
+export const UNPROCESSED_APPLICANTS_KEY = "unprocessed_applicants";
+export const NEW_APPLICANT_STATUS = "New Applicant";
+
 export const candidateStatuses = [
-  "New Applicant",
+  NEW_APPLICANT_STATUS,
   "Lined-Up",
   "For final interview",
   "For medical",

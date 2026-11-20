@@ -51,7 +51,11 @@ import {
 import CandidateFormFields from "./CandidateFormFields";
 import type { CandidateFormTab } from "./CandidateFormFields";
 
-export default function Candidates() {
+type Props = {
+  initialStatusFilter?: (typeof candidateStatuses)[number];
+};
+
+export default function Candidates({ initialStatusFilter }: Props) {
   // Async saves may finish after their dialog is closed. Only the form session
   // that started a save may receive its progress, errors, or completion state.
   const formSession = useRef(0);
@@ -78,7 +82,7 @@ export default function Candidates() {
     "success",
   );
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState(initialStatusFilter ?? "");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [quickFilter, setQuickFilter] = useState("");
@@ -311,7 +315,7 @@ export default function Candidates() {
     });
   }
 
-  async function fetchCandidatePage(targetPage: number) {
+  async function fetchCandidatePage(targetPage: number, isCurrent: () => boolean) {
     if (!pb.authStore.isValid) return;
     setIsListLoading(true);
     try {
@@ -323,7 +327,9 @@ export default function Candidates() {
           requestKey: null,
         });
 
+      if (!isCurrent()) return;
       let mapped = await mapCandidateRecords(result.items);
+      if (!isCurrent()) return;
 
       if (quickFilter === "missing-docs") {
         mapped = mapped.filter((c) =>
@@ -344,13 +350,14 @@ export default function Candidates() {
       setListError("");
       if (result.page !== targetPage) setPage(result.page);
     } catch (err) {
+      if (!isCurrent()) return;
       console.error("Failed to fetch candidates:", err);
       setPagedCandidates([]);
       setTotalPages(1);
       setListError(err instanceof Error && err.message.startsWith("Could not load ")
         ? err.message : "Could not load candidates.");
     } finally {
-      setIsListLoading(false);
+      if (isCurrent()) setIsListLoading(false);
     }
   }
 
@@ -379,9 +386,13 @@ export default function Candidates() {
 
   useEffect(() => {
     if (!pb.authStore.isValid) return;
-    void fetchCandidatePage(page);
+    let current = true;
+    void fetchCandidatePage(page, () => current);
     // Fetch positions for dropdown
     fetchPositions();
+    return () => {
+      current = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     page,

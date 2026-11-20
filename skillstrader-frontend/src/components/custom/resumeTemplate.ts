@@ -73,7 +73,6 @@ export function generateResumeHtml(candidate: ResumeCandidate, imgSrc: string): 
   const name = fullName();
   const email = text(candidate.email, "");
   const phone = text(candidate.phone, "");
-  const applicantId = text(candidate.id, "N/A");
   const address = text(
     candidate.home_address || candidate.permanent_address || candidate.address,
   );
@@ -191,12 +190,6 @@ export function generateResumeHtml(candidate: ResumeCandidate, imgSrc: string): 
             align-items: start;
             min-height: 150px;
             margin-bottom: 26px;
-          }
-
-          .candidate-id {
-            margin-top: 24px;
-            font-size: 25px;
-            letter-spacing: 0.02em;
           }
 
           .candidate-name {
@@ -435,7 +428,6 @@ export function generateResumeHtml(candidate: ResumeCandidate, imgSrc: string): 
           <img class="resume-watermark" src="${escapeHtml(watermarkLogo)}" alt="" aria-hidden="true" />
           <header class="header">
             <div>
-              <div class="candidate-id">${applicantId}</div>
               <div class="candidate-name">${name}</div>
               <div class="candidate-email">${email || "N/A"}</div>
               <div class="candidate-phone">${phone ? `Contact No: ${phone}` : ""}</div>

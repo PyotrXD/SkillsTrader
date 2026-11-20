@@ -67,6 +67,13 @@ describe("the print document's page geometry", () => {
   });
 });
 
+it("starts the printed resume header with the candidate name and omits the record ID", () => {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+
+  expect(doc.querySelector("header > div > :first-child")?.textContent).toBe("Sample Candidate");
+  expect(doc.body.textContent).not.toContain("sample000000000");
+});
+
 describe("printed resume age", () => {
   beforeEach(() => {
     vi.useFakeTimers();
